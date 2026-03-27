@@ -44,12 +44,11 @@ export default function CustomerPage() {
     } catch { router.push('/login') }
   }, [router])
 
-  // İşletmeler
+  // İşletmeler — user'dan bağımsız, sayfa açılır açılmaz yükle
   useEffect(() => {
-    if (!user) return
     supabase.from('businesses').select('*').eq('status','active').order('rating',{ascending:false})
       .then(({ data }) => { setBusinesses(data||[]); setLoading(false) })
-  }, [user])
+  }, [])
 
   // Randevular
   useEffect(() => {
