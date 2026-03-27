@@ -59,7 +59,7 @@ export default function BusinessPage() {
     try {
       const [ar, sr, svr] = await Promise.all([
         supabase.from('appointments')
-          .select('id, appointment_date, appointment_time, status, price, profiles(full_name,email), services(name,price), staff(name)')
+          .select('id, profile_id, service_id, staff_id, appointment_date, appointment_time, status, price, profiles(full_name,email), services(name,price), staff(name)')
           .eq('business_id', bId)
           .order('appointment_date', { ascending: false }),
         supabase.from('staff').select('*').eq('business_id', bId),
