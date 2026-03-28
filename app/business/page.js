@@ -105,14 +105,38 @@ export default function BusinessPage() {
     await supabase.from('appointments').update({status:'confirmed'}).eq('id',id)
     setAppts(p=>p.map(a=>a.id===id?{...a,status:'confirmed'}:a))
     toast3('✅ Randevu onaylandı')
-    // Bildirim mark as read
     const n = notifications.find(n=>n.message?.includes(id))
     if(n) await supabase.from('notifications').update({read:true}).eq('id',n.id)
+    // Email gönder
+    const appt = appts.find(a=>a.id===id)
+    if(appt?.profiles?.email) {
+      fetch('/api/email',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({type:'booking_confirmed',to:appt.profiles.email,data:{
+          businessName:bizInfo?.name,serviceName:appt.services?.name||'Hizmet',
+          date:new Date(appt.appointment_date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'}),
+          time:String(appt.appointment_time).slice(0,5)
+        }})}).catch(()=>{})
+    }
   }
   async function cancelAppt(id) {
     await supabase.from('appointments').update({status:'cancelled'}).eq('id',id)
     setAppts(p=>p.map(a=>a.id===id?{...a,status:'cancelled'}:a))
     toast3('Randevu iptal edildi')
+    // Email gönder
+    const appt = appts.find(a=>a.id===id)
+    if(appt?.profiles?.email) {
+      fetch('/api/email',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({type:'booking_cancelled',to:appt.profiles.email,data:{
+          businessName:bizInfo?.name,
+          date:new Date(appt.appointment_date).toLocaleDateString('tr-TR'),
+          time:String(appt.appointment_time).slice(0,5)
+        }})}).catch(()=>{})
+    }
+  }
+  async function completeAppt(id) {
+    await supabase.from('appointments').update({status:'completed'}).eq('id',id)
+    setAppts(p=>p.map(a=>a.id===id?{...a,status:'completed'}:a))
+    toast3('✅ Randevu tamamlandı olarak işaretlendi')
   }
   async function markAllRead() {
     await supabase.from('notifications').update({read:true}).eq('business_id',bizId)
@@ -158,6 +182,22 @@ export default function BusinessPage() {
   const svcDist = services.map((s,i)=>({...s,cnt:appts.filter(a=>a.service_id===s.id).length,color:COLORS[i%COLORS.length]})).sort((a,b)=>b.cnt-a.cnt)
   const maxCnt = Math.max(...svcDist.map(s=>s.cnt),1)
   const unreadCount = notifications.filter(n=>!n.read).length
+  // Aylık gelir (son 6 ay)
+  const MONTHS_TR=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara']
+  const now = new Date()
+  const monthlyData = Array.from({length:6},(_,i)=>{
+    const d=new Date(now.getFullYear(),now.getMonth()-5+i,1)
+    const [y,m]=[d.getFullYear(),d.getMonth()]
+    const ma=appts.filter(a=>{ const ad=new Date(a.appointment_date); return ad.getFullYear()===y&&ad.getMonth()===m&&a.status!=='cancelled' })
+    return {label:MONTHS_TR[m],revenue:ma.reduce((s,a)=>s+(a.price||0),0),count:ma.length}
+  })
+  const maxRev=Math.max(...monthlyData.map(m=>m.revenue),1)
+  // Saatlik dağılım
+  const hourlyData=Array.from({length:9},(_,i)=>{
+    const h=9+i
+    return {hour:`${String(h).padStart(2,'0')}:00`,count:appts.filter(a=>parseInt(String(a.appointment_time).slice(0,2))===h).length}
+  })
+  const maxHour=Math.max(...hourlyData.map(h=>h.count),1)
 
   // Filtreli randevular
   const filteredAppts = appts.filter(a => {
@@ -516,7 +556,8 @@ export default function BusinessPage() {
                               <td className="px-4 py-3"><Bdg s={a.status} /></td>
                               <td className="px-4 py-3">
                                 <div className="flex gap-1">
-                                  {a.status==='pending'&&<button onClick={()=>confirmAppt(a.id)} className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-lg">✓</button>}
+                                  {a.status==='pending'&&<button onClick={()=>confirmAppt(a.id)} className="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-lg font-semibold">✓ Onayla</button>}
+                                  {a.status==='confirmed'&&<button onClick={()=>completeAppt(a.id)} className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded-lg font-semibold">✓ Tam.</button>}
                                   {['pending','confirmed'].includes(a.status)&&<button onClick={()=>cancelAppt(a.id)} className="text-xs bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 px-2 py-1 rounded-lg">✗</button>}
                                 </div>
                               </td>
@@ -643,36 +684,79 @@ export default function BusinessPage() {
               {view==='reports' && (
                 <div>
                   <h1 className="text-xl font-bold mb-5">Raporlar</h1>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-                    <KPI label="Gelir" value={`₺${revenue.toLocaleString()}`} sub="↑ %18" color="orange" />
-                    <KPI label="Randevu" value={appts.length} sub="↑ %12" color="green" />
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <KPI label="Toplam Gelir" value={`₺${revenue.toLocaleString()}`} sub={`${appts.filter(a=>a.status==='confirmed').length} onaylı`} color="orange" />
+                    <KPI label="Randevu" value={appts.length} sub={`${appts.filter(a=>a.status==='pending').length} bekliyor`} color="green" />
                     <KPI label="Tamamlanan" value={appts.filter(a=>a.status==='completed').length} color="blue" />
                     <KPI label="İptal Oranı" value={`%${appts.length?Math.round(appts.filter(a=>a.status==='cancelled').length/appts.length*100):0}`} color="red" />
                   </div>
+                  {/* Grafikler */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                    {/* Aylık Gelir */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                      <div className="flex items-center justify-between mb-5">
+                        <div className="font-bold text-sm">📈 Aylık Gelir</div>
+                        <div className="text-xs text-gray-400">Son 6 ay</div>
+                      </div>
+                      {monthlyData.map((m,i)=>(
+                        <div key={i} className="flex items-center gap-3 mb-3 last:mb-0">
+                          <div className="w-8 text-xs text-gray-500 flex-shrink-0 font-semibold">{m.label}</div>
+                          <div className="flex-1 h-7 bg-gray-100 rounded-lg overflow-hidden relative">
+                            <div className="h-full rounded-lg bg-gradient-to-r from-orange-400 to-orange-500 transition-all flex items-center"
+                              style={{width:`${maxRev>0?Math.max(m.revenue/maxRev*100,m.revenue>0?4:0):0}%`}}>
+                              {m.revenue>0&&<span className="text-white text-xs font-bold px-2 truncate">{m.count} rdv</span>}
+                            </div>
+                          </div>
+                          <div className="w-20 text-xs font-bold text-right text-gray-700">₺{m.revenue.toLocaleString()}</div>
+                        </div>
+                      ))}
+                      {monthlyData.every(m=>m.revenue===0)&&<div className="text-gray-400 text-sm text-center py-4">Henüz gelir verisi yok</div>}
+                    </div>
+                    {/* Saatlik Dağılım */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                      <div className="flex items-center justify-between mb-5">
+                        <div className="font-bold text-sm">⏰ En Yoğun Saatler</div>
+                        <div className="text-xs text-gray-400">Toplam {appts.length} randevu</div>
+                      </div>
+                      {hourlyData.map((h,i)=>(
+                        <div key={i} className="flex items-center gap-3 mb-2.5 last:mb-0">
+                          <div className="w-12 text-xs text-gray-500 flex-shrink-0 font-semibold">{h.hour}</div>
+                          <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all"
+                              style={{width:`${maxHour>0?Math.max(h.count/maxHour*100,h.count>0?4:0):0}%`,
+                              background:h.count===Math.max(...hourlyData.map(x=>x.count))?'#f97316':'#60a5fa'}} />
+                          </div>
+                          <div className="w-6 text-xs font-bold text-right text-gray-700">{h.count}</div>
+                        </div>
+                      ))}
+                      {appts.length===0&&<div className="text-gray-400 text-sm text-center py-4">Henüz randevu yok</div>}
+                    </div>
+                  </div>
+                  {/* Alt istatistikler */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                       <div className="font-bold text-sm mb-4">Hizmet Dağılımı</div>
+                      {svcDist.length===0&&<div className="text-gray-400 text-sm">Veri yok</div>}
                       {svcDist.map(s=>(
                         <div key={s.id} className="mb-3">
-                          <div className="flex justify-between text-sm mb-1.5"><span>{s.name}</span><span className="font-bold">{maxCnt?Math.round(s.cnt/maxCnt*100):0}%</span></div>
+                          <div className="flex justify-between text-sm mb-1.5"><span>{s.name}</span><span className="font-bold">{s.cnt} randevu</span></div>
                           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                            <div className="h-full rounded-full" style={{width:`${maxCnt?s.cnt/maxCnt*100:0}%`,background:s.color}} />
+                            <div className="h-full rounded-full transition-all" style={{width:`${maxCnt?s.cnt/maxCnt*100:0}%`,background:s.color}} />
                           </div>
                         </div>
                       ))}
-                      {svcDist.length===0&&<div className="text-gray-400 text-sm">Veri yok</div>}
                     </div>
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                      <div className="font-bold text-sm mb-4">Personel Sıralaması</div>
+                      <div className="font-bold text-sm mb-4">🏆 Personel Sıralaması</div>
+                      {staff.length===0&&<div className="text-gray-400 text-sm">Personel yok</div>}
                       {[...staff].sort((a,b)=>(b.appointment_count||0)-(a.appointment_count||0)).map((s,i)=>(
                         <div key={s.id} className="flex items-center gap-3 py-2.5 border-b border-gray-100 last:border-0">
                           <span className="text-lg">{['🥇','🥈','🥉'][i]||'🎖️'}</span>
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{background:COLORS[i%COLORS.length]}}>{s.name[0]}</div>
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{background:COLORS[i%COLORS.length]}}>{s.name[0]}</div>
                           <div className="flex-1"><div className="font-semibold text-sm">{s.name}</div><div className="text-xs text-gray-500">{s.appointment_count||0} randevu</div></div>
                           <div className="font-bold text-amber-500">★ {s.rating}</div>
                         </div>
                       ))}
-                      {staff.length===0&&<div className="text-gray-400 text-sm">Personel yok</div>}
                     </div>
                   </div>
                 </div>

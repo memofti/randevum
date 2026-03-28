@@ -32,6 +32,8 @@ export default function CustomerPage() {
   const [bookModal, setBookModal] = useState(false)
   const [bookForm, setBookForm] = useState({ service:'', staff:'', date:'', time:'10:00' })
   const [booking, setBooking] = useState(false)
+  const [payStep, setPayStep] = useState(false)
+  const [payCard, setPayCard] = useState({ name:'', number:'', expire:'', cvv:'' })
 
   const toast3 = (m) => { setToast(m); setTimeout(() => setToast(''), 3500) }
 
@@ -98,9 +100,20 @@ export default function CustomerPage() {
         status: 'pending',
         price: svc?.price || 0,
       })
+      // Email gönder (arka planda)
+      if (user.email) {
+        const dateStr = new Date(bookForm.date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})
+        fetch('/api/email',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({type:'new_booking',to:user.email,data:{
+            businessName:detailBiz.name,customerName:user.name,
+            serviceName:svc?.name||'Hizmet',date:dateStr,time:bookForm.time,price:svc?.price||0
+          }})}).catch(()=>{})
+      }
       setBookModal(false)
       setDetailBiz(null)
       setBookForm({ service:'', staff:'', date:'', time:'10:00' })
+      setPayStep(false)
+      setPayCard({ name:'', number:'', expire:'', cvv:'' })
       toast3('✅ Randevu talebiniz alındı! Onay bekleniyor.')
     } catch (e) {
       toast3('❌ ' + e.message)
@@ -207,52 +220,129 @@ export default function CustomerPage() {
       {/* Randevu Al Modal */}
       {bookModal && detailBiz && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4"
-          onClick={e => e.target===e.currentTarget && setBookModal(false)}>
+          onClick={e => e.target===e.currentTarget && (setBookModal(false), setPayStep(false))}>
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+            {/* Header */}
             <div className="p-5 border-b border-gray-100 flex justify-between items-center">
-              <div><div className="font-bold">Randevu Al</div><div className="text-xs text-gray-500">{detailBiz.name}</div></div>
-              <button onClick={() => setBookModal(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 text-lg">✕</button>
-            </div>
-            <div className="p-5 space-y-3">
               <div>
-                <label className="text-xs font-bold block mb-1">Hizmet *</label>
-                <select className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
-                  value={bookForm.service} onChange={e => setBookForm(p=>({...p,service:e.target.value}))}>
-                  <option value="">Hizmet seçin</option>
-                  {bizServices.map(s => <option key={s.id} value={s.id}>{s.name} — ₺{s.price} ({s.duration_min} dk)</option>)}
-                </select>
+                <div className="font-bold">{payStep ? '💳 Ödeme' : 'Randevu Al'}</div>
+                <div className="text-xs text-gray-500">{detailBiz.name}</div>
               </div>
-              <div>
-                <label className="text-xs font-bold block mb-1">Personel</label>
-                <select className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
-                  value={bookForm.staff} onChange={e => setBookForm(p=>({...p,staff:e.target.value}))}>
-                  <option value="">Fark etmez</option>
-                  {bizStaff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs font-bold block mb-1">Tarih *</label>
-                  <input type="date" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
-                    min={new Date().toISOString().split('T')[0]}
-                    value={bookForm.date} onChange={e => setBookForm(p=>({...p,date:e.target.value}))} />
+              <div className="flex items-center gap-3">
+                {/* Adım göstergesi */}
+                <div className="flex items-center gap-1.5">
+                  <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">1</div>
+                  <div className="h-px w-4 bg-gray-200" />
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${payStep?'bg-orange-500 text-white':'bg-gray-200 text-gray-500'}`}>2</div>
                 </div>
-                <div>
-                  <label className="text-xs font-bold block mb-1">Saat</label>
-                  <select className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
-                    value={bookForm.time} onChange={e => setBookForm(p=>({...p,time:e.target.value}))}>
-                    {['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'].map(t=><option key={t}>{t}</option>)}
-                  </select>
-                </div>
+                <button onClick={() => { setBookModal(false); setPayStep(false) }} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 text-lg">✕</button>
               </div>
             </div>
-            <div className="px-5 pb-5 flex gap-2">
-              <button onClick={() => setBookModal(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
-              <button onClick={bookAppt} disabled={booking}
-                className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold transition-colors">
-                {booking ? 'Kaydediliyor...' : 'Onayla'}
-              </button>
-            </div>
+            {!payStep ? (
+              <>
+                <div className="p-5 space-y-3">
+                  <div>
+                    <label className="text-xs font-bold block mb-1">Hizmet *</label>
+                    <select className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
+                      value={bookForm.service} onChange={e => setBookForm(p=>({...p,service:e.target.value}))}>
+                      <option value="">Hizmet seçin</option>
+                      {bizServices.map(s => <option key={s.id} value={s.id}>{s.name} — ₺{s.price} ({s.duration_min} dk)</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold block mb-1">Personel</label>
+                    <select className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
+                      value={bookForm.staff} onChange={e => setBookForm(p=>({...p,staff:e.target.value}))}>
+                      <option value="">Fark etmez</option>
+                      {bizStaff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-bold block mb-1">Tarih *</label>
+                      <input type="date" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
+                        min={new Date().toISOString().split('T')[0]}
+                        value={bookForm.date} onChange={e => setBookForm(p=>({...p,date:e.target.value}))} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold block mb-1">Saat</label>
+                      <select className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
+                        value={bookForm.time} onChange={e => setBookForm(p=>({...p,time:e.target.value}))}>
+                        {['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'].map(t=><option key={t}>{t}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="px-5 pb-5 flex gap-2">
+                  <button onClick={() => setBookModal(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
+                  <button onClick={() => {
+                    if (!bookForm.service || !bookForm.date) { toast3('❌ Hizmet ve tarih seçin'); return }
+                    setPayStep(true)
+                  }} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold transition-colors">
+                    Devam → Ödeme
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Ödeme adımı */}
+                <div className="p-5">
+                  {/* Özet kart */}
+                  {(() => {
+                    const svc = bizServices.find(s=>s.id===bookForm.service)
+                    return (
+                      <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-4">
+                        <div className="text-xs font-bold text-orange-700 mb-2">ÖZET</div>
+                        <div className="space-y-1.5 text-sm">
+                          <div className="flex justify-between"><span className="text-gray-600">Hizmet</span><span className="font-semibold">{svc?.name}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-600">Tarih</span><span className="font-semibold">{new Date(bookForm.date).toLocaleDateString('tr-TR',{day:'numeric',month:'long'})}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-600">Saat</span><span className="font-semibold">{bookForm.time}</span></div>
+                          <div className="flex justify-between border-t border-orange-200 pt-1.5 mt-1.5"><span className="font-bold">Toplam</span><span className="font-bold text-orange-600 text-base">₺{svc?.price||0}</span></div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                  {/* Mock kart formu */}
+                  <div className="space-y-2.5">
+                    <div>
+                      <label className="text-xs font-bold block mb-1">Kart Üzerindeki İsim</label>
+                      <input placeholder="AD SOYAD" value={payCard.name} onChange={e=>setPayCard(p=>({...p,name:e.target.value}))}
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 uppercase tracking-wide" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold block mb-1">Kart Numarası</label>
+                      <input placeholder="1234 5678 9012 3456" maxLength={19} value={payCard.number}
+                        onChange={e=>setPayCard(p=>({...p,number:e.target.value.replace(/\D/g,'').replace(/(\d{4})/g,'$1 ').trim()}))}
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-mono tracking-widest" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="text-xs font-bold block mb-1">Son Kullanma</label>
+                        <input placeholder="MM/YY" maxLength={5} value={payCard.expire}
+                          onChange={e=>setPayCard(p=>({...p,expire:e.target.value.replace(/\D/g,'').replace(/(\d{2})/,'$1/').slice(0,5)}))}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-mono" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold block mb-1">CVV</label>
+                        <input placeholder="123" maxLength={3} type="password" value={payCard.cvv}
+                          onChange={e=>setPayCard(p=>({...p,cvv:e.target.value.replace(/\D/g,'').slice(0,3)}))}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 font-mono" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-3 text-xs text-gray-400">
+                    <span>🔒</span> Güvenli ödeme · 256-bit SSL korumalı
+                  </div>
+                </div>
+                <div className="px-5 pb-5 flex gap-2">
+                  <button onClick={() => setPayStep(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">← Geri</button>
+                  <button onClick={bookAppt} disabled={booking}
+                    className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold transition-colors">
+                    {booking ? 'Kaydediliyor...' : '💳 Ödemeyi Tamamla'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -329,7 +419,7 @@ export default function CustomerPage() {
                     className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group">
                     <div className="h-28 flex items-center justify-center text-5xl relative" style={{ background:`${COLORS[i%COLORS.length]}15` }}>
                       {b.emoji||'🏢'}
-                      <div className="absolute top-2 right-2"><span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">● Müsait</span></div>
+                      <div className="absolute top-2 right-2"><span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">● Müssait</span></div>
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                         <span className="bg-white/90 text-sm font-bold px-3 py-1.5 rounded-full shadow-md">Detay Gör →</span>
                       </div>
@@ -345,10 +435,19 @@ export default function CustomerPage() {
                       </div>
                       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                         <div className="text-sm text-gray-500">den <b className="text-gray-900">₺{b.price_from}</b></div>
-                        <button onClick={e => { e.stopPropagation(); openDetail(b) }}
-                          className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
-                          Randevu Al
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          {(b.address||b.city) && (
+                            <a href={`https://maps.google.com/?q=${encodeURIComponent((b.address||'')+' '+(b.city||''))}`} target="_blank" rel="noopener noreferrer"
+                              onClick={e=>e.stopPropagation()}
+                              className="text-xs text-gray-400 hover:text-orange-500 px-2 py-1.5 rounded-lg hover:bg-orange-50 transition-colors font-medium">
+                              📍 Harita
+                            </a>
+                          )}
+                          <button onClick={e => { e.stopPropagation(); openDetail(b) }}
+                            className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+                            Randevu Al
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
