@@ -275,7 +275,7 @@ export default function CustomerPage() {
           <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-xs font-bold text-white border-2 border-white/20">
             {user.name?.[0]||'?'}
           </div>
-          <button onClick={() => { localStorage.removeItem('randevu_user'); router.push('/login') }}
+          <button onClick={async () => { await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); router.push('/login') }}
             className="text-white/40 hover:text-white/70 text-xs transition-colors hidden sm:block">Çıkış</button>
         </div>
       </nav>
@@ -457,7 +457,7 @@ export default function CustomerPage() {
                     </div>
                   ))}
                 </div>
-                <button onClick={() => { localStorage.removeItem('randevu_user'); router.push('/login') }}
+                <button onClick={async () => { await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); router.push('/login') }}
                   className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold rounded-xl transition-colors">
                   🚪 Çıkış Yap
                 </button>

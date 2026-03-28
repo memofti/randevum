@@ -83,8 +83,22 @@ export default function BusinessPage() {
 
   useEffect(() => {
     if (!user) return
-    supabase.from('businesses').select('*').eq('name','Aura Beauty Lounge').maybeSingle()
-      .then(({data:b}) => { if(b){ setBizId(b.id); setBizInfo(b); loadAll(b.id) } else setLoading(false) })
+    // Önce owner_id ile ara (gerçek kullanıcılar), bulamazsan email ile eşleştir (demo)
+    const findBusiness = async () => {
+      // owner_id sütunu varsa kullan
+      let { data: b } = await supabase.from('businesses').select('*').eq('owner_id', user.id).eq('status','active').maybeSingle()
+      if (!b) {
+        // Demo fallback: email'e göre eşleştir
+        const emailBizMap = { 'selin@email.com': 'Aura Beauty Lounge' }
+        const bizName = emailBizMap[user.email]
+        if (bizName) {
+          const res = await supabase.from('businesses').select('*').eq('name', bizName).maybeSingle()
+          b = res.data
+        }
+      }
+      if (b) { setBizId(b.id); setBizInfo(b); loadAll(b.id) } else setLoading(false)
+    }
+    findBusiness()
   }, [user, loadAll])
 
   async function confirmAppt(id) {
@@ -277,7 +291,7 @@ export default function BusinessPage() {
             <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center text-xs font-bold text-white">{user.name?.[0]||'S'}</div>
             <div className="flex-1 min-w-0"><div className="text-xs font-semibold text-white/85 truncate">{user.name}</div><div className="text-xs text-white/30">Firma Sahibi</div></div>
           </div>
-          <button onClick={()=>{localStorage.removeItem('randevu_user');router.push('/login')}} className="w-full mt-2 text-xs text-white/30 hover:text-white/60 transition-colors text-center py-1">Çıkış Yap</button>
+          <button onClick={async()=>{await supabase.auth.signOut();localStorage.removeItem('randevu_user');router.push('/login')}} className="w-full mt-2 text-xs text-white/30 hover:text-white/60 transition-colors text-center py-1">Çıkış Yap</button>
         </div>
       </div>
 
