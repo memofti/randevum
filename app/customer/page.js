@@ -1,7 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import dynamic from 'next/dynamic'
+
+const MapView = dynamic(() => import('@/app/components/MapView'), { ssr: false })
 
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
 
@@ -353,7 +356,7 @@ export default function CustomerPage() {
           <div className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center text-sm">📅</div>
           <span className="text-white font-bold text-sm hidden sm:block">RandevuApp</span>
         </div>
-        {[['home','🏠','Keşfet'],['appts','📅','Randevularım'],['profile','👤','Profilim']].map(([k,ic,l]) => (
+        {[['home','🏠','Keşfet'],['map','🗺️','Harita'],['appts','📅','Randevularım'],['profile','👤','Profilim']].map(([k,ic,l]) => (
           <button key={k} onClick={() => { setLoading(true); setTab(k) }}
             className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all relative ${tab===k?'bg-white/20 text-white':'text-white/50 hover:text-white hover:bg-white/10'}`}>
             <span className="sm:hidden">{ic}</span>
@@ -456,6 +459,32 @@ export default function CustomerPage() {
             )}
           </div>
         </>
+      )}
+
+      {/* HARİTA */}
+      {tab === 'map' && (
+        <MapView
+          businesses={businesses}
+          onBook={(biz) => {
+            setDetailBiz(biz)
+            setTab('home')
+            // Kısa gecikme ile modal aç
+            setTimeout(() => {
+              setBizServices([])
+              setBizStaff([])
+              setDetailLoading(true)
+              Promise.all([
+                supabase.from('services').select('*').eq('business_id', biz.id).eq('status', 'active'),
+                supabase.from('staff').select('*').eq('business_id', biz.id).eq('status', 'available')
+              ]).then(([{ data: svcs }, { data: stf }]) => {
+                setBizServices(svcs || [])
+                setBizStaff(stf || [])
+                setDetailLoading(false)
+                setBookModal(true)
+              })
+            }, 100)
+          }}
+        />
       )}
 
       {/* RANDEVULARIM */}

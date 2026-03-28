@@ -51,6 +51,18 @@ export default function BusinessPage() {
   const [selectedDay, setSelectedDay] = useState(null)
   // Form
   const [form, setForm] = useState({cname:'',cemail:'',service:'',staff:'',date:'',time:'10:00'})
+  // Staff CRUD
+  const [staffModal, setStaffModal] = useState(false) // false | 'add' | staffObj
+  const [staffForm, setStaffForm] = useState({name:'',speciality:'',phone:'',status:'available',rating:5.0})
+  const [staffSaving, setStaffSaving] = useState(false)
+  // Service CRUD
+  const [svcModal, setSvcModal] = useState(false) // false | 'add' | svcObj
+  const [svcForm, setSvcForm] = useState({name:'',duration_min:60,price:0,status:'active',description:''})
+  const [svcSaving, setSvcSaving] = useState(false)
+  // Biz Info Edit
+  const [bizModal, setBizModal] = useState(false)
+  const [bizForm, setBizForm] = useState({})
+  const [bizSaving, setBizSaving] = useState(false)
 
   const toast3 = (m) => { setToast(m); setTimeout(()=>setToast(''),3500) }
   const f = (k,v) => setForm(p=>({...p,[k]:v}))
@@ -137,6 +149,93 @@ export default function BusinessPage() {
     await supabase.from('appointments').update({status:'completed'}).eq('id',id)
     setAppts(p=>p.map(a=>a.id===id?{...a,status:'completed'}:a))
     toast3('✅ Randevu tamamlandı olarak işaretlendi')
+  }
+
+  // --- Personel CRUD ---
+  async function saveStaff() {
+    if (!staffForm.name.trim()) { toast3('❌ İsim zorunlu'); return }
+    setStaffSaving(true)
+    try {
+      if (staffModal === 'add') {
+        const { data, error } = await supabase.from('staff').insert({ ...staffForm, business_id: bizId, appointment_count: 0 }).select().maybeSingle()
+        if (error) throw error
+        setStaff(p => [...p, data])
+        toast3('✅ Personel eklendi')
+      } else {
+        const { error } = await supabase.from('staff').update({ name: staffForm.name, speciality: staffForm.speciality, phone: staffForm.phone, status: staffForm.status, rating: staffForm.rating }).eq('id', staffModal.id)
+        if (error) throw error
+        setStaff(p => p.map(s => s.id === staffModal.id ? { ...s, ...staffForm } : s))
+        toast3('✅ Personel güncellendi')
+      }
+      setStaffModal(false)
+      setStaffForm({ name: '', speciality: '', phone: '', status: 'available', rating: 5.0 })
+    } catch(e) { toast3('❌ ' + e.message) }
+    finally { setStaffSaving(false) }
+  }
+  async function deleteStaff(id, name) {
+    if (!confirm(`${name} silinsin mi?`)) return
+    await supabase.from('staff').delete().eq('id', id)
+    setStaff(p => p.filter(s => s.id !== id))
+    setStaffModal(false)
+    toast3('🗑️ Personel silindi')
+  }
+  function openStaffAdd() {
+    setStaffForm({ name: '', speciality: '', phone: '', status: 'available', rating: 5.0 })
+    setStaffModal('add')
+  }
+  function openStaffEdit(s) {
+    setStaffForm({ name: s.name, speciality: s.speciality || '', phone: s.phone || '', status: s.status || 'available', rating: s.rating || 5.0 })
+    setStaffModal(s)
+  }
+
+  // --- Hizmet CRUD ---
+  async function saveSvc() {
+    if (!svcForm.name.trim()) { toast3('❌ İsim zorunlu'); return }
+    setSvcSaving(true)
+    try {
+      if (svcModal === 'add') {
+        const { data, error } = await supabase.from('services').insert({ ...svcForm, business_id: bizId, price: +svcForm.price, duration_min: +svcForm.duration_min }).select().maybeSingle()
+        if (error) throw error
+        setSvcs(p => [...p, data])
+        toast3('✅ Hizmet eklendi')
+      } else {
+        const { error } = await supabase.from('services').update({ name: svcForm.name, duration_min: +svcForm.duration_min, price: +svcForm.price, status: svcForm.status, description: svcForm.description }).eq('id', svcModal.id)
+        if (error) throw error
+        setSvcs(p => p.map(s => s.id === svcModal.id ? { ...s, ...svcForm, price: +svcForm.price, duration_min: +svcForm.duration_min } : s))
+        toast3('✅ Hizmet güncellendi')
+      }
+      setSvcModal(false)
+      setSvcForm({ name: '', duration_min: 60, price: 0, status: 'active', description: '' })
+    } catch(e) { toast3('❌ ' + e.message) }
+    finally { setSvcSaving(false) }
+  }
+  async function deleteSvc(id, name) {
+    if (!confirm(`${name} silinsin mi?`)) return
+    await supabase.from('services').delete().eq('id', id)
+    setSvcs(p => p.filter(s => s.id !== id))
+    setSvcModal(false)
+    toast3('🗑️ Hizmet silindi')
+  }
+  function openSvcAdd() {
+    setSvcForm({ name: '', duration_min: 60, price: 0, status: 'active', description: '' })
+    setSvcModal('add')
+  }
+  function openSvcEdit(s) {
+    setSvcForm({ name: s.name, duration_min: s.duration_min, price: s.price, status: s.status || 'active', description: s.description || '' })
+    setSvcModal(s)
+  }
+
+  // --- Firma Bilgileri Düzenle ---
+  async function saveBizInfo() {
+    setBizSaving(true)
+    try {
+      const { error } = await supabase.from('businesses').update({ name: bizForm.name, category: bizForm.category, city: bizForm.city, phone: bizForm.phone, address: bizForm.address, price_from: +bizForm.price_from }).eq('id', bizId)
+      if (error) throw error
+      setBizInfo(p => ({ ...p, ...bizForm }))
+      setBizModal(false)
+      toast3('✅ Firma bilgileri güncellendi')
+    } catch(e) { toast3('❌ ' + e.message) }
+    finally { setBizSaving(false) }
   }
   async function markAllRead() {
     await supabase.from('notifications').update({read:true}).eq('business_id',bizId)
@@ -233,6 +332,111 @@ export default function BusinessPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
       {toast && <div className="fixed bottom-6 right-6 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-xl">{toast}</div>}
+
+      {/* PERSONEL MODAL */}
+      {staffModal&&(
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setStaffModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+              <div><div className="font-bold">{staffModal==='add'?'Personel Ekle':'Personel Düzenle'}</div></div>
+              <button onClick={()=>setStaffModal(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div><label className="text-xs font-bold block mb-1">Ad Soyad *</label>
+                <input value={staffForm.name} onChange={e=>setStaffForm(p=>({...p,name:e.target.value}))} placeholder="Örn: Ayşe Yılmaz" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+              <div><label className="text-xs font-bold block mb-1">Uzmanlık</label>
+                <input value={staffForm.speciality} onChange={e=>setStaffForm(p=>({...p,speciality:e.target.value}))} placeholder="Örn: Manikür, Saç Boyama" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+              <div><label className="text-xs font-bold block mb-1">Telefon</label>
+                <input value={staffForm.phone} onChange={e=>setStaffForm(p=>({...p,phone:e.target.value}))} placeholder="+90 555 000 00 00" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-bold block mb-1">Durum</label>
+                  <select value={staffForm.status} onChange={e=>setStaffForm(p=>({...p,status:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
+                    <option value="available">Müsait</option>
+                    <option value="busy">Meşgul</option>
+                    <option value="off">İzinli</option>
+                  </select></div>
+                <div><label className="text-xs font-bold block mb-1">Puan (1-5)</label>
+                  <input type="number" min="1" max="5" step="0.1" value={staffForm.rating} onChange={e=>setStaffForm(p=>({...p,rating:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              {staffModal!=='add'&&<button onClick={()=>deleteStaff(staffModal.id,staffModal.name)} className="px-3 py-2.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-xl text-xs font-bold">🗑️ Sil</button>}
+              <button onClick={()=>setStaffModal(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
+              <button onClick={saveStaff} disabled={staffSaving} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{staffSaving?'Kaydediliyor...':staffModal==='add'?'Ekle':'Güncelle'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HİZMET MODAL */}
+      {svcModal&&(
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setSvcModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+              <div><div className="font-bold">{svcModal==='add'?'Hizmet Ekle':'Hizmet Düzenle'}</div></div>
+              <button onClick={()=>setSvcModal(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div><label className="text-xs font-bold block mb-1">Hizmet Adı *</label>
+                <input value={svcForm.name} onChange={e=>setSvcForm(p=>({...p,name:e.target.value}))} placeholder="Örn: Klasik Manikür" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+              <div><label className="text-xs font-bold block mb-1">Açıklama</label>
+                <input value={svcForm.description} onChange={e=>setSvcForm(p=>({...p,description:e.target.value}))} placeholder="Kısa açıklama" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-bold block mb-1">Süre (dakika)</label>
+                  <input type="number" min="15" step="15" value={svcForm.duration_min} onChange={e=>setSvcForm(p=>({...p,duration_min:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                <div><label className="text-xs font-bold block mb-1">Fiyat (₺)</label>
+                  <input type="number" min="0" value={svcForm.price} onChange={e=>setSvcForm(p=>({...p,price:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+              </div>
+              <div><label className="text-xs font-bold block mb-1">Durum</label>
+                <select value={svcForm.status} onChange={e=>setSvcForm(p=>({...p,status:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
+                  <option value="active">Aktif</option>
+                  <option value="inactive">Pasif</option>
+                </select></div>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              {svcModal!=='add'&&<button onClick={()=>deleteSvc(svcModal.id,svcModal.name)} className="px-3 py-2.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-xl text-xs font-bold">🗑️ Sil</button>}
+              <button onClick={()=>setSvcModal(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
+              <button onClick={saveSvc} disabled={svcSaving} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{svcSaving?'Kaydediliyor...':svcModal==='add'?'Ekle':'Güncelle'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FİRMA BİLGİLERİ MODAL */}
+      {bizModal&&(
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setBizModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+              <div className="font-bold">Firma Bilgilerini Düzenle</div>
+              <button onClick={()=>setBizModal(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div><label className="text-xs font-bold block mb-1">Firma Adı</label>
+                <input value={bizForm.name||''} onChange={e=>setBizForm(p=>({...p,name:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-bold block mb-1">Kategori</label>
+                  <select value={bizForm.category||''} onChange={e=>setBizForm(p=>({...p,category:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
+                    {['Güzellik','Kuaför','Masaj','Fitness','Sağlık'].map(c=><option key={c}>{c}</option>)}
+                  </select></div>
+                <div><label className="text-xs font-bold block mb-1">Şehir</label>
+                  <input value={bizForm.city||''} onChange={e=>setBizForm(p=>({...p,city:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+              </div>
+              <div><label className="text-xs font-bold block mb-1">Adres</label>
+                <input value={bizForm.address||''} onChange={e=>setBizForm(p=>({...p,address:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs font-bold block mb-1">Telefon</label>
+                  <input value={bizForm.phone||''} onChange={e=>setBizForm(p=>({...p,phone:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                <div><label className="text-xs font-bold block mb-1">Başlangıç Fiyatı</label>
+                  <input type="number" value={bizForm.price_from||0} onChange={e=>setBizForm(p=>({...p,price_from:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button onClick={()=>setBizModal(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
+              <button onClick={saveBizInfo} disabled={bizSaving} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{bizSaving?'Kaydediliyor...':'Güncelle'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bildirim panel */}
       {notifOpen && (
@@ -576,18 +780,18 @@ export default function BusinessPage() {
               {view==='staff' && (
                 <div>
                   <div className="flex items-center justify-between mb-5">
-                    <h1 className="text-xl font-bold">Personel</h1>
-                    <button className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Personel Ekle</button>
+                    <div><h1 className="text-xl font-bold">Personel</h1><p className="text-gray-500 text-sm">{staff.length} personel</p></div>
+                    <button onClick={openStaffAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Personel Ekle</button>
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
                     <KPI label="Toplam" value={staff.length} color="blue" />
-                    <KPI label="Müsait" value={staff.filter(s=>s.status==='available').length} color="green" />
+                    <KPI label="Müssait" value={staff.filter(s=>s.status==='available').length} color="green" />
                     <KPI label="Meşgul" value={staff.filter(s=>s.status==='busy').length} color="orange" />
                     <KPI label="Ort. Puan" value={staff.length?(staff.reduce((s,x)=>s+(+x.rating||0),0)/staff.length).toFixed(1):'—'} color="purple" />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {staff.map((s,i)=>(
-                      <div key={s.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
+                      <div key={s.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={()=>openStaffEdit(s)}>
                         <div className="relative flex-shrink-0">
                           <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-extrabold text-white" style={{background:COLORS[i%COLORS.length]}}>{s.name[0]}</div>
                           <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${s.status==='available'?'bg-green-500':s.status==='busy'?'bg-amber-500':'bg-gray-400'}`} />
@@ -595,17 +799,20 @@ export default function BusinessPage() {
                         <div className="flex-1">
                           <div className="font-bold text-sm">{s.name}</div>
                           <div className="text-xs text-gray-500 mt-0.5">{s.speciality||'Genel'}</div>
+                          {s.phone&&<div className="text-xs text-gray-400 mt-0.5">{s.phone}</div>}
                         </div>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${s.status==='available'?'bg-green-50 text-green-700 border-green-200':'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                          {s.status==='available'?'Müsait':s.status==='busy'?'Meşgul':'İzinli'}
-                        </span>
                         <div className="text-right flex-shrink-0">
                           <div className="text-lg font-extrabold text-orange-500">{s.appointment_count||0}</div>
                           <div className="text-xs text-gray-400">randevu</div>
                           <div className="text-xs font-bold text-amber-500">★ {s.rating}</div>
                         </div>
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 text-sm">✏️</div>
                       </div>
                     ))}
+                    {staff.length===0&&<div className="col-span-2 text-center py-12 text-gray-400">Henüz personel eklenmemiş — <button onClick={openStaffAdd} className="text-orange-500 hover:underline">hemen ekle</button></div>}
+                  </div>
+                </div>
+              )}      ))}
                     {staff.length===0&&<div className="col-span-2 text-center py-12 text-gray-400">Henüz personel eklenmemiş</div>}
                   </div>
                 </div>
@@ -615,25 +822,29 @@ export default function BusinessPage() {
               {view==='services' && (
                 <div>
                   <div className="flex items-center justify-between mb-5">
-                    <h1 className="text-xl font-bold">Hizmetler</h1>
-                    <button className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Hizmet Ekle</button>
+                    <div><h1 className="text-xl font-bold">Hizmetler</h1><p className="text-gray-500 text-sm">{services.length} hizmet</p></div>
+                    <button onClick={openSvcAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Hizmet Ekle</button>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                     <table className="w-full">
                       <thead className="bg-gray-50"><tr>
-                        {['Hizmet Adı','Süre','Fiyat','Randevu','Durum'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}
+                        {['Hizmet','Açıklama','Süre','Fiyat','Randevu','Durum',''].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}
                       </tr></thead>
                       <tbody>
                         {services.map(s=>(
-                          <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
+                          <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50 group">
                             <td className="px-4 py-3 text-sm font-semibold">{s.name}</td>
+                            <td className="px-4 py-3 text-xs text-gray-400 max-w-[160px] truncate">{s.description||'—'}</td>
                             <td className="px-4 py-3 text-sm text-gray-500">{s.duration_min} dk</td>
                             <td className="px-4 py-3 text-sm font-semibold text-orange-600">₺{s.price}</td>
                             <td className="px-4 py-3 text-sm font-semibold">{appts.filter(a=>a.service_id===s.id).length}</td>
                             <td className="px-4 py-3"><span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${s.status==='active'?'bg-green-50 text-green-700 border-green-200':'bg-gray-100 text-gray-600 border-gray-200'}`}>{s.status==='active'?'Aktif':'Pasif'}</span></td>
+                            <td className="px-4 py-3">
+                              <button onClick={()=>openSvcEdit(s)} className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-gray-500 border border-gray-200 px-2.5 py-1 rounded-lg hover:bg-gray-100">✏️ Düzenle</button>
+                            </td>
                           </tr>
                         ))}
-                        {services.length===0&&<tr><td colSpan="5" className="px-4 py-10 text-center text-gray-400">Hizmet yok</td></tr>}
+                        {services.length===0&&<tr><td colSpan="7" className="px-4 py-10 text-center text-gray-400">Hizmet yok — <button onClick={openSvcAdd} className="text-orange-500 hover:underline">hemen ekle</button></td></tr>}
                       </tbody>
                     </table>
                   </div>
