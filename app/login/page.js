@@ -137,7 +137,15 @@ function LoginForm() {
       if (authError) throw authError
       // Profili çekip role göre yönlendir
       const { data: { user } } = await supabase.auth.getUser()
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+      if (profile) {
+        localStorage.setItem('randevu_user', JSON.stringify({
+          id: user.id,
+          email: user.email,
+          name: profile.full_name,
+          role: profile.role,
+        }))
+      }
       const redirectMap = { admin: '/admin', business_owner: '/business' }
       router.push(redirectMap[profile?.role] || '/customer')
     } catch (e) {
