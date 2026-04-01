@@ -213,6 +213,41 @@ export default function CustomerPage() {
     toast3('Randevu iptal edildi')
   }
 
+  const generateSlots = () => {
+    if (!bookForm.date || !detailBiz) return []
+    const day = new Date(bookForm.date).getDay()
+    const defaultWH = {
+      "1": { str: "09:00", end: "18:00", off: false },
+      "2": { str: "09:00", end: "18:00", off: false },
+      "3": { str: "09:00", end: "18:00", off: false },
+      "4": { str: "09:00", end: "18:00", off: false },
+      "5": { str: "09:00", end: "18:00", off: false },
+      "6": { str: "10:00", end: "15:00", off: false },
+      "0": { str: "09:00", end: "18:00", off: true },
+    }
+    const wh = (detailBiz.working_hours || defaultWH)[day]
+    if (!wh || wh.off) return null
+    
+    const [startH, startM] = (wh.str||"09:00").split(':').map(Number)
+    const [endH, endM] = (wh.end||"18:00").split(':').map(Number)
+    let currentMin = startH * 60 + startM
+    const endTotalMin = endH * 60 + endM
+    
+    const svc = bizServices.find(s => s.id === bookForm.service)
+    const duration = svc ? svc.duration_min : 60
+    
+    const slots = []
+    while (currentMin + duration <= endTotalMin) {
+      const h = Math.floor(currentMin / 60)
+      const m = currentMin % 60
+      const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`
+      slots.push(timeStr)
+      currentMin += duration
+    }
+    return slots
+  }
+  const availableSlots = generateSlots()
+
   const filteredBiz = businesses.filter(b => {
     const matchCat = !catFilter || b.category === catFilter
     const matchQ = !searchQ || b.name.toLowerCase().includes(searchQ.toLowerCase()) || b.city.toLowerCase().includes(searchQ.toLowerCase())
@@ -406,7 +441,7 @@ export default function CustomerPage() {
                   <div>
                     <label className="text-xs font-bold block mb-1">Hizmet *</label>
                     <select className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
-                      value={bookForm.service} onChange={e => setBookForm(p=>({...p,service:e.target.value}))}>
+                      value={bookForm.service} onChange={e => setBookForm(p=>({...p,service:e.target.value,time:''}))}>
                       <option value="">Hizmet seçin</option>
                       {bizServices.map(s => <option key={s.id} value={s.id}>{s.name} — ₺{s.price} ({s.duration_min} dk)</option>)}
                     </select>
@@ -434,16 +469,20 @@ export default function CustomerPage() {
                       <label className="text-xs font-bold block mb-1">
                         Saat {slotsLoading && <span className="text-gray-400 font-normal text-xs">(kontrol...)</span>}
                       </label>
-                      <select className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
-                        value={bookForm.time} onChange={e => setBookForm(p=>({...p,time:e.target.value}))}
-                        disabled={!bookForm.date || slotsLoading}>
-                        <option value="">Saat seçin</option>
-                        {['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'].map(t => {
-                          const isTaken = takenSlots.includes(t)
-                          return <option key={t} value={t} disabled={isTaken}>{t}{isTaken ? ' — Dolu' : ''}</option>
-                        })}
-                      </select>
-                      {bookForm.date && takenSlots.length > 0 && !slotsLoading && (
+                      {availableSlots === null ? (
+                        <div className="w-full px-3 py-2.5 border border-red-200 bg-red-50 text-red-600 rounded-xl text-sm font-semibold flex items-center justify-center">İşletme Kapalı</div>
+                      ) : (
+                        <select className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
+                          value={bookForm.time} onChange={e => setBookForm(p=>({...p,time:e.target.value}))}
+                          disabled={!bookForm.date || slotsLoading || !bookForm.service}>
+                          <option value="">{bookForm.service ? 'Saat seçin' : 'Önce hizmet seçin'}</option>
+                          {availableSlots.map(t => {
+                            const isTaken = takenSlots.includes(t)
+                            return <option key={t} value={t} disabled={isTaken}>{t}{isTaken ? ' — Dolu' : ''}</option>
+                          })}
+                        </select>
+                      )}
+                      {bookForm.date && takenSlots.length > 0 && !slotsLoading && availableSlots !== null && (
                         <p className="text-xs text-amber-600 mt-1">⚠️ {takenSlots.length} saat dolu</p>
                       )}
                     </div>

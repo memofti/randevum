@@ -25,7 +25,7 @@ function KPI({ label, value, sub, color }) {
   )
 }
 
-const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reports','📊','Raporlar']]
+const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
 
 export default function BusinessPage() {
   const router = useRouter()
@@ -63,6 +63,9 @@ export default function BusinessPage() {
   const [bizModal, setBizModal] = useState(false)
   const [bizForm, setBizForm] = useState({})
   const [bizSaving, setBizSaving] = useState(false)
+  
+  const [workingHours, setWorkingHours] = useState({})
+  const [whSaving, setWhSaving] = useState(false)
 
   const toast3 = (m) => { setToast(m); setTimeout(()=>setToast(''),3500) }
   const f = (k,v) => setForm(p=>({...p,[k]:v}))
@@ -108,10 +111,35 @@ export default function BusinessPage() {
           b = res.data
         }
       }
-      if (b) { setBizId(b.id); setBizInfo(b); loadAll(b.id) } else setLoading(false)
+      if (b) { 
+        setBizId(b.id); 
+        setBizInfo(b); 
+        setBizForm(b);
+        setWorkingHours(b.working_hours || {
+          "1": { str: "09:00", end: "18:00", off: false },
+          "2": { str: "09:00", end: "18:00", off: false },
+          "3": { str: "09:00", end: "18:00", off: false },
+          "4": { str: "09:00", end: "18:00", off: false },
+          "5": { str: "09:00", end: "18:00", off: false },
+          "6": { str: "09:00", end: "18:00", off: false },
+          "0": { str: "09:00", end: "18:00", off: true },
+        });
+        loadAll(b.id) 
+      } else setLoading(false)
     }
     findBusiness()
   }, [user, loadAll])
+
+  async function saveWorkingHours() {
+    setWhSaving(true)
+    try {
+      const { error } = await supabase.from('businesses').update({ working_hours: workingHours }).eq('id', bizId)
+      if (error) throw error
+      setBizInfo(p => ({ ...p, working_hours: workingHours }))
+      toast3('✅ Çalışma saatleri güncellendi')
+    } catch(e) { toast3('❌ ' + e.message) }
+    finally { setWhSaving(false) }
+  }
 
   async function confirmAppt(id) {
     await supabase.from('appointments').update({status:'confirmed'}).eq('id',id)
@@ -997,6 +1025,73 @@ export default function BusinessPage() {
                           <div className="font-bold text-amber-500">★ {s.rating}</div>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* AYARLAR */}
+              {view==='settings' && (
+                <div>
+                  <h1 className="text-xl font-bold mb-5">Ayarlar</h1>
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                    {/* Firma Bilgileri */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+                      <div className="font-bold text-sm border-b border-gray-100 pb-3">Firma Bilgileri</div>
+                      <div><label className="text-xs font-bold block mb-1">Firma Adı</label>
+                        <input value={bizForm.name||''} onChange={e=>setBizForm(p=>({...p,name:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><label className="text-xs font-bold block mb-1">Kategori</label>
+                          <select value={bizForm.category||''} onChange={e=>setBizForm(p=>({...p,category:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
+                            {['Güzellik','Kuaför','Masaj','Fitness','Sağlık'].map(c=><option key={c}>{c}</option>)}
+                          </select></div>
+                        <div><label className="text-xs font-bold block mb-1">Şehir</label>
+                          <input value={bizForm.city||''} onChange={e=>setBizForm(p=>({...p,city:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                      </div>
+                      <div><label className="text-xs font-bold block mb-1">Adres</label>
+                        <input value={bizForm.address||''} onChange={e=>setBizForm(p=>({...p,address:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><label className="text-xs font-bold block mb-1">Telefon</label>
+                          <input value={bizForm.phone||''} onChange={e=>setBizForm(p=>({...p,phone:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                        <div><label className="text-xs font-bold block mb-1">Başlangıç Fiyatı (₺)</label>
+                          <input type="number" value={bizForm.price_from||0} onChange={e=>setBizForm(p=>({...p,price_from:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                      </div>
+                      <div className="pt-2">
+                         <button onClick={saveBizInfo} disabled={bizSaving} className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{bizSaving?'Kaydediliyor...':'Firma Bilgilerini Kaydet'}</button>
+                      </div>
+                    </div>
+                    {/* Çalışma Saatleri */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+                      <div className="font-bold text-sm border-b border-gray-100 pb-3">Çalışma Saatleri</div>
+                      <div className="space-y-3">
+                         {['1','2','3','4','5','6','0'].map(d => {
+                           const days = {'1':'Pazartesi','2':'Salı','3':'Çarşamba','4':'Perşembe','5':'Cuma','6':'Cumartesi','0':'Pazar'}
+                           const wh = workingHours[d] || { str: '09:00', end: '18:00', off: false }
+                           return (
+                             <div key={d} className="flex items-center justify-between gap-3 p-2 hover:bg-gray-50 rounded-lg">
+                               <div className="w-24 text-sm font-semibold text-gray-700">{days[d]}</div>
+                               <div className="flex-1 flex gap-2 items-center">
+                                 {wh.off ? (
+                                   <div className="flex-1 text-center text-sm text-red-500 font-bold py-1.5 bg-red-50 rounded-lg border border-red-100">Kapalı</div>
+                                 ) : (
+                                   <>
+                                     <input type="time" value={wh.str} onChange={e=>setWorkingHours(p=>({...p, [d]: {...wh, str: e.target.value}}))} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" />
+                                     <span className="text-gray-400">-</span>
+                                     <input type="time" value={wh.end} onChange={e=>setWorkingHours(p=>({...p, [d]: {...wh, end: e.target.value}}))} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" />
+                                   </>
+                                 )}
+                               </div>
+                               <label className="flex items-center gap-2 cursor-pointer w-20 justify-end">
+                                 <input type="checkbox" checked={wh.off} onChange={e=>setWorkingHours(p=>({...p, [d]: {...wh, off: e.target.checked}}))} className="w-4 h-4 text-orange-500 rounded border-gray-300 focus:ring-orange-500 accent-orange-500" />
+                                 <span className="text-sm font-medium text-gray-600">Kapalı</span>
+                               </label>
+                             </div>
+                           )
+                         })}
+                      </div>
+                      <div className="pt-2">
+                         <button onClick={saveWorkingHours} disabled={whSaving} className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{whSaving?'Kaydediliyor...':'Çalışma Saatlerini Kaydet'}</button>
+                      </div>
                     </div>
                   </div>
                 </div>
