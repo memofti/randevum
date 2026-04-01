@@ -33,6 +33,8 @@ export default function BusinessPage() {
   const [view, setView] = useState('dashboard')
   const [bizId, setBizId] = useState(null)
   const [bizInfo, setBizInfo] = useState(null)
+  const [myBusinesses, setMyBusinesses] = useState([])
+  const [bizSwitcher, setBizSwitcher] = useState(false)
   const [appts, setAppts] = useState([])
   const [staff, setStaff] = useState([])
   const [services, setSvcs] = useState([])
@@ -104,7 +106,8 @@ export default function BusinessPage() {
     // Önce owner_id ile ara (gerçek kullanıcılar), bulamazsan email ile eşleştir (demo)
     const findBusiness = async () => {
       // owner_id sütunu varsa kullan
-      let { data: b } = await supabase.from('businesses').select('*').eq('owner_id', user.id).eq('status','active').maybeSingle()
+      let { data: bs } = await supabase.from('businesses').select('*').eq('owner_id', user.id).eq('status','active')
+      let b = bs?.[0] || null
       if (!b) {
         // Demo fallback: email'e göre eşleştir
         const emailBizMap = { 'selin@email.com': 'Aura Beauty Lounge' }
@@ -112,8 +115,10 @@ export default function BusinessPage() {
         if (bizName) {
           const res = await supabase.from('businesses').select('*').eq('name', bizName).maybeSingle()
           b = res.data
+          if (b) bs = [b]
         }
       }
+      if (bs && bs.length > 0) setMyBusinesses(bs)
       if (b) { 
         setBizId(b.id); 
         setBizInfo(b); 
@@ -586,6 +591,21 @@ export default function BusinessPage() {
             <div><div className="text-white text-sm font-bold">{bizInfo?.name?.split(' ').slice(0,2).join(' ')||'Firma'}</div><div className="text-white/30 text-xs">Firma Paneli</div></div>
           </div>
         </div>
+        {bizSwitcher && myBusinesses.length > 1 && (
+          <div className="border-b border-white/10 bg-slate-900/50">
+            {myBusinesses.map((b) => (
+              <button key={b.id} onClick={() => { setBizId(b.id); setBizInfo(b); setBizSwitcher(false); loadAll(b.id) }}
+                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-all ${b.id === bizId ? 'bg-white/10 text-white font-semibold' : 'text-white/50 hover:text-white hover:bg-white/[0.07]'}`}>
+                <span className="text-base">{b.emoji||'🏢'}</span>
+                <div className="min-w-0">
+                  <div className="truncate font-medium">{b.name}</div>
+                  <div className="text-xs text-white/30 truncate">{b.city}</div>
+                </div>
+                {b.id === bizId && <span className="ml-auto text-orange-500 text-xs">✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
           {NAV.map(([key,icon,label])=>(
             <button key={key} onClick={()=>setView(key)}
