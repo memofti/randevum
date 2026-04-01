@@ -47,6 +47,7 @@ export default function BusinessPage() {
   // Filters
   const [apptStatus, setApptStatus] = useState('')
   const [reviews, setReviews] = useState([])
+  const [planLimits, setPlanLimits] = useState(null)
   const [apptSearch, setApptSearch] = useState('')
   const [custSearch, setCustSearch] = useState('')
   // Calendar
@@ -85,18 +86,20 @@ export default function BusinessPage() {
   const loadAll = useCallback(async (bId) => {
     setLoading(true)
     try {
-      const [ar,sr,svr,nr,rr] = await Promise.all([
+      const [ar,sr,svr,nr,rr,pr2] = await Promise.all([
         supabase.from('appointments').select('id,profile_id,service_id,staff_id,appointment_date,appointment_time,status,price,profiles(full_name,email),services(name,price),staff(name)').eq('business_id',bId).order('appointment_date',{ascending:false}),
         supabase.from('staff').select('*').eq('business_id',bId),
         supabase.from('services').select('*').eq('business_id',bId),
         supabase.from('notifications').select('*').eq('business_id',bId).order('created_at',{ascending:false}).limit(20),
         supabase.from('reviews').select('*, profiles(full_name)').eq('business_id',bId).order('created_at',{ascending:false}),
+        supabase.from('plan_limits').select('*').eq('plan', bizInfo?.plan || 'free').maybeSingle(),
       ])
       setAppts(ar.data||[])
       setStaff(sr.data||[])
       setSvcs(svr.data||[])
       setNotifs(nr.data||[])
       setReviews(rr?.data||[])
+      if (pr2?.data) setPlanLimits(pr2.data)
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }, [])
@@ -665,6 +668,25 @@ export default function BusinessPage() {
                     <h1 className="text-xl font-bold">Dashboard</h1>
                     <p className="text-gray-500 text-sm">{bizInfo?.name} · {bizInfo?.city}</p>
                   </div>
+                  {/* Plan Bilgisi */}
+                  {bizInfo && planLimits && (
+                    <div className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-xl mb-4 shadow-sm flex-wrap gap-2">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${bizInfo.plan==='enterprise'?'bg-slate-800 text-white border-slate-700':bizInfo.plan==='pro'?'bg-orange-50 text-orange-600 border-orange-200':'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                          {bizInfo.plan==='enterprise'?'⚡ Enterprise':bizInfo.plan==='pro'?'🔥 Pro':'🆓 Ücretsiz'} Plan
+                        </span>
+                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                          <span className={staff.length>=planLimits.max_staff?'text-red-500 font-semibold':''}>👥 {staff.length}/{planLimits.max_staff}</span>
+                          <span className={services.length>=planLimits.max_services?'text-red-500 font-semibold':''}>✨ {services.length}/{planLimits.max_services}</span>
+                          <span>📅 max {planLimits.max_monthly_appts}/ay</span>
+                        </div>
+                      </div>
+                      {bizInfo.plan !== 'enterprise' && (
+                        <button onClick={() => toast3('Admin ile iletişime geçerek planınızı yükseltebilirsiniz.')}
+                          className="text-xs font-bold px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg">⬆️ Planı Yükselt</button>
+                      )}
+                    </div>
+                  )}
                   {/* Bekleyen uyarı */}
                   {appts.filter(a=>a.status==='pending').length>0 && (
                     <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-5 text-sm cursor-pointer hover:bg-amber-100 transition-colors" onClick={()=>setView('appointments')}>
