@@ -178,7 +178,7 @@ export default function CustomerPage() {
     setBooking(true)
     try {
       const svc = bizServices.find(s => s.id === bookForm.service)
-      await supabase.from('appointments').insert({
+      const { data: newAppt } = await supabase.from('appointments').insert({
         business_id: detailBiz.id,
         profile_id: user.id,
         service_id: bookForm.service,
@@ -187,7 +187,21 @@ export default function CustomerPage() {
         appointment_time: bookForm.time,
         status: 'pending',
         price: svc?.price || 0,
-      })
+      }).select().maybeSingle()
+
+      // Ödeme kaydı oluştur
+      if (newAppt) {
+        const last4 = payCard.number ? payCard.number.replace(/\s/g,'').slice(-4) : null
+        await supabase.from('payments').insert({
+          appointment_id: newAppt.id,
+          profile_id: user.id,
+          business_id: detailBiz.id,
+          amount: svc?.price || 0,
+          status: 'completed',
+          method: 'card',
+          card_last4: last4,
+        })
+      }
       // Email gönder (arka planda)
       if (user.email) {
         const dateStr = new Date(bookForm.date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})
