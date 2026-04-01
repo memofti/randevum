@@ -576,7 +576,7 @@ export default function BusinessPage() {
       )}
 
       {/* Sidebar */}
-      <div className="w-52 flex-shrink-0 bg-slate-800 flex flex-col h-screen">
+      <div className="hidden md:flex w-52 flex-shrink-0 bg-slate-800 flex-col h-screen">
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-sm">{bizInfo?.emoji||'💆'}</div>
@@ -605,7 +605,18 @@ export default function BusinessPage() {
       </div>
 
       {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        {/* Mobil Alt Navbar */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-800 border-t border-white/10 flex">
+          {NAV.slice(0,5).map(([key,icon,label])=>(
+            <button key={key} onClick={()=>setView(key)}
+              className={`flex-1 flex flex-col items-center justify-center py-2 text-xs font-semibold transition-all relative ${view===key?'text-orange-500':'text-white/40 hover:text-white/70'}`}>
+              <span className="text-lg">{icon}</span>
+              <span className="text-[10px] mt-0.5">{label}</span>
+              {key==='appointments'&&appts.filter(a=>a.status==='pending').length>0&&<span className="absolute top-1 right-1/4 w-3.5 h-3.5 bg-amber-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold">{appts.filter(a=>a.status==='pending').length}</span>}
+            </button>
+          ))}
+        </div>
         <div className="h-12 bg-white border-b border-gray-200 flex items-center px-5 gap-2 flex-shrink-0">
           <span className="text-sm font-semibold text-gray-800">{NAV.find(x=>x[0]===view)?.[2]}</span>
           <div className="ml-auto flex items-center gap-2">
@@ -619,7 +630,7 @@ export default function BusinessPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-4 md:p-5 pb-20 md:pb-5">
           {loading ? (
             <div className="flex items-center justify-center gap-3 text-gray-400 py-20"><Spin /> Yükleniyor...</div>
           ) : (
