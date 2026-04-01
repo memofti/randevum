@@ -25,7 +25,7 @@ function KPI({ label, value, sub, color }) {
   )
 }
 
-const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
+const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
 
 export default function BusinessPage() {
   const router = useRouter()
@@ -44,6 +44,7 @@ export default function BusinessPage() {
   const [notifOpen, setNotifOpen] = useState(false)
   // Filters
   const [apptStatus, setApptStatus] = useState('')
+  const [reviews, setReviews] = useState([])
   const [apptSearch, setApptSearch] = useState('')
   const [custSearch, setCustSearch] = useState('')
   // Calendar
@@ -82,16 +83,18 @@ export default function BusinessPage() {
   const loadAll = useCallback(async (bId) => {
     setLoading(true)
     try {
-      const [ar,sr,svr,nr] = await Promise.all([
+      const [ar,sr,svr,nr,rr] = await Promise.all([
         supabase.from('appointments').select('id,profile_id,service_id,staff_id,appointment_date,appointment_time,status,price,profiles(full_name,email),services(name,price),staff(name)').eq('business_id',bId).order('appointment_date',{ascending:false}),
         supabase.from('staff').select('*').eq('business_id',bId),
         supabase.from('services').select('*').eq('business_id',bId),
         supabase.from('notifications').select('*').eq('business_id',bId).order('created_at',{ascending:false}).limit(20),
+        supabase.from('reviews').select('*, profiles(full_name)').eq('business_id',bId).order('created_at',{ascending:false}),
       ])
       setAppts(ar.data||[])
       setStaff(sr.data||[])
       setSvcs(svr.data||[])
       setNotifs(nr.data||[])
+      setReviews(rr?.data||[])
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }, [])
@@ -960,6 +963,63 @@ export default function BusinessPage() {
                       </tbody>
                     </table>
                   </div>
+                </div>
+              )}
+
+
+              {/* YORUMLAR */}
+              {view==='reviews'&&(
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h1 className="text-xl font-bold">Müşteri Yorumları</h1>
+                      <p className="text-gray-500 text-sm">{reviews.length} yorum · Ort. ★ {reviews.length?(reviews.reduce((s,r)=>s+(+r.rating||0),0)/reviews.length).toFixed(1):'—'}</p>
+                    </div>
+                  </div>
+                  {/* Özet */}
+                  {reviews.length>0&&(
+                    <div className="grid grid-cols-5 gap-3 mb-5">
+                      {[5,4,3,2,1].map(star=>{
+                        const cnt=reviews.filter(r=>Math.round(+r.rating)===star).length
+                        const pct=reviews.length?Math.round(cnt/reviews.length*100):0
+                        return (
+                          <div key={star} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm text-center">
+                            <div className="text-amber-400 text-lg font-bold">{'★'.repeat(star)}</div>
+                            <div className="text-xl font-extrabold text-gray-800 mt-1">{cnt}</div>
+                            <div className="text-xs text-gray-400">%{pct}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {reviews.length===0?(
+                    <div className="bg-white border border-gray-200 rounded-xl p-16 text-center shadow-sm">
+                      <div className="text-5xl mb-4">⭐</div>
+                      <div className="font-bold mb-1">Henüz yorum yok</div>
+                      <div className="text-sm text-gray-400">Müşteriler tamamlanan randevulardan sonra yorum yapabilir</div>
+                    </div>
+                  ):(
+                    <div className="space-y-3">
+                      {reviews.map(r=>(
+                        <div key={r.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center text-sm font-bold text-white">{r.profiles?.full_name?.[0]||'?'}</div>
+                              <div>
+                                <div className="font-semibold text-sm">{r.profiles?.full_name||'Anonim'}</div>
+                                <div className="text-xs text-gray-400">{new Date(r.created_at).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {[1,2,3,4,5].map(s=><span key={s} className={`text-lg ${s<=(+r.rating||0)?'text-amber-400':'text-gray-200'}`}>★</span>)}
+                              <span className="text-sm font-bold text-gray-600 ml-1">{r.rating}</span>
+                            </div>
+                          </div>
+                          {r.comment&&<p className="text-gray-600 text-sm leading-relaxed pl-11">{r.comment}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
