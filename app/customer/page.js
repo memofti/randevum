@@ -22,6 +22,10 @@ export default function CustomerPage() {
   const [businesses, setBusinesses] = useState([])
   const [catFilter, setCatFilter] = useState('')
   const [searchQ, setSearchQ] = useState('')
+  const [sortBy, setSortBy] = useState('rating') // rating | price_asc | price_desc | distance
+  const [minRating, setMinRating] = useState(0)
+  const [maxPrice, setMaxPrice] = useState(9999)
+  const [showFilters, setShowFilters] = useState(false)
   const [appointments, setAppointments] = useState([])
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -248,11 +252,20 @@ export default function CustomerPage() {
   }
   const availableSlots = generateSlots()
 
-  const filteredBiz = businesses.filter(b => {
-    const matchCat = !catFilter || b.category === catFilter
-    const matchQ = !searchQ || b.name.toLowerCase().includes(searchQ.toLowerCase()) || b.city.toLowerCase().includes(searchQ.toLowerCase())
-    return matchCat && matchQ
-  })
+  const filteredBiz = businesses
+    .filter(b => {
+      const matchCat = !catFilter || b.category === catFilter
+      const matchQ = !searchQ || b.name.toLowerCase().includes(searchQ.toLowerCase()) || b.city.toLowerCase().includes(searchQ.toLowerCase()) || (b.tags||[]).some(t => t.toLowerCase().includes(searchQ.toLowerCase()))
+      const matchRating = minRating === 0 || (b.rating||0) >= minRating
+      const matchPrice = maxPrice >= 9999 || (b.price_from||0) <= maxPrice
+      return matchCat && matchQ && matchRating && matchPrice
+    })
+    .sort((a, b) => {
+      if (sortBy === 'price_asc') return (a.price_from||0) - (b.price_from||0)
+      if (sortBy === 'price_desc') return (b.price_from||0) - (a.price_from||0)
+      if (sortBy === 'reviews') return (b.review_count||0) - (a.review_count||0)
+      return (b.rating||0) - (a.rating||0)
+    })
   const cats = [...new Set(businesses.map(b => b.category))]
   const upcomingAppts = appointments.filter(a => ['pending','confirmed'].includes(a.status))
   const pastAppts = appointments.filter(a => ['completed','cancelled'].includes(a.status))
@@ -600,7 +613,7 @@ export default function CustomerPage() {
                   value={searchQ} onChange={e => setSearchQ(e.target.value)} />
                 <button className="px-5 py-3 bg-orange-500 text-white text-sm font-bold">Ara</button>
               </div>
-              <div className="flex gap-2 mt-4 flex-wrap">
+              <div className="flex gap-2 mt-4 flex-wrap items-center">
                 <button onClick={() => setCatFilter('')}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${!catFilter?'bg-orange-500 border-orange-500 text-white':'bg-white/10 border-white/15 text-white/75 hover:bg-white/20'}`}>
                   ✦ Tümü
@@ -611,7 +624,46 @@ export default function CustomerPage() {
                     {c}
                   </button>
                 ))}
+                <button onClick={() => setShowFilters(p=>!p)}
+                  className={`ml-auto px-3 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 ${showFilters?'bg-white text-orange-600 border-white':'bg-white/10 border-white/15 text-white/75 hover:bg-white/20'}`}>
+                  ⚙️ Filtrele {(minRating>0||maxPrice<9999||sortBy!=='rating')?<span className="w-1.5 h-1.5 rounded-full bg-orange-500" />:null}
+                </button>
               </div>
+              {showFilters && (
+                <div className="mt-3 bg-white/[0.08] border border-white/15 rounded-2xl p-4 flex flex-wrap gap-4">
+                  <div>
+                    <div className="text-white/50 text-xs font-semibold mb-2">Sıralama</div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {[['rating','⭐ Puan'],['price_asc','₺ Ucuz→Pahalı'],['price_desc','₺ Pahalı→Ucuz'],['reviews','💬 Yorum']].map(([v,l])=>(
+                        <button key={v} onClick={()=>setSortBy(v)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${sortBy===v?'bg-orange-500 text-white':'bg-white/10 text-white/70 hover:bg-white/20'}`}>{l}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-white/50 text-xs font-semibold mb-2">Min Puan: {minRating===0?'Hepsi':'★ '+minRating+'+'}</div>
+                    <div className="flex gap-1.5">
+                      {[0,3,4,4.5].map(r=>(
+                        <button key={r} onClick={()=>setMinRating(r)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${minRating===r?'bg-orange-500 text-white':'bg-white/10 text-white/70 hover:bg-white/20'}`}>
+                          {r===0?'Hepsi':'★ '+r+'+'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-white/50 text-xs font-semibold mb-2">Max Fiyat: {maxPrice>=9999?'Hepsi':'₺'+maxPrice}</div>
+                    <div className="flex gap-1.5">
+                      {[[9999,'Hepsi'],[1000,'₺1000'],[500,'₺500'],[300,'₺300']].map(([v,l])=>(
+                        <button key={v} onClick={()=>setMaxPrice(v)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${maxPrice===v?'bg-orange-500 text-white':'bg-white/10 text-white/70 hover:bg-white/20'}`}>{l}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <button onClick={()=>{setMinRating(0);setMaxPrice(9999);setSortBy('rating')}}
+                    className="text-xs text-white/40 hover:text-white/70 underline self-end">Sıfırla</button>
+                </div>
+              )}
             </div>
           </div>
 
