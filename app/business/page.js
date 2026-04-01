@@ -149,6 +149,19 @@ export default function BusinessPage() {
     await supabase.from('appointments').update({status:'completed'}).eq('id',id)
     setAppts(p=>p.map(a=>a.id===id?{...a,status:'completed'}:a))
     toast3('✅ Randevu tamamlandı olarak işaretlendi')
+    // Loyalty puan ekle
+    const appt = appts.find(a=>a.id===id)
+    if (appt?.profile_id && appt?.price > 0) {
+      const pointsToAdd = Math.floor(appt.price / 10) // Her 10₺ = 1 puan
+      const { data: profile } = await supabase
+        .from('profiles').select('loyalty_points').eq('id', appt.profile_id).maybeSingle()
+      if (profile) {
+        const newPoints = (profile.loyalty_points || 0) + pointsToAdd
+        const newTier = newPoints >= 3000 ? 'platinum' : newPoints >= 1500 ? 'gold' : newPoints >= 500 ? 'silver' : 'bronze'
+        await supabase.from('profiles').update({ loyalty_points: newPoints, loyalty_tier: newTier }).eq('id', appt.profile_id)
+        if (pointsToAdd > 0) toast3(`✅ Tamamlandı — Müşteriye ${pointsToAdd} puan eklendi`)
+      }
+    }
   }
 
   // --- Personel CRUD ---
@@ -281,9 +294,29 @@ export default function BusinessPage() {
   const svcDist = services.map((s,i)=>({...s,cnt:appts.filter(a=>a.service_id===s.id).length,color:COLORS[i%COLORS.length]})).sort((a,b)=>b.cnt-a.cnt)
   const maxCnt = Math.max(...svcDist.map(s=>s.cnt),1)
   const unreadCount = notifications.filter(n=>!n.read).length
-  // Aylık gelir (son 6 ay)
+  // Gerçek KPI growth hesapla (bu ay vs geçen ay)
   const MONTHS_TR=['Oca','Şub','Mar','Nis','May','Haz','Tem','Ağu','Eyl','Eki','Kas','Ara']
   const now = new Date()
+  const thisMonthAppts = appts.filter(a=>{
+    const d=new Date(a.appointment_date)
+    return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && a.status!=='cancelled'
+  })
+  const prevMonthAppts = appts.filter(a=>{
+    const d=new Date(a.appointment_date)
+    const prev=new Date(now.getFullYear(),now.getMonth()-1,1)
+    return d.getFullYear()===prev.getFullYear() && d.getMonth()===prev.getMonth() && a.status!=='cancelled'
+  })
+  const thisMonthRev = thisMonthAppts.reduce((s,a)=>s+(a.price||0),0)
+  const prevMonthRev = prevMonthAppts.reduce((s,a)=>s+(a.price||0),0)
+  const revenueGrowth = prevMonthRev > 0 ? Math.round((thisMonthRev - prevMonthRev) / prevMonthRev * 100) : null
+  const apptGrowth = prevMonthAppts.length > 0 ? Math.round((thisMonthAppts.length - prevMonthAppts.length) / prevMonthAppts.length * 100) : null
+  const thisMonthCusts = new Set(thisMonthAppts.map(a=>a.profile_id).filter(Boolean)).size
+  const prevMonthCusts = new Set(prevMonthAppts.map(a=>a.profile_id).filter(Boolean)).size
+  const custGrowth = prevMonthCusts > 0 ? Math.round((thisMonthCusts - prevMonthCusts) / prevMonthCusts * 100) : null
+  function growthLabel(g) {
+    if (g === null) return null
+    return g >= 0 ? `↑ %${g}` : `↓ %${Math.abs(g)}`
+  }
   const monthlyData = Array.from({length:6},(_,i)=>{
     const d=new Date(now.getFullYear(),now.getMonth()-5+i,1)
     const [y,m]=[d.getFullYear(),d.getMonth()]
@@ -575,9 +608,9 @@ export default function BusinessPage() {
                     </div>
                   )}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-                    <KPI label="Bu Ay Gelir" value={`₺${revenue.toLocaleString()}`} sub="↑ %18" color="orange" />
-                    <KPI label="Randevu" value={appts.length} sub="↑ %12" color="green" />
-                    <KPI label="Müşteri" value={Object.keys(custMap).length} sub="↑ %8" color="blue" />
+                    <KPI label="Bu Ay Gelir" value={`₺${thisMonthRev.toLocaleString()}`} sub={growthLabel(revenueGrowth)} color="orange" />
+                    <KPI label="Randevu" value={appts.length} sub={growthLabel(apptGrowth)} color="green" />
+                    <KPI label="Müşteri" value={Object.keys(custMap).length} sub={growthLabel(custGrowth)} color="blue" />
                     <KPI label="Personel" value={staff.length} color="purple" />
                   </div>
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -810,10 +843,6 @@ export default function BusinessPage() {
                       </div>
                     ))}
                     {staff.length===0&&<div className="col-span-2 text-center py-12 text-gray-400">Henüz personel eklenmemiş — <button onClick={openStaffAdd} className="text-orange-500 hover:underline">hemen ekle</button></div>}
-                  </div>
-                </div>
-              )}      ))}
-                    {staff.length===0&&<div className="col-span-2 text-center py-12 text-gray-400">Henüz personel eklenmemiş</div>}
                   </div>
                 </div>
               )}

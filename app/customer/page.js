@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import dynamic from 'next/dynamic'
@@ -33,10 +33,21 @@ export default function CustomerPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   // Randevu al modal
   const [bookModal, setBookModal] = useState(false)
-  const [bookForm, setBookForm] = useState({ service:'', staff:'', date:'', time:'10:00' })
+  const [bookForm, setBookForm] = useState({ service:'', staff:'', date:'', time:'' })
   const [booking, setBooking] = useState(false)
   const [payStep, setPayStep] = useState(false)
   const [payCard, setPayCard] = useState({ name:'', number:'', expire:'', cvv:'' })
+  // Slot doluluk
+  const [takenSlots, setTakenSlots] = useState([])
+  const [slotsLoading, setSlotsLoading] = useState(false)
+  // Profil düzenleme
+  const [editProfile, setEditProfile] = useState(false)
+  const [profileForm, setProfileForm] = useState({ full_name: '', phone: '' })
+  const [savingProfile, setSavingProfile] = useState(false)
+  // Yorum sistemi
+  const [reviewModal, setReviewModal] = useState(null)
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' })
+  const [submittingReview, setSubmittingReview] = useState(false)
 
   const toast3 = (m) => { setToast(m); setTimeout(() => setToast(''), 3500) }
 
@@ -49,7 +60,7 @@ export default function CustomerPage() {
     } catch { router.push('/login') }
   }, [router])
 
-  // İşletmeler — user'dan bağımsız, sayfa açılır açılmaz yükle
+  // İşletmeler
   useEffect(() => {
     supabase.from('businesses').select('*').eq('status','active').order('rating',{ascending:false})
       .then(({ data }) => { setBusinesses(data||[]); setLoading(false) })
@@ -60,7 +71,7 @@ export default function CustomerPage() {
     if (tab !== 'appts' || !user) return
     setLoading(true)
     supabase.from('appointments')
-      .select('id, appointment_date, appointment_time, status, price, businesses(name,emoji), services(name,duration_min), staff(name)')
+      .select('id, business_id, appointment_date, appointment_time, status, price, businesses(name,emoji), services(name,duration_min), staff(name)')
       .eq('profile_id', user.id)
       .order('appointment_date', { ascending: false })
       .then(({ data }) => { setAppointments(data||[]); setLoading(false) })
@@ -71,13 +82,68 @@ export default function CustomerPage() {
     if (tab !== 'profile' || !user) return
     setLoading(true)
     supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-      .then(({ data }) => { setProfile(data); setLoading(false) })
+      .then(({ data }) => {
+        setProfile(data)
+        setProfileForm({ full_name: data?.full_name || '', phone: data?.phone || '' })
+        setLoading(false)
+      })
   }, [tab, user])
+
+  // Profil kaydet
+  async function saveProfile() {
+    if (!profileForm.full_name.trim()) { toast3('❌ Ad Soyad zorunlu'); return }
+    setSavingProfile(true)
+    const { error } = await supabase.from('profiles').update({
+      full_name: profileForm.full_name,
+      phone: profileForm.phone,
+    }).eq('id', user.id)
+    if (error) { toast3('❌ ' + error.message); setSavingProfile(false); return }
+    setProfile(p => ({ ...p, full_name: profileForm.full_name, phone: profileForm.phone }))
+    const updatedUser = { ...user, name: profileForm.full_name }
+    localStorage.setItem('randevu_user', JSON.stringify(updatedUser))
+    setEditProfile(false)
+    setSavingProfile(false)
+    toast3('✅ Profil güncellendi')
+  }
+
+  // Yorum gönder
+  async function submitReview() {
+    if (!reviewModal) return
+    setSubmittingReview(true)
+    try {
+      const { error } = await supabase.from('reviews').insert({
+        business_id: reviewModal.business_id,
+        profile_id: user.id,
+        appointment_id: reviewModal.id,
+        rating: reviewForm.rating,
+        comment: reviewForm.comment,
+      })
+      if (!error) {
+        const { data: allReviews } = await supabase
+          .from('reviews').select('rating').eq('business_id', reviewModal.business_id)
+        if (allReviews?.length) {
+          const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length
+          await supabase.from('businesses').update({
+            rating: Math.round(avg * 10) / 10,
+            review_count: allReviews.length
+          }).eq('id', reviewModal.business_id)
+        }
+      }
+      setReviewModal(null)
+      setReviewForm({ rating: 5, comment: '' })
+      toast3('✅ Yorumunuz gönderildi, teşekkürler!')
+    } catch (e) {
+      toast3('❌ ' + e.message)
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
 
   // İşletme detay aç
   async function openDetail(biz) {
     setDetailBiz(biz)
     setDetailLoading(true)
+    setTakenSlots([])
     const [{ data: svcs }, { data: stff }] = await Promise.all([
       supabase.from('services').select('*').eq('business_id', biz.id).eq('status','active'),
       supabase.from('staff').select('*').eq('business_id', biz.id),
@@ -87,9 +153,24 @@ export default function CustomerPage() {
     setDetailLoading(false)
   }
 
+  // Dolu slotları çek
+  async function loadTakenSlots(bizId, date) {
+    if (!bizId || !date) { setTakenSlots([]); return }
+    setSlotsLoading(true)
+    const { data } = await supabase
+      .from('appointments')
+      .select('appointment_time')
+      .eq('business_id', bizId)
+      .eq('appointment_date', date)
+      .in('status', ['pending', 'confirmed'])
+    setTakenSlots((data || []).map(a => String(a.appointment_time).slice(0, 5)))
+    setSlotsLoading(false)
+  }
+
   // Randevu al
   async function bookAppt() {
-    if (!bookForm.service || !bookForm.date) { toast3('❌ Hizmet ve tarih seçin'); return }
+    if (!bookForm.service || !bookForm.date || !bookForm.time) { toast3('❌ Hizmet, tarih ve saat seçin'); return }
+    if (takenSlots.includes(bookForm.time)) { toast3('❌ Bu saat dolu, başka saat seçin'); return }
     setBooking(true)
     try {
       const svc = bizServices.find(s => s.id === bookForm.service)
@@ -114,9 +195,10 @@ export default function CustomerPage() {
       }
       setBookModal(false)
       setDetailBiz(null)
-      setBookForm({ service:'', staff:'', date:'', time:'10:00' })
+      setBookForm({ service:'', staff:'', date:'', time:'' })
       setPayStep(false)
       setPayCard({ name:'', number:'', expire:'', cvv:'' })
+      setTakenSlots([])
       toast3('✅ Randevu talebiniz alındı! Onay bekleniyor.')
     } catch (e) {
       toast3('❌ ' + e.message)
@@ -146,6 +228,84 @@ export default function CustomerPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {toast && <div className="fixed bottom-6 right-6 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-xl animate-in slide-in-from-bottom-2">{toast}</div>}
+
+      {/* YORUM MODAL */}
+      {reviewModal && (
+        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4" onClick={e => e.target===e.currentTarget && setReviewModal(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+              <div>
+                <div className="font-bold">Değerlendirme Yaz</div>
+                <div className="text-xs text-gray-500">{reviewModal.businesses?.name}</div>
+              </div>
+              <button onClick={() => setReviewModal(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="text-xs font-bold block mb-2">Puan</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button key={star} onClick={() => setReviewForm(p => ({ ...p, rating: star }))}
+                      className={`text-3xl transition-transform hover:scale-110 ${star <= reviewForm.rating ? 'text-amber-400' : 'text-gray-200'}`}>
+                      ★
+                    </button>
+                  ))}
+                  <span className="ml-2 text-sm font-bold text-gray-600 self-center">{reviewForm.rating}/5</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold block mb-2">Yorumunuz (opsiyonel)</label>
+                <textarea rows={3} placeholder="Deneyiminizi paylaşın..." value={reviewForm.comment}
+                  onChange={e => setReviewForm(p => ({ ...p, comment: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 resize-none" />
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button onClick={() => setReviewModal(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
+              <button onClick={submitReview} disabled={submittingReview}
+                className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">
+                {submittingReview ? 'Gönderiliyor...' : '⭐ Gönder'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PROFİL DÜZENLEME MODAL */}
+      {editProfile && profile && (
+        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4" onClick={e => e.target===e.currentTarget && setEditProfile(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+              <div className="font-bold">Profili Düzenle</div>
+              <button onClick={() => setEditProfile(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-bold block mb-1.5">Ad Soyad *</label>
+                <input value={profileForm.full_name} onChange={e => setProfileForm(p => ({ ...p, full_name: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" />
+              </div>
+              <div>
+                <label className="text-xs font-bold block mb-1.5">Telefon</label>
+                <input placeholder="+90 555 000 00 00" value={profileForm.phone} onChange={e => setProfileForm(p => ({ ...p, phone: e.target.value }))}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" />
+              </div>
+              <div>
+                <label className="text-xs font-bold block mb-1.5">E-posta</label>
+                <input value={profile.email} disabled className="w-full px-3 py-2.5 border border-gray-100 rounded-xl text-sm bg-gray-50 text-gray-400 cursor-not-allowed" />
+                <p className="text-xs text-gray-400 mt-1">E-posta değiştirilemez</p>
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <button onClick={() => setEditProfile(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
+              <button onClick={saveProfile} disabled={savingProfile}
+                className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">
+                {savingProfile ? 'Kaydediliyor...' : 'Kaydet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* İşletme Detay Modal */}
       {detailBiz && (
@@ -232,7 +392,6 @@ export default function CustomerPage() {
                 <div className="text-xs text-gray-500">{detailBiz.name}</div>
               </div>
               <div className="flex items-center gap-3">
-                {/* Adım göstergesi */}
                 <div className="flex items-center gap-1.5">
                   <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">1</div>
                   <div className="h-px w-4 bg-gray-200" />
@@ -265,14 +424,28 @@ export default function CustomerPage() {
                       <label className="text-xs font-bold block mb-1">Tarih *</label>
                       <input type="date" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
                         min={new Date().toISOString().split('T')[0]}
-                        value={bookForm.date} onChange={e => setBookForm(p=>({...p,date:e.target.value}))} />
+                        value={bookForm.date} onChange={e => {
+                          const newDate = e.target.value
+                          setBookForm(p=>({...p, date:newDate, time:''}))
+                          loadTakenSlots(detailBiz?.id, newDate)
+                        }} />
                     </div>
                     <div>
-                      <label className="text-xs font-bold block mb-1">Saat</label>
+                      <label className="text-xs font-bold block mb-1">
+                        Saat {slotsLoading && <span className="text-gray-400 font-normal text-xs">(kontrol...)</span>}
+                      </label>
                       <select className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
-                        value={bookForm.time} onChange={e => setBookForm(p=>({...p,time:e.target.value}))}>
-                        {['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'].map(t=><option key={t}>{t}</option>)}
+                        value={bookForm.time} onChange={e => setBookForm(p=>({...p,time:e.target.value}))}
+                        disabled={!bookForm.date || slotsLoading}>
+                        <option value="">Saat seçin</option>
+                        {['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00'].map(t => {
+                          const isTaken = takenSlots.includes(t)
+                          return <option key={t} value={t} disabled={isTaken}>{t}{isTaken ? ' — Dolu' : ''}</option>
+                        })}
                       </select>
+                      {bookForm.date && takenSlots.length > 0 && !slotsLoading && (
+                        <p className="text-xs text-amber-600 mt-1">⚠️ {takenSlots.length} saat dolu</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -280,6 +453,8 @@ export default function CustomerPage() {
                   <button onClick={() => setBookModal(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
                   <button onClick={() => {
                     if (!bookForm.service || !bookForm.date) { toast3('❌ Hizmet ve tarih seçin'); return }
+                    if (!bookForm.time) { toast3('❌ Lütfen saat seçin'); return }
+                    if (takenSlots.includes(bookForm.time)) { toast3('❌ Bu saat dolu, başka saat seçin'); return }
                     setPayStep(true)
                   }} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold transition-colors">
                     Devam → Ödeme
@@ -422,7 +597,7 @@ export default function CustomerPage() {
                     className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group">
                     <div className="h-28 flex items-center justify-center text-5xl relative" style={{ background:`${COLORS[i%COLORS.length]}15` }}>
                       {b.emoji||'🏢'}
-                      <div className="absolute top-2 right-2"><span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">● Müssait</span></div>
+                      <div className="absolute top-2 right-2"><span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">● Müsait</span></div>
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                         <span className="bg-white/90 text-sm font-bold px-3 py-1.5 rounded-full shadow-md">Detay Gör →</span>
                       </div>
@@ -468,7 +643,6 @@ export default function CustomerPage() {
           onBook={(biz) => {
             setDetailBiz(biz)
             setTab('home')
-            // Kısa gecikme ile modal aç
             setTimeout(() => {
               setBizServices([])
               setBizStaff([])
@@ -535,13 +709,21 @@ export default function CustomerPage() {
                   <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Geçmiş ({pastAppts.length})</div>
                   <div className="space-y-2">
                     {pastAppts.map(a => (
-                      <div key={a.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-4 opacity-75">
+                      <div key={a.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-4">
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 bg-gray-50">{a.businesses?.emoji||'🏢'}</div>
                         <div className="flex-1 min-w-0">
                           <div className="font-semibold text-sm">{a.businesses?.name||'—'}</div>
                           <div className="text-gray-400 text-xs">{a.services?.name||'—'} · {new Date(a.appointment_date).toLocaleDateString('tr-TR')}</div>
                         </div>
-                        <Bdg s={a.status} />
+                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                          <Bdg s={a.status} />
+                          {a.status === 'completed' && (
+                            <button onClick={() => { setReviewModal(a); setReviewForm({ rating: 5, comment: '' }) }}
+                              className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 font-semibold">
+                              ⭐ Değerlendir
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -572,10 +754,19 @@ export default function CustomerPage() {
                 <div className="bg-white border border-gray-200 rounded-xl p-6 text-center shadow-sm">
                   <div className="w-16 h-16 rounded-full bg-orange-500 flex items-center justify-center text-2xl font-extrabold text-white mx-auto mb-4 border-4 border-orange-100">{profile.full_name?.[0]||'?'}</div>
                   <div className="font-bold text-lg mb-1">{profile.full_name}</div>
-                  <div className="text-gray-500 text-sm mb-4">{profile.email}</div>
-                  <div className="flex gap-2 justify-center flex-wrap">
-                    <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">⭐ {profile.loyalty_tier?.charAt(0).toUpperCase()+profile.loyalty_tier?.slice(1)||'Bronze'}</span>
+                  <div className="text-gray-500 text-sm mb-3">{profile.email}</div>
+                  <div className="flex gap-2 justify-center flex-wrap mb-4">
+                    {(() => {
+                      const tier = profile.loyalty_tier || 'bronze'
+                      const tierMap = { bronze: { label: 'Bronze', emoji: '🥉', cls: 'bg-orange-50 text-orange-700 border-orange-200' }, silver: { label: 'Silver', emoji: '🥈', cls: 'bg-gray-50 text-gray-600 border-gray-300' }, gold: { label: 'Gold', emoji: '🥇', cls: 'bg-amber-50 text-amber-700 border-amber-200' }, platinum: { label: 'Platinum', emoji: '💫', cls: 'bg-purple-50 text-purple-700 border-purple-200' } }
+                      const t = tierMap[tier] || tierMap.bronze
+                      return <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${t.cls}`}>{t.emoji} {t.label}</span>
+                    })()}
                   </div>
+                  <button onClick={() => setEditProfile(true)}
+                    className="w-full py-2 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">
+                    ✏️ Profili Düzenle
+                  </button>
                 </div>
                 <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                   {[['Telefon', profile.phone||'—'], ['Üye Tarihi', new Date(profile.created_at).toLocaleDateString('tr-TR')]].map(([l,v]) => (
@@ -603,7 +794,11 @@ export default function CustomerPage() {
                   <div className="h-1.5 bg-white/25 rounded-full overflow-hidden">
                     <div className="h-full bg-white/80 rounded-full" style={{width:`${pct}%`}} />
                   </div>
-                  <div className="absolute top-4 right-4 bg-white/20 border border-white/30 text-xs font-bold px-3 py-1 rounded-full">🥇 Gold</div>
+                  {(() => {
+                    const t = profile.loyalty_tier || 'bronze'
+                    const labels = { bronze: '🥉 Bronze', silver: '🥈 Silver', gold: '🥇 Gold', platinum: '💫 Platinum' }
+                    return <div className="absolute top-4 right-4 bg-white/20 border border-white/30 text-xs font-bold px-3 py-1 rounded-full">{labels[t] || '🥉 Bronze'}</div>
+                  })()}
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {[['Toplam Randevu', appointments.length,'text-gray-800'], ['Tamamlanan', appointments.filter(a=>a.status==='completed').length,'text-green-600'], ['Bekleyen', upcomingAppts.length,'text-orange-500']].map(([l,v,c]) => (
