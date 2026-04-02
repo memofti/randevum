@@ -897,7 +897,7 @@ export default function BusinessPage() {
                       </select>
                     </div>
                     <div className="overflow-x-auto">
-                      <table className="w-full">
+                      <table className="w-full min-w-[700px]">
                         <thead className="bg-gray-50"><tr>
                           {['Müşteri','Hizmet','Personel','Tarih','Saat','Tutar','Durum',''].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">{h}</th>)}
                         </tr></thead>

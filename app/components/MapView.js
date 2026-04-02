@@ -58,7 +58,9 @@ export default function MapView({ businesses, onBook }) {
   const [geocoding, setGeocoding] = useState(false)
   const [mapReady, setMapReady] = useState(false)
   const [showList, setShowList] = useState(true)
-  const [navModal, setNavModal] = useState(null) // { biz, lat, lng }
+  const [navModal, setNavModal] = useState(null)
+  const [filterCat, setFilterCat] = useState('')
+  const [filterSort, setFilterSort] = useState('rating') // { biz, lat, lng }
 
   useEffect(() => {
     if (typeof window === 'undefined' || mapInstanceRef.current) return
@@ -168,7 +170,14 @@ export default function MapView({ businesses, onBook }) {
   }
 
   const COLORS = ['#f97316','#3b82f6','#10b981','#8b5cf6','#ec4899']
-  const sortedBiz = userLocation ? [...businesses].sort((a,b) => (distances[a.id]||999) - (distances[b.id]||999)) : businesses
+  const sortedBiz = businesses
+    .filter(b => !filterCat || b.category === filterCat)
+    .sort((a,b) => {
+      if (filterSort === 'distance') return (distances[a.id]||999) - (distances[b.id]||999)
+      if (filterSort === 'price_asc') return (a.price_from||0) - (b.price_from||0)
+      if (filterSort === 'reviews') return (b.review_count||0) - (a.review_count||0)
+      return (b.rating||0) - (a.rating||0)
+    })
 
   return (
     <div className="flex flex-col md:flex-row w-full" style={{ height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
@@ -232,6 +241,25 @@ export default function MapView({ businesses, onBook }) {
           {geocoding && <div className="mt-2 text-xs text-gray-400 text-center">🗺️ İşletmeler yükleniyor...</div>}
         </div>
 
+        {/* Filtre */}
+        <div className="px-3 pb-2 border-b border-gray-100 flex-shrink-0">
+          <div className="flex gap-1.5 flex-wrap">
+            <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}
+              className="flex-1 min-w-0 text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none bg-white">
+              <option value="">Tüm Sektörler</option>
+              {[...new Set(businesses.map(b=>b.category).filter(Boolean))].map(c=>(
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <select value={filterSort} onChange={e=>setFilterSort(e.target.value)}
+              className="flex-1 min-w-0 text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none bg-white">
+              <option value="rating">⭐ Puana Göre</option>
+              <option value="distance">📍 En Yakın</option>
+              <option value="price_asc">₺ Ucuza Göre</option>
+              <option value="reviews">💬 Yoruma Göre</option>
+            </select>
+          </div>
+        </div>
         {/* Rota */}
         {route && (
           <div className="p-3 bg-orange-50 border-b border-orange-200 flex-shrink-0">
@@ -254,7 +282,7 @@ export default function MapView({ businesses, onBook }) {
         )}
 
         {/* Liste */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
+        <div className="flex-1 overflow-y-auto overscroll-contain" style={{minHeight:0}}>
           {sortedBiz.map((biz, i) => {
             const dist = distances[biz.id]
             const hasCoords = !!bizCoords[biz.id]
