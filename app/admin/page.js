@@ -198,6 +198,7 @@ export default function AdminPage() {
             <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center text-xs font-bold text-white">SA</div>
             <div className="flex-1 min-w-0"><div className="text-xs font-semibold text-white/85 truncate">{user.name}</div><div className="text-xs text-white/30">Admin</div></div>
             <button onClick={async()=>{await supabase.auth.signOut();localStorage.removeItem('randevu_user');router.push('/login')}} className="text-white/30 hover:text-white/60 text-xs transition-colors" title="Çıkış">🚪</button>
+            <button onClick={async()=>{await supabase.auth.signOut();localStorage.removeItem('randevu_user');router.push('/login')}} className="text-white/30 hover:text-white/60 text-xs transition-colors" title="Çıkış">🚪</button>
           </div>
           <button onClick={async()=>{await supabase.auth.signOut();localStorage.removeItem('randevu_user');router.push('/login')}} className="w-full mt-2 text-xs text-white/30 hover:text-white/60 text-center py-1">Çıkış Yap</button>
         </div>
