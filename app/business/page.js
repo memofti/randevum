@@ -731,7 +731,7 @@ export default function BusinessPage() {
                         <span className="font-bold text-sm">Son Randevular</span>
                         <button onClick={()=>setView('appointments')} className="text-xs text-orange-500 hover:underline">Tümü →</button>
                       </div>
-                      <div className="overflow-x-auto"><table className="w-full min-w-[500px]">
+                      <table className="w-full">
                         <thead className="bg-gray-50"><tr>
                           {['Müşteri','Hizmet','Tarih','Saat','Durum',''].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}
                         </tr></thead>
