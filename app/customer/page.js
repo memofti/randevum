@@ -610,7 +610,7 @@ export default function CustomerPage() {
             {user.name?.[0]||'?'}
           </div>
           <button onClick={async () => { await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); router.push('/login') }}
-            className="text-white/40 hover:text-white/70 text-xs transition-colors hidden sm:block">Çıkış</button>
+            className="text-white/40 hover:text-white/70 text-xs transition-colors">Çıkış</button>
         </div>
       </nav>
 

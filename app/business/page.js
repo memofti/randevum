@@ -656,26 +656,22 @@ export default function BusinessPage() {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* Mobil Alt Navbar - 2 satır */}
+        {/* Mobil Alt Navbar - Tek sıra scroll */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-800 border-t border-white/10">
-          <div className="flex">
-            {NAV.slice(0,5).map(([key,icon,label])=>(
+          <div className="flex overflow-x-auto scrollbar-hide">
+            {NAV.map(([key,icon,label])=>(
               <button key={key} onClick={()=>setView(key)}
-                className={`flex-1 flex flex-col items-center justify-center py-1.5 text-xs font-semibold transition-all relative ${view===key?'text-orange-500':'text-white/40 hover:text-white/70'}`}>
+                className={`flex-none flex flex-col items-center justify-center py-2 px-3 text-xs font-semibold transition-all relative min-w-[60px] ${view===key?'text-orange-500':'text-white/40'}`}>
                 <span className="text-base">{icon}</span>
-                <span className="text-[9px] mt-0.5 leading-none">{label}</span>
-                {key==='appointments'&&appts.filter(a=>a.status==='pending').length>0&&<span className="absolute top-0.5 right-1/4 w-3 h-3 bg-amber-500 rounded-full text-white text-[8px] flex items-center justify-center font-bold">{appts.filter(a=>a.status==='pending').length}</span>}
+                <span className="text-[9px] mt-0.5 leading-none whitespace-nowrap">{label}</span>
+                {key==='appointments'&&appts.filter(a=>a.status==='pending').length>0&&<span className="absolute top-0.5 right-1 w-3 h-3 bg-amber-500 rounded-full text-white text-[8px] flex items-center justify-center font-bold">{appts.filter(a=>a.status==='pending').length}</span>}
               </button>
             ))}
-          </div>
-          <div className="flex border-t border-white/5">
-            {NAV.slice(5).map(([key,icon,label])=>(
-              <button key={key} onClick={()=>setView(key)}
-                className={`flex-1 flex flex-col items-center justify-center py-1.5 text-xs font-semibold transition-all ${view===key?'text-orange-500':'text-white/40 hover:text-white/70'}`}>
-                <span className="text-base">{icon}</span>
-                <span className="text-[9px] mt-0.5 leading-none">{label}</span>
-              </button>
-            ))}
+            <button onClick={async()=>{await supabase.auth.signOut();localStorage.removeItem('randevu_user');router.push('/login')}}
+              className="flex-none flex flex-col items-center justify-center py-2 px-3 min-w-[60px] text-white/30">
+              <span className="text-base">🚪</span>
+              <span className="text-[9px] mt-0.5 leading-none">Çıkış</span>
+            </button>
           </div>
         </div>
         <div className="h-12 bg-white border-b border-gray-200 flex items-center px-5 gap-2 flex-shrink-0">

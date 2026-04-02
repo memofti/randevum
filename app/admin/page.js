@@ -126,6 +126,11 @@ export default function AdminPage() {
             {k==='requests'&&reviewFirms.length>0&&<span className="absolute top-0.5 right-1 w-3.5 h-3.5 bg-red-500 rounded-full text-white text-[8px] flex items-center justify-center font-bold">{reviewFirms.length}</span>}
           </button>
         ))}
+        <button onClick={async()=>{await supabase.auth.signOut();localStorage.removeItem('randevu_user');router.push('/login')}}
+          className="flex-1 flex flex-col items-center justify-center py-2 text-xs font-semibold text-white/30">
+          <span className="text-base">🚪</span>
+          <span className="text-[9px] mt-0.5 leading-none">Çıkış</span>
+        </button>
       </div>
       {toast&&<div className="fixed bottom-20 md:bottom-6 right-4 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-xl">{toast}</div>}
 
@@ -192,6 +197,7 @@ export default function AdminPage() {
           <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg bg-white/[0.05]">
             <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center text-xs font-bold text-white">SA</div>
             <div className="flex-1 min-w-0"><div className="text-xs font-semibold text-white/85 truncate">{user.name}</div><div className="text-xs text-white/30">Admin</div></div>
+            <button onClick={async()=>{await supabase.auth.signOut();localStorage.removeItem('randevu_user');router.push('/login')}} className="text-white/30 hover:text-white/60 text-xs transition-colors" title="Çıkış">🚪</button>
           </div>
           <button onClick={async()=>{await supabase.auth.signOut();localStorage.removeItem('randevu_user');router.push('/login')}} className="w-full mt-2 text-xs text-white/30 hover:text-white/60 text-center py-1">Çıkış Yap</button>
         </div>
