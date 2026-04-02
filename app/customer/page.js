@@ -6,6 +6,8 @@ import dynamic from 'next/dynamic'
 
 const MapView = dynamic(() => import('@/app/components/MapView'), { ssr: false })
 
+function distKm(lat1,lng1,lat2,lng2){const R=6371,dL=(lat2-lat1)*Math.PI/180,dN=(lng2-lng1)*Math.PI/180,a=Math.sin(dL/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dN/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))}
+
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
 
 function Spin() { return <div className="w-5 h-5 border-2 border-gray-200 border-t-orange-500 rounded-full animate-spin flex-shrink-0" /> }
@@ -26,6 +28,7 @@ export default function CustomerPage() {
   const [minRating, setMinRating] = useState(0)
   const [maxPrice, setMaxPrice] = useState(9999)
   const [showFilters, setShowFilters] = useState(false)
+  const [userLoc, setUserLoc] = useState(null) // harita için konum
   const [appointments, setAppointments] = useState([])
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -598,7 +601,7 @@ export default function CustomerPage() {
           <span className="text-white font-bold text-sm hidden sm:block">RandevuApp</span>
         </div>
         {[['home','🏠','Keşfet'],['map','🗺️','Harita'],['appts','📅','Randevularım'],['profile','👤','Profilim']].map(([k,ic,l]) => (
-          <button key={k} onClick={() => { setLoading(true); setTab(k) }}
+          <button key={k} onClick={() => { if(k!=='home') setLoading(true); setTab(k) }}
             className={`px-2 sm:px-3 py-1.5 rounded-lg text-sm font-semibold transition-all relative ${tab===k?'bg-white/20 text-white':'text-white/50 hover:text-white hover:bg-white/10'}`}>
             <span className="sm:hidden">{ic}</span>
             <span className="hidden sm:inline">{l}</span>
@@ -648,7 +651,7 @@ export default function CustomerPage() {
                   <div>
                     <div className="text-white/50 text-xs font-semibold mb-2">Sıralama</div>
                     <div className="flex gap-1.5 flex-wrap">
-                      {[['rating','⭐ Puan'],['price_asc','₺ Ucuz→Pahalı'],['price_desc','₺ Pahalı→Ucuz'],['reviews','💬 Yorum']].map(([v,l])=>(
+                      {[['rating','⭐ Puan'],['distance','📍 En Yakın'],['price_asc','₺ Ucuz→Pahalı'],['price_desc','₺ Pahalı→Ucuz'],['reviews','💬 Yorum']].map(([v,l])=>(
                         <button key={v} onClick={()=>setSortBy(v)}
                           className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${sortBy===v?'bg-orange-500 text-white':'bg-white/10 text-white/70 hover:bg-white/20'}`}>{l}</button>
                       ))}
@@ -720,11 +723,10 @@ export default function CustomerPage() {
                         <div className="text-sm text-gray-500">den <b className="text-gray-900">₺{b.price_from}</b></div>
                         <div className="flex items-center gap-1.5">
                           {(b.address||b.city) && (
-                            <a href={`https://maps.google.com/?q=${encodeURIComponent((b.address||'')+' '+(b.city||''))}`} target="_blank" rel="noopener noreferrer"
-                              onClick={e=>e.stopPropagation()}
+                            <button onClick={e=>{e.stopPropagation();setTab('map')}}
                               className="text-xs text-gray-400 hover:text-orange-500 px-2 py-1.5 rounded-lg hover:bg-orange-50 transition-colors font-medium">
-                              📍 Harita
-                            </a>
+                              🗺️ Harita
+                            </button>
                           )}
                           <button onClick={e => { e.stopPropagation(); openDetail(b) }}
                             className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">

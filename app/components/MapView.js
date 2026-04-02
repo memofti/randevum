@@ -171,7 +171,7 @@ export default function MapView({ businesses, onBook }) {
   const sortedBiz = userLocation ? [...businesses].sort((a,b) => (distances[a.id]||999) - (distances[b.id]||999)) : businesses
 
   return (
-    <div className="flex flex-col md:flex-row" style={{ height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
+    <div className="flex flex-col md:flex-row w-full" style={{ height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
       {/* Navigasyon Uygulama Seçici Modal */}
@@ -215,10 +215,7 @@ export default function MapView({ businesses, onBook }) {
       </div>
 
       {/* Sol Panel */}
-      <div className={`${showList?'flex':'hidden'} md:flex flex-col bg-white border-r border-gray-100 overflow-hidden`}
-        style={{ width: '100%', maxWidth: '100%', flex: '0 0 auto' }}
-        data-md-style="width: 340px">
-        <style>{`@media (min-width: 768px) { [data-md-style] { width: 340px !important; max-width: 340px !important; } }`}</style>
+      <div className={`${showList?'flex':'hidden'} md:flex flex-col bg-white border-r border-gray-100 overflow-hidden w-full md:w-80 flex-shrink-0`}>
 
         {/* Konum */}
         <div className="p-3 border-b border-gray-100 flex-shrink-0">
@@ -257,7 +254,7 @@ export default function MapView({ businesses, onBook }) {
         )}
 
         {/* Liste */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overscroll-contain">
           {sortedBiz.map((biz, i) => {
             const dist = distances[biz.id]
             const hasCoords = !!bizCoords[biz.id]
