@@ -656,16 +656,27 @@ export default function BusinessPage() {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* Mobil Alt Navbar */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-800 border-t border-white/10 flex">
-          {NAV.slice(0,5).map(([key,icon,label])=>(
-            <button key={key} onClick={()=>setView(key)}
-              className={`flex-1 flex flex-col items-center justify-center py-2 text-xs font-semibold transition-all relative ${view===key?'text-orange-500':'text-white/40 hover:text-white/70'}`}>
-              <span className="text-lg">{icon}</span>
-              <span className="text-[10px] mt-0.5">{label}</span>
-              {key==='appointments'&&appts.filter(a=>a.status==='pending').length>0&&<span className="absolute top-1 right-1/4 w-3.5 h-3.5 bg-amber-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold">{appts.filter(a=>a.status==='pending').length}</span>}
-            </button>
-          ))}
+        {/* Mobil Alt Navbar - 2 satır */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-800 border-t border-white/10">
+          <div className="flex">
+            {NAV.slice(0,5).map(([key,icon,label])=>(
+              <button key={key} onClick={()=>setView(key)}
+                className={`flex-1 flex flex-col items-center justify-center py-1.5 text-xs font-semibold transition-all relative ${view===key?'text-orange-500':'text-white/40 hover:text-white/70'}`}>
+                <span className="text-base">{icon}</span>
+                <span className="text-[9px] mt-0.5 leading-none">{label}</span>
+                {key==='appointments'&&appts.filter(a=>a.status==='pending').length>0&&<span className="absolute top-0.5 right-1/4 w-3 h-3 bg-amber-500 rounded-full text-white text-[8px] flex items-center justify-center font-bold">{appts.filter(a=>a.status==='pending').length}</span>}
+              </button>
+            ))}
+          </div>
+          <div className="flex border-t border-white/5">
+            {NAV.slice(5).map(([key,icon,label])=>(
+              <button key={key} onClick={()=>setView(key)}
+                className={`flex-1 flex flex-col items-center justify-center py-1.5 text-xs font-semibold transition-all ${view===key?'text-orange-500':'text-white/40 hover:text-white/70'}`}>
+                <span className="text-base">{icon}</span>
+                <span className="text-[9px] mt-0.5 leading-none">{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
         <div className="h-12 bg-white border-b border-gray-200 flex items-center px-5 gap-2 flex-shrink-0">
           <span className="text-sm font-semibold text-gray-800">{NAV.find(x=>x[0]===view)?.[2]}</span>
@@ -680,7 +691,7 @@ export default function BusinessPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 pb-20 md:pb-5">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 pb-28 md:pb-5">
           {loading ? (
             <div className="flex items-center justify-center gap-3 text-gray-400 py-20"><Spin /> Yükleniyor...</div>
           ) : (

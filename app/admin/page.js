@@ -115,8 +115,19 @@ export default function AdminPage() {
   if(!user) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white/20 border-t-orange-500 rounded-full animate-spin" /></div>
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      {toast&&<div className="fixed bottom-6 right-6 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-xl">{toast}</div>}
+    <div className="flex h-screen overflow-hidden bg-gray-50 relative">
+      {/* Mobil Alt Navbar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-800 border-t border-white/10 flex">
+        {[['dashboard','⊞','Panel'],['firms','🏢','Firmalar'],['requests','📬','Başvuru'],['users','👥','Kullanıcı'],['subscriptions','💳','Abonelik']].map(([k,ic,l])=>(
+          <button key={k} onClick={()=>setView(k)}
+            className={`flex-1 flex flex-col items-center justify-center py-2 text-xs font-semibold transition-all relative ${view===k?'text-orange-500':'text-white/40'}`}>
+            <span className="text-base">{ic}</span>
+            <span className="text-[9px] mt-0.5 leading-none">{l}</span>
+            {k==='requests'&&reviewFirms.length>0&&<span className="absolute top-0.5 right-1 w-3.5 h-3.5 bg-red-500 rounded-full text-white text-[8px] flex items-center justify-center font-bold">{reviewFirms.length}</span>}
+          </button>
+        ))}
+      </div>
+      {toast&&<div className="fixed bottom-20 md:bottom-6 right-4 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-xl">{toast}</div>}
 
       {/* Modal */}
       {modal&&(
@@ -159,7 +170,7 @@ export default function AdminPage() {
       )}
 
       {/* Sidebar */}
-      <div className="w-56 flex-shrink-0 bg-slate-800 flex flex-col h-screen">
+      <div className="hidden md:flex w-56 flex-shrink-0 bg-slate-800 flex-col h-screen">
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-sm">📅</div>
@@ -198,7 +209,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 sm:p-5">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 pb-24 md:pb-5">
           {loading?(
             <div className="flex items-center justify-center gap-3 text-gray-400 py-20"><Spin /> Yükleniyor...</div>
           ):(
