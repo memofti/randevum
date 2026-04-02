@@ -35,6 +35,7 @@ export default function BusinessPage() {
   const [bizInfo, setBizInfo] = useState(null)
   const [myBusinesses, setMyBusinesses] = useState([])
   const [bizSwitcher, setBizSwitcher] = useState(false)
+  const [qrModal, setQrModal] = useState(null)
   const [appts, setAppts] = useState([])
   const [staff, setStaff] = useState([])
   const [services, setSvcs] = useState([])
@@ -407,6 +408,29 @@ export default function BusinessPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
+      {/* QR KOD MODAL */}
+      {qrModal && (
+        <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setQrModal(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+              <div><div className="font-bold">Randevu QR Kodu</div><div className="text-xs text-gray-500">{qrModal.profiles?.full_name||'Müşteri'}</div></div>
+              <button onClick={()=>setQrModal(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
+            </div>
+            <div className="p-5 flex flex-col items-center gap-4">
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent('RandevuApp|'+qrModal.id+'|'+qrModal.appointment_date+'|'+String(qrModal.appointment_time).slice(0,5))}`}
+                alt="QR Kod" className="w-48 h-48 rounded-xl border border-gray-200" />
+              <div className="text-center text-sm text-gray-600">
+                <div className="font-semibold">{qrModal.services?.name||'Hizmet'}</div>
+                <div className="text-gray-400">{new Date(qrModal.appointment_date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})} · {String(qrModal.appointment_time).slice(0,5)}</div>
+              </div>
+              <div className="text-xs text-gray-400 text-center">Müşteri bu kodu göstererek randevusunu doğrulayabilir</div>
+            </div>
+            <div className="px-5 pb-5">
+              <button onClick={()=>setQrModal(null)} className="w-full py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">Kapat</button>
+            </div>
+          </div>
+        </div>
+      )}
       {toast && <div className="fixed bottom-6 right-6 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-xl">{toast}</div>}
 
       {/* PERSONEL MODAL */}
@@ -819,6 +843,7 @@ export default function BusinessPage() {
                                     <div className="flex gap-1.5 mt-2">
                                       <button onClick={()=>confirmAppt(a.id)} className="text-xs bg-green-500 text-white px-2 py-1 rounded-lg">✓ Onayla</button>
                                       <button onClick={()=>cancelAppt(a.id)} className="text-xs bg-red-50 text-red-600 border border-red-200 px-2 py-1 rounded-lg">✗</button>
+                                      {a.status==='confirmed'&&<button onClick={()=>setQrModal(a)} className="text-xs bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-lg">QR</button>}
                                     </div>
                                   )}
                                 </div>
