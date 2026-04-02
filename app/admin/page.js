@@ -34,6 +34,7 @@ export default function AdminPage() {
   const [firms, setFirms] = useState([])
   const [profiles, setProfiles] = useState([])
   const [appts, setAppts] = useState([])
+  const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState('')
   const [modal, setModal] = useState(false)
@@ -58,14 +59,16 @@ export default function AdminPage() {
   async function loadAll() {
     setLoading(true)
     try {
-      const [fr,pr,ar]=await Promise.all([
+      const [fr,pr,ar,payr]=await Promise.all([
         supabase.from('businesses').select('*').order('created_at',{ascending:false}),
         supabase.from('profiles').select('*').order('created_at',{ascending:false}),
         supabase.from('appointments').select('id,status,business_id'),
+        supabase.from('payments').select('amount,created_at,status').eq('status','completed'),
       ])
       setFirms(fr.data||[])
       setProfiles(pr.data||[])
       setAppts(ar.data||[])
+      setPayments(payr?.data||[])
     } catch(e){console.error(e)}
     finally{setLoading(false)}
   }
@@ -214,6 +217,45 @@ export default function AdminPage() {
                     <KPI label="Randevu" value={appts.length} sub="↑ %8" color="blue" />
                     <KPI label="Bekleyen Başvuru" value={reviewFirms.length} color="red" />
                   </div>
+                  {/* Gelir KPI */}
+                  {(() => {
+                    const totalRev = payments.reduce((s,p) => s + (+p.amount||0), 0)
+                    const thisMonth = new Date().toISOString().slice(0,7)
+                    const monthRev = payments.filter(p => p.created_at?.startsWith(thisMonth)).reduce((s,p) => s + (+p.amount||0), 0)
+                    const last6 = Array.from({length:6}, (_,i) => {
+                      const d = new Date(); d.setMonth(d.getMonth()-5+i)
+                      const key = d.toISOString().slice(0,7)
+                      const label = d.toLocaleDateString('tr-TR',{month:'short'})
+                      const rev = payments.filter(p=>p.created_at?.startsWith(key)).reduce((s,p)=>s+(+p.amount||0),0)
+                      return {label, rev, key}
+                    })
+                    const maxRev = Math.max(...last6.map(m=>m.rev), 1)
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                          <div className="text-xs text-gray-500 mb-1">Toplam Gelir</div>
+                          <div className="text-2xl font-extrabold text-gray-800">₺{totalRev.toLocaleString()}</div>
+                          <div className="text-xs text-green-600 mt-1">💳 {payments.length} ödeme</div>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                          <div className="text-xs text-gray-500 mb-1">Bu Ay Gelir</div>
+                          <div className="text-2xl font-extrabold text-orange-500">₺{monthRev.toLocaleString()}</div>
+                          <div className="text-xs text-gray-400 mt-1">{new Date().toLocaleDateString('tr-TR',{month:'long',year:'numeric'})}</div>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                          <div className="text-xs text-gray-500 mb-2">Son 6 Ay</div>
+                          <div className="flex items-end gap-1 h-12">
+                            {last6.map(m => (
+                              <div key={m.key} className="flex-1 flex flex-col items-center gap-0.5">
+                                <div className="w-full bg-orange-500 rounded-sm transition-all" style={{height:`${Math.round(m.rev/maxRev*40)+2}px`, opacity: m.rev>0?1:0.2}} title={`₺${m.rev}`} />
+                                <div className="text-[9px] text-gray-400">{m.label}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                     <div className="lg:col-span-2 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                       <div className="px-5 py-3.5 border-b border-gray-100 flex justify-between">
