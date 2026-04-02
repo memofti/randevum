@@ -273,7 +273,7 @@ export default function AdminPage() {
                         <span className="font-bold text-sm">Son Firmalar</span>
                         <button onClick={()=>setView('firms')} className="text-xs text-orange-500 hover:underline">Tümü →</button>
                       </div>
-                      <div className="overflow-x-auto"><table className="w-full min-w-[400px]">
+                      <table className="w-full">
                         <thead className="bg-gray-50"><tr>{['Firma','Kategori','Plan','Durum'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
                         <tbody>
                           {firms.slice(0,6).map((f,i)=>(
@@ -365,7 +365,7 @@ export default function AdminPage() {
                           ))}
                           {filtered.length===0&&<tr><td colSpan="7" className="px-4 py-10 text-center text-gray-400">Sonuç bulunamadı</td></tr>}
                         </tbody>
-                      </table></div>
+                      </table>
                     </div>
                     <div className="px-5 py-3 border-t border-gray-100 text-sm text-gray-500">{filtered.length} firma</div>
                   </div>
