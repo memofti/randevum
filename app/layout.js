@@ -3,12 +3,31 @@ import './globals.css'
 export const metadata = {
   title: 'RandevuApp',
   description: 'Randevu yönetim platformu',
+  manifest: '/manifest.json',
+  themeColor: '#ff6b35',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'RandevuApp',
+  },
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+  },
 }
 
 export default function RootLayout({ children }) {
   return (
     <html lang="tr">
-      <body>{children}</body>
+      <body>{children}<script dangerouslySetInnerHTML={{__html:`
+    if('serviceWorker' in navigator){
+      window.addEventListener('load',()=>{
+        navigator.serviceWorker.register('/sw.js').then(()=>console.log('SW registered')).catch(()=>{})
+      })
+    }
+  `}} />
+</body>
     </html>
   )
 }
