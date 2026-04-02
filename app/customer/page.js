@@ -32,6 +32,7 @@ export default function CustomerPage() {
   const [appointments, setAppointments] = useState([])
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [bizLoading, setBizLoading] = useState(true)
   const [toast, setToast] = useState('')
   // İşletme detay modal
   const [detailBiz, setDetailBiz] = useState(null)
@@ -70,7 +71,7 @@ export default function CustomerPage() {
   // İşletmeler
   useEffect(() => {
     supabase.from('businesses').select('*').eq('status','active').order('rating',{ascending:false})
-      .then(({ data }) => { setBusinesses(data||[]); setLoading(false) })
+      .then(({ data }) => { setBusinesses(data||[]); setLoading(false); setBizLoading(false) })
   }, [])
 
   // Randevular
@@ -601,7 +602,7 @@ export default function CustomerPage() {
           <span className="text-white font-bold text-sm hidden sm:block">RandevuApp</span>
         </div>
         {[['home','🏠','Keşfet'],['map','🗺️','Harita'],['appts','📅','Randevularım'],['profile','👤','Profilim']].map(([k,ic,l]) => (
-          <button key={k} onClick={() => { if(k!=='home') setLoading(true); setTab(k) }}
+          <button key={k} onClick={() => { if(k!=='home' && k!=='map') setLoading(true); setTab(k) }}
             className={`px-2 sm:px-3 py-1.5 rounded-lg text-sm font-semibold transition-all relative ${tab===k?'bg-white/20 text-white':'text-white/50 hover:text-white hover:bg-white/10'}`}>
             <span className="sm:hidden">{ic}</span>
             <span className="hidden sm:inline">{l}</span>
@@ -691,7 +692,7 @@ export default function CustomerPage() {
                 <span className="ml-2 text-sm font-normal text-gray-400">({filteredBiz.length})</span>
               </h2>
             </div>
-            {loading ? (
+            {bizLoading ? (
               <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /> Yükleniyor...</div>
             ) : filteredBiz.length === 0 ? (
               <div className="text-center py-16 text-gray-400">
