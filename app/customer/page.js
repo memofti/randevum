@@ -599,7 +599,7 @@ export default function CustomerPage() {
         </div>
         {[['home','🏠','Keşfet'],['map','🗺️','Harita'],['appts','📅','Randevularım'],['profile','👤','Profilim']].map(([k,ic,l]) => (
           <button key={k} onClick={() => { setLoading(true); setTab(k) }}
-            className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all relative ${tab===k?'bg-white/20 text-white':'text-white/50 hover:text-white hover:bg-white/10'}`}>
+            className={`px-2 sm:px-3 py-1.5 rounded-lg text-sm font-semibold transition-all relative ${tab===k?'bg-white/20 text-white':'text-white/50 hover:text-white hover:bg-white/10'}`}>
             <span className="sm:hidden">{ic}</span>
             <span className="hidden sm:inline">{l}</span>
             {k==='appts' && upcomingAppts.length>0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full text-white text-xs flex items-center justify-center font-bold">{upcomingAppts.length}</span>}
@@ -617,12 +617,12 @@ export default function CustomerPage() {
       {/* HOME */}
       {tab === 'home' && (
         <>
-          <div className="bg-gradient-to-r from-slate-800 to-slate-700 py-12 px-6 relative overflow-hidden">
+          <div className="bg-gradient-to-r from-slate-800 to-slate-700 py-8 sm:py-12 px-4 sm:px-6 relative overflow-hidden">
             <div className="absolute right-0 top-0 w-72 h-72 bg-orange-500/10 rounded-full blur-3xl" />
             <div className="max-w-4xl mx-auto relative z-10">
               <div className="text-white/60 text-sm mb-1">Merhaba, {user.name?.split(' ')[0]} 👋</div>
-              <h1 className="text-3xl font-extrabold text-white tracking-tight mb-5">Randevunuzu Alın</h1>
-              <div className="flex bg-white rounded-xl overflow-hidden shadow-xl max-w-lg">
+              <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight mb-4">Randevunuzu Alın</h1>
+              <div className="flex bg-white rounded-xl overflow-hidden shadow-xl w-full sm:max-w-lg">
                 <input className="flex-1 px-4 py-3 text-sm outline-none" placeholder="İşletme veya hizmet ara..."
                   value={searchQ} onChange={e => setSearchQ(e.target.value)} />
                 <button className="px-5 py-3 bg-orange-500 text-white text-sm font-bold">Ara</button>
@@ -681,7 +681,7 @@ export default function CustomerPage() {
             </div>
           </div>
 
-          <div className="max-w-6xl mx-auto px-6 py-8 w-full">
+          <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-8 w-full">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-bold text-lg">
                 {catFilter ? `${catFilter} İşletmeleri` : '📍 Yakınındaki İşletmeler'}
@@ -708,7 +708,7 @@ export default function CustomerPage() {
                       </div>
                     </div>
                     <div className="p-4">
-                      <div className="font-bold text-sm mb-0.5">{b.name}</div>
+                      <div className="font-bold text-sm mb-0.5 truncate">{b.name}</div>
                       <div className="text-gray-500 text-xs mb-2">{b.category} · {b.city}</div>
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-amber-500 text-xs font-bold">★ {b.rating}</span>
@@ -768,7 +768,7 @@ export default function CustomerPage() {
 
       {/* RANDEVULARIM */}
       {tab === 'appts' && (
-        <div className="max-w-3xl mx-auto w-full px-6 py-8">
+        <div className="max-w-3xl mx-auto w-full px-3 sm:px-6 py-5 sm:py-8">
           <div className="flex items-center justify-between mb-5">
             <div><h1 className="text-xl font-bold">Randevularım</h1><p className="text-gray-500 text-sm">{user.name}</p></div>
             <button onClick={() => { setTab('home') }} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Yeni Randevu</button>
@@ -849,7 +849,7 @@ export default function CustomerPage() {
 
       {/* PROFİL */}
       {tab === 'profile' && (
-        <div className="max-w-4xl mx-auto w-full px-6 py-8">
+        <div className="max-w-4xl mx-auto w-full px-3 sm:px-6 py-5 sm:py-8">
           <h1 className="text-xl font-bold mb-6">Profilim</h1>
           {loading || !profile ? (
             <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /></div>

@@ -680,7 +680,7 @@ export default function BusinessPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-5 pb-20 md:pb-5">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 pb-20 md:pb-5">
           {loading ? (
             <div className="flex items-center justify-center gap-3 text-gray-400 py-20"><Spin /> Yükleniyor...</div>
           ) : (
@@ -719,7 +719,7 @@ export default function BusinessPage() {
                       <span className="ml-auto text-amber-600">→</span>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-5">
                     <KPI label="Bu Ay Gelir" value={`₺${thisMonthRev.toLocaleString()}`} sub={growthLabel(revenueGrowth)} color="orange" />
                     <KPI label="Randevu" value={appts.length} sub={growthLabel(apptGrowth)} color="green" />
                     <KPI label="Müşteri" value={Object.keys(custMap).length} sub={growthLabel(custGrowth)} color="blue" />
@@ -731,7 +731,7 @@ export default function BusinessPage() {
                         <span className="font-bold text-sm">Son Randevular</span>
                         <button onClick={()=>setView('appointments')} className="text-xs text-orange-500 hover:underline">Tümü →</button>
                       </div>
-                      <table className="w-full">
+                      <div className="overflow-x-auto"><table className="w-full min-w-[500px]">
                         <thead className="bg-gray-50"><tr>
                           {['Müşteri','Hizmet','Tarih','Saat','Durum',''].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}
                         </tr></thead>
@@ -929,13 +929,13 @@ export default function BusinessPage() {
                     <div><h1 className="text-xl font-bold">Personel</h1><p className="text-gray-500 text-sm">{staff.length} personel</p></div>
                     <button onClick={openStaffAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Personel Ekle</button>
                   </div>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-5">
                     <KPI label="Toplam" value={staff.length} color="blue" />
                     <KPI label="Müssait" value={staff.filter(s=>s.status==='available').length} color="green" />
                     <KPI label="Meşgul" value={staff.filter(s=>s.status==='busy').length} color="orange" />
                     <KPI label="Ort. Puan" value={staff.length?(staff.reduce((s,x)=>s+(+x.rating||0),0)/staff.length).toFixed(1):'—'} color="purple" />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     {staff.map((s,i)=>(
                       <div key={s.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={()=>openStaffEdit(s)}>
                         <div className="relative flex-shrink-0">
@@ -1094,7 +1094,7 @@ export default function BusinessPage() {
               {view==='reports' && (
                 <div>
                   <h1 className="text-xl font-bold mb-5">Raporlar</h1>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
                     <KPI label="Toplam Gelir" value={`₺${revenue.toLocaleString()}`} sub={`${appts.filter(a=>a.status==='confirmed').length} onaylı`} color="orange" />
                     <KPI label="Randevu" value={appts.length} sub={`${appts.filter(a=>a.status==='pending').length} bekliyor`} color="green" />
                     <KPI label="Tamamlanan" value={appts.filter(a=>a.status==='completed').length} color="blue" />

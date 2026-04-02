@@ -198,7 +198,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5">
           {loading?(
             <div className="flex items-center justify-center gap-3 text-gray-400 py-20"><Spin /> Yükleniyor...</div>
           ):(
@@ -211,7 +211,7 @@ export default function AdminPage() {
                       ⚠️ <div><b>{reviewFirms.length} firma başvurusu</b> onay bekliyor → Başvuruları incele</div><span className="ml-auto text-amber-600">→</span>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
                     <KPI label="Toplam Firma" value={firms.length} sub={`${activeFirms.length} aktif`} color="orange" />
                     <KPI label="Kullanıcı" value={profiles.filter(p=>p.role==='customer').length} sub="↑ %12" color="green" />
                     <KPI label="Randevu" value={appts.length} sub="↑ %8" color="blue" />
