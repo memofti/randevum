@@ -63,6 +63,16 @@ export default function MapView({ businesses, onBook }) {
   const [filterSort, setFilterSort] = useState('rating') // { biz, lat, lng }
 
   useEffect(() => {
+    // Leaflet CSS yükle
+    if (!document.querySelector('link[href*="leaflet"]')) {
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+      document.head.appendChild(link)
+    }
+  }, [])
+
+  useEffect(() => {
     if (typeof window === 'undefined' || mapInstanceRef.current) return
     let map
     import('leaflet').then(mod => {
@@ -181,8 +191,6 @@ export default function MapView({ businesses, onBook }) {
 
   return (
     <div className="flex flex-col md:flex-row w-full" style={{ height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
       {/* Navigasyon Uygulama Seçici Modal */}
       {navModal && (
         <div className="fixed inset-0 bg-black/60 z-[9999] flex items-end sm:items-center justify-center p-4" onClick={() => setNavModal(null)}>
@@ -224,7 +232,7 @@ export default function MapView({ businesses, onBook }) {
       </div>
 
       {/* Sol Panel */}
-      <div className={`${showList?'flex':'hidden'} md:flex flex-col bg-white border-r border-gray-100 overflow-hidden w-full md:w-80 flex-shrink-0`}>
+      <div className={`${showList?'flex':'hidden'} md:flex flex-col bg-white border-r border-gray-100 overflow-hidden w-full md:w-80 flex-shrink-0`} style={{height:"100%"}}>
 
         {/* Konum */}
         <div className="p-3 border-b border-gray-100 flex-shrink-0">
