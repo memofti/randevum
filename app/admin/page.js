@@ -216,7 +216,7 @@ export default function AdminPage() {
             <>
               {view==='dashboard'&&(
                 <div>
-                  <div className="mb-5"><h1 className="text-xl font-bold">Platform Genel Bakış</h1><p className="text-gray-500 text-sm">Gerçek zamanlı Supabase verisi</p></div>
+                  <div className="mb-4"><h1 className="text-lg sm:text-xl font-bold">Platform Genel Bakış</h1><p className="text-gray-500 text-sm">Gerçek zamanlı Supabase verisi</p></div>
                   {reviewFirms.length>0&&(
                     <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-5 text-sm cursor-pointer hover:bg-amber-100" onClick={()=>setView('requests')}>
                       ⚠️ <div><b>{reviewFirms.length} firma başvurusu</b> onay bekliyor → Başvuruları incele</div><span className="ml-auto text-amber-600">→</span>
@@ -273,7 +273,7 @@ export default function AdminPage() {
                         <span className="font-bold text-sm">Son Firmalar</span>
                         <button onClick={()=>setView('firms')} className="text-xs text-orange-500 hover:underline">Tümü →</button>
                       </div>
-                      <table className="w-full">
+                      <div className="overflow-x-auto"><table className="w-full min-w-[400px]">
                         <thead className="bg-gray-50"><tr>{['Firma','Kategori','Plan','Durum'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
                         <tbody>
                           {firms.slice(0,6).map((f,i)=>(
@@ -365,7 +365,7 @@ export default function AdminPage() {
                           ))}
                           {filtered.length===0&&<tr><td colSpan="7" className="px-4 py-10 text-center text-gray-400">Sonuç bulunamadı</td></tr>}
                         </tbody>
-                      </table>
+                      </table></div>
                     </div>
                     <div className="px-5 py-3 border-t border-gray-100 text-sm text-gray-500">{filtered.length} firma</div>
                   </div>
