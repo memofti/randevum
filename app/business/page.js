@@ -457,7 +457,7 @@ export default function BusinessPage() {
           </div>
         </div>
       )}
-      {/* QR KOD MODAL */}}
+      {/* QR KOD MODAL */}
       {qrModal && (
         <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setQrModal(null)}>
           <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl">
