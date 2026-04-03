@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, sendNotification } from '@/lib/supabase'
+import { supabase, sendNotification, sendWhatsApp } from '@/lib/supabase'
 
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
 const MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık']
@@ -157,6 +157,7 @@ export default function BusinessPage() {
   async function confirmAppt(id) {
     await supabase.from('appointments').update({status:'confirmed'}).eq('id',id)
     sendNotification('confirmed', id)
+    sendWhatsApp('confirmed', id)
     sendNotification('confirmed', id)
     setAppts(p=>p.map(a=>a.id===id?{...a,status:'confirmed'}:a))
     toast3('✅ Randevu onaylandı')
@@ -176,6 +177,7 @@ export default function BusinessPage() {
   async function cancelAppt(id) {
     await supabase.from('appointments').update({status:'cancelled'}).eq('id',id)
     sendNotification('cancelled', id)
+    sendWhatsApp('cancelled', id)
     sendNotification('cancelled', id)
     setAppts(p=>p.map(a=>a.id===id?{...a,status:'cancelled'}:a))
     toast3('Randevu iptal edildi')
