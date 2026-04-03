@@ -445,7 +445,7 @@ export default function BusinessPage() {
                       await supabase.from('businesses').update({plan:p.plan}).eq('id',bizId)
                       setBizInfo(prev=>({...prev,plan:p.plan}))
                       setPlanModal(false)
-                      toast3(`✅ Plan ${p.label} olarak güncellendi!`)
+                      toast3('✅ Plan ' + p.label + ' olarak güncellendi!')
                     }} className={`w-full py-2 rounded-xl text-xs font-bold text-white transition-colors ${p.plan==='pro'?'bg-orange-500 hover:bg-orange-600':p.plan==='enterprise'?'bg-slate-800 hover:bg-slate-700':'bg-gray-400 hover:bg-gray-500'}`}>
                       {p.plan==='free'?'Ücretsiz Geç':'Bu Planı Seç'}
                     </button>
