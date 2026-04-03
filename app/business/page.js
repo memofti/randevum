@@ -36,6 +36,7 @@ export default function BusinessPage() {
   const [myBusinesses, setMyBusinesses] = useState([])
   const [bizSwitcher, setBizSwitcher] = useState(false)
   const [qrModal, setQrModal] = useState(null)
+  const [planModal, setPlanModal] = useState(false)
   const [appts, setAppts] = useState([])
   const [staff, setStaff] = useState([])
   const [services, setSvcs] = useState([])
@@ -408,7 +409,55 @@ export default function BusinessPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* QR KOD MODAL */}
+      {/* PLAN YÜKSELTME MODAL */}
+      {planModal && (
+        <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setPlanModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+              <div>
+                <div className="font-bold text-lg">Plan Yükselt</div>
+                <div className="text-xs text-gray-500">Şu anki plan: <b className="text-orange-500 uppercase">{bizInfo?.plan||'free'}</b></div>
+              </div>
+              <button onClick={()=>setPlanModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 text-lg">✕</button>
+            </div>
+            <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {[
+                { plan:'free', label:'Ücretsiz', price:'₺0', color:'gray', features:['3 personel','5 hizmet','50 randevu/ay','Temel raporlar'] },
+                { plan:'pro', label:'Pro', price:'₺300/ay', color:'orange', features:['10 personel','20 hizmet','500 randevu/ay','Gelişmiş raporlar','SMS bildirimi'], popular:true },
+                { plan:'enterprise', label:'Enterprise', price:'₺750/ay', color:'slate', features:['Sınırsız personel','Sınırsız hizmet','Sınırsız randevu','Özel domain','Öncelikli destek'] },
+              ].map(p=>(
+                <div key={p.plan} className={`border-2 rounded-2xl p-4 relative flex flex-col ${bizInfo?.plan===p.plan?'border-orange-500 bg-orange-50':p.popular?'border-orange-300':'border-gray-200'}`}>
+                  {p.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">Popüler</div>}
+                  {bizInfo?.plan===p.plan && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">Mevcut Plan</div>}
+                  <div className="font-bold text-base mb-1">{p.label}</div>
+                  <div className="text-2xl font-extrabold text-gray-800 mb-3">{p.price}</div>
+                  <ul className="space-y-1.5 flex-1 mb-4">
+                    {p.features.map(f=>(
+                      <li key={f} className="flex items-center gap-2 text-xs text-gray-600">
+                        <span className="text-green-500 font-bold">✓</span>{f}
+                      </li>
+                    ))}
+                  </ul>
+                  {bizInfo?.plan===p.plan ? (
+                    <div className="w-full py-2 text-center text-xs font-bold text-green-600 bg-green-50 rounded-xl border border-green-200">Aktif Plan</div>
+                  ) : (
+                    <button onClick={async()=>{
+                      await supabase.from('businesses').update({plan:p.plan}).eq('id',bizId)
+                      setBizInfo(prev=>({...prev,plan:p.plan}))
+                      setPlanModal(false)
+                      toast3(`✅ Plan ${p.label} olarak güncellendi!`)
+                    }} className={`w-full py-2 rounded-xl text-xs font-bold text-white transition-colors ${p.plan==='pro'?'bg-orange-500 hover:bg-orange-600':p.plan==='enterprise'?'bg-slate-800 hover:bg-slate-700':'bg-gray-400 hover:bg-gray-500'}`}>
+                      {p.plan==='free'?'Ücretsiz Geç':'Bu Planı Seç'}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="px-5 pb-5 text-xs text-gray-400 text-center">Gerçek ödeme entegrasyonu yakında · Şu an demo amaçlı</div>
+          </div>
+        </div>
+      )}
+      {/* QR KOD MODAL */}}
       {qrModal && (
         <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setQrModal(null)}>
           <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl">
@@ -713,7 +762,7 @@ export default function BusinessPage() {
                         </div>
                       </div>
                       {bizInfo.plan !== 'enterprise' && (
-                        <button onClick={() => toast3('Admin ile iletişime geçerek planınızı yükseltebilirsiniz.')}
+                        <button onClick={() => setPlanModal(true)}
                           className="text-xs font-bold px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg">⬆️ Planı Yükselt</button>
                       )}
                     </div>
