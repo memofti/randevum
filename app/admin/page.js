@@ -25,7 +25,7 @@ function KPI({ label, value, sub, color }) {
     </div>
   )
 }
-const NAV=[['dashboard','⊞','Dashboard'],['firms','🏢','Firmalar'],['requests','📬','Başvurular'],['subscriptions','💳','Abonelikler'],['users','👥','Kullanıcılar']]
+const NAV=[['dashboard','⊞','Dashboard'],['firms','🏢','Firmalar'],['requests','📬','Başvurular'],['ads','📢','Reklamlar'],['subscriptions','💳','Abonelikler'],['users','👥','Kullanıcılar']]
 
 export default function AdminPage() {
   const router = useRouter()
@@ -40,6 +40,7 @@ export default function AdminPage() {
   const [modal, setModal] = useState(false)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const [allAds, setAllAds] = useState([])
   const [statusF, setStatusF] = useState('')
   const [form, setForm] = useState({name:'',category:'',city:'',owner_name:'',email:'',phone:'',price_from:0,plan:'free'})
 
@@ -59,7 +60,7 @@ export default function AdminPage() {
   async function loadAll() {
     setLoading(true)
     try {
-      const [fr,pr,ar,payr]=await Promise.all([
+      const [fr,pr,ar,payr,adsr2]=await Promise.all([
         supabase.from('businesses').select('*').order('created_at',{ascending:false}),
         supabase.from('profiles').select('*').order('created_at',{ascending:false}),
         supabase.from('appointments').select('id,status,business_id'),
@@ -118,7 +119,7 @@ export default function AdminPage() {
     <div className="flex h-screen overflow-hidden bg-gray-50 relative">
       {/* Mobil Alt Navbar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-800 border-t border-white/10 flex">
-        {[['dashboard','⊞','Panel'],['firms','🏢','Firmalar'],['requests','📬','Başvuru'],['users','👥','Kullanıcı'],['subscriptions','💳','Abonelik']].map(([k,ic,l])=>(
+        {[['dashboard','⊞','Panel'],['firms','🏢','Firmalar'],['requests','📬','Başvuru'],['users','👥','Kullanıcı'],['ads','📢','Reklam'],['subscriptions','💳','Abonelik']].map(([k,ic,l])=>(
           <button key={k} onClick={()=>setView(k)}
             className={`flex-1 flex flex-col items-center justify-center py-2 text-xs font-semibold transition-all relative ${view===k?'text-orange-500':'text-white/40'}`}>
             <span className="text-base">{ic}</span>
@@ -447,6 +448,63 @@ export default function AdminPage() {
                 </div>
               )}
 
+              {view==='ads'&&(
+                <div>
+                  <div className="mb-5"><h1 className="text-lg sm:text-xl font-bold">Reklam Yönetimi</h1><p className="text-gray-500 text-sm">{allAds.length} reklam</p></div>
+                  {allAds.length===0 ? (
+                    <div className="bg-white border border-gray-200 rounded-xl p-12 text-center"><div className="text-4xl mb-3">📢</div><div className="text-gray-400">Henüz reklam yok</div></div>
+                  ) : (
+                    <div className="space-y-3">
+                      {allAds.map(ad=>(
+                        <div key={ad.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                          <div className="flex items-start gap-4 flex-wrap">
+                            {ad.image_url && <img src={ad.image_url} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0"/>}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <span className="font-bold text-sm">{ad.businesses?.emoji} {ad.businesses?.name}</span>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${ad.status==='active'?'bg-green-50 text-green-700 border-green-200':ad.status==='pending'?'bg-amber-50 text-amber-700 border-amber-200':'bg-gray-100 text-gray-500 border-gray-200'}`}>
+                                  {ad.status==='active'?'● Aktif':ad.status==='pending'?'⏳ Bekliyor':'⏸ Durdu'}
+                                </span>
+                                <span className="text-xs text-gray-400">{ad.type==='regional'?'📍 Bölgesel':'🌍 Genel'}</span>
+                              </div>
+                              <div className="font-semibold text-sm">{ad.title}</div>
+                              {ad.description && <div className="text-xs text-gray-500 mt-0.5">{ad.description}</div>}
+                              <div className="flex gap-3 mt-2 text-xs text-gray-400 flex-wrap">
+                                {ad.target_city && <span>📍 {ad.target_city}{ad.target_district?' / '+ad.target_district:''} · {ad.target_radius_km}km</span>}
+                                {ad.discount_pct>0 && <span className="text-orange-500 font-bold">%{ad.discount_pct} indirim</span>}
+                                <span>👁 {ad.impressions} · 🖱 {ad.clicks}</span>
+                                <span>Bitiş: {new Date(ad.ends_at).toLocaleDateString('tr-TR')}</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-2 flex-shrink-0">
+                              {/* Durum değiştir */}
+                              <select value={ad.status} onChange={async e=>{
+                                const s = e.target.value
+                                await supabase.from('ads').update({status:s}).eq('id',ad.id)
+                                setAllAds(p=>p.map(a=>a.id===ad.id?{...a,status:s}:a))
+                              }} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-orange-400">
+                                <option value="pending">⏳ Bekliyor</option>
+                                <option value="active">● Aktif</option>
+                                <option value="paused">⏸ Durdur</option>
+                                <option value="expired">❌ Süresi doldu</option>
+                              </select>
+                              {/* Tür değiştir */}
+                              <select value={ad.type} onChange={async e=>{
+                                const t = e.target.value
+                                await supabase.from('ads').update({type:t}).eq('id',ad.id)
+                                setAllAds(p=>p.map(a=>a.id===ad.id?{...a,type:t}:a))
+                              }} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-orange-400">
+                                <option value="general">🌍 Genel</option>
+                                <option value="regional">📍 Bölgesel</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {view==='subscriptions'&&(
                 <div>
                   <h1 className="text-xl font-bold mb-5">Abonelikler</h1>

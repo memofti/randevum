@@ -33,6 +33,7 @@ export default function CustomerPage() {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [bizLoading, setBizLoading] = useState(true)
+  const [activeAds, setActiveAds] = useState([])
   const [toast, setToast] = useState('')
   // İşletme detay modal
   const [detailBiz, setDetailBiz] = useState(null)
@@ -71,7 +72,14 @@ export default function CustomerPage() {
   // İşletmeler
   useEffect(() => {
     supabase.from('businesses').select('*').eq('status','active').order('rating',{ascending:false})
-      .then(({ data }) => { setBusinesses(data||[]); setLoading(false); setBizLoading(false) })
+      .then(async ({ data }) => {
+        setBusinesses(data||[])
+        setLoading(false)
+        setBizLoading(false)
+        // Aktif reklamları yükle
+        const { data: ads } = await supabase.from('ads').select('*, businesses(name,emoji,category,city,price_from,rating)').eq('status','active').gte('ends_at', new Date().toISOString())
+        setActiveAds(ads||[])
+      })
   }, [])
 
   // Randevular
@@ -692,6 +700,42 @@ export default function CustomerPage() {
                 <span className="ml-2 text-sm font-normal text-gray-400">({filteredBiz.length})</span>
               </h2>
             </div>
+            {/* REKLAM BANNER'LARI */}
+            {activeAds.length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Sponsorlu</span>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                  {activeAds.filter(ad => {
+                    if(ad.type === 'general') return true
+                    if(ad.type === 'regional' && userLoc && ad.target_lat && ad.target_lng) {
+                      const d = distKm(userLoc.lat, userLoc.lng, parseFloat(ad.target_lat), parseFloat(ad.target_lng))
+                      return d <= (ad.target_radius_km || 20)
+                    }
+                    return ad.type === 'general'
+                  }).map(ad => (
+                    <div key={ad.id} onClick={async () => {
+                      await supabase.from('ads').update({clicks: (ad.clicks||0)+1}).eq('id',ad.id)
+                      const biz = businesses.find(b => b.id === ad.business_id)
+                      if(biz) setDetailBiz(biz)
+                    }} className="flex-none w-64 bg-white rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:shadow-md transition-all overflow-hidden">
+                      {ad.image_url && <img src={ad.image_url} alt={ad.title} className="w-full h-32 object-cover"/>}
+                      <div className="p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">{ad.businesses?.emoji||'🏢'}</span>
+                          <span className="text-xs text-gray-500 font-semibold">{ad.businesses?.name}</span>
+                          {ad.type==='regional' && <span className="ml-auto text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full font-bold">📍 Yakında</span>}
+                        </div>
+                        <div className="font-bold text-sm mb-1">{ad.title}</div>
+                        {ad.description && <div className="text-xs text-gray-500 line-clamp-2">{ad.description}</div>}
+                        {ad.discount_pct > 0 && <div className="mt-2 inline-block bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">%{ad.discount_pct} İndirim</div>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {bizLoading ? (
               <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /> Yükleniyor...</div>
             ) : filteredBiz.length === 0 ? (
