@@ -25,7 +25,7 @@ function KPI({ label, value, sub, color }) {
   )
 }
 
-const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
+const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['showcase','🖼️','Vitrin'],['ads','📢','Reklamlar'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['showcase','🖼️','Vitrin'],['ads','📢','Reklamlar'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
 
 export default function BusinessPage() {
   const router = useRouter()
@@ -37,6 +37,16 @@ export default function BusinessPage() {
   const [bizSwitcher, setBizSwitcher] = useState(false)
   const [qrModal, setQrModal] = useState(null)
   const [planModal, setPlanModal] = useState(false)
+  const [showcase, setShowcase] = useState(null) // vitrin bilgileri
+  const [adForm, setAdForm] = useState({ title:'', description:'', image_url:'', discount_pct:0, type:'general', target_city:'', target_district:'', target_radius_km:20, ends_at:'' })
+  const [ads, setAds] = useState([])
+  const [savingShowcase, setSavingShowcase] = useState(false)
+  const [savingAd, setSavingAd] = useState(false)
+  const [showcase, setShowcase] = useState(null) // vitrin bilgileri
+  const [adForm, setAdForm] = useState({ title:'', description:'', image_url:'', discount_pct:0, type:'general', target_city:'', target_district:'', target_radius_km:20, ends_at:'' })
+  const [ads, setAds] = useState([])
+  const [savingShowcase, setSavingShowcase] = useState(false)
+  const [savingAd, setSavingAd] = useState(false)
   const [appts, setAppts] = useState([])
   const [staff, setStaff] = useState([])
   const [services, setSvcs] = useState([])
@@ -88,13 +98,15 @@ export default function BusinessPage() {
   const loadAll = useCallback(async (bId) => {
     setLoading(true)
     try {
-      const [ar,sr,svr,nr,rr,pr2] = await Promise.all([
+      const [ar,sr,svr,nr,rr,pr2,adsr] = await Promise.all([
         supabase.from('appointments').select('id,profile_id,service_id,staff_id,appointment_date,appointment_time,status,price,profiles(full_name,email),services(name,price),staff(name)').eq('business_id',bId).order('appointment_date',{ascending:false}),
         supabase.from('staff').select('*').eq('business_id',bId),
         supabase.from('services').select('*').eq('business_id',bId),
         supabase.from('notifications').select('*').eq('business_id',bId).order('created_at',{ascending:false}).limit(20),
         supabase.from('reviews').select('*, profiles(full_name)').eq('business_id',bId).order('created_at',{ascending:false}),
         supabase.from('plan_limits').select('*').eq('plan', bizInfo?.plan || 'free').maybeSingle(),
+        supabase.from('ads').select('*').eq('business_id', bId).order('created_at', {ascending:false}),
+        supabase.from('ads').select('*').eq('business_id', bId).order('created_at', {ascending:false}),
       ])
       setAppts(ar.data||[])
       setStaff(sr.data||[])
@@ -102,6 +114,8 @@ export default function BusinessPage() {
       setNotifs(nr.data||[])
       setReviews(rr?.data||[])
       if (pr2?.data) setPlanLimits(pr2.data)
+      setAds(adsr?.data||[])
+      setAds(adsr?.data||[])
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }, [])
@@ -128,6 +142,7 @@ export default function BusinessPage() {
         setBizId(b.id); 
         setBizInfo(b); 
         setBizForm(b);
+        setShowcase({ cover_url: b.cover_url||'', gallery_urls: b.gallery_urls||[], bio: b.bio||'', instagram: b.instagram||'', facebook: b.facebook||'', website: b.website||'' });
         setWorkingHours(b.working_hours || {
           "1": { str: "09:00", end: "18:00", off: false },
           "2": { str: "09:00", end: "18:00", off: false },
@@ -1141,6 +1156,215 @@ export default function BusinessPage() {
                             </div>
                           </div>
                           {r.comment&&<p className="text-gray-600 text-sm leading-relaxed pl-11">{r.comment}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* VİTRİN */}
+              {view==='showcase'&&(
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <div><h1 className="text-lg sm:text-xl font-bold">Vitrin Düzenle</h1><p className="text-gray-500 text-sm">İşletme sayfanızı özelleştirin</p></div>
+                    <button onClick={async()=>{
+                      setSavingShowcase(true)
+                      await supabase.from('businesses').update({
+                        cover_url: showcase.cover_url,
+                        gallery_urls: showcase.gallery_urls,
+                        bio: showcase.bio,
+                        instagram: showcase.instagram,
+                        facebook: showcase.facebook,
+                        website: showcase.website,
+                      }).eq('id',bizId)
+                      setBizInfo(prev=>({...prev,...showcase}))
+                      setSavingShowcase(false)
+                      toast3('✅ Vitrin kaydedildi!')
+                    }} disabled={savingShowcase} className="px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-bold rounded-xl">
+                      {savingShowcase?'Kaydediliyor...':'💾 Kaydet'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    {/* Kapak Görseli */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                      <div className="font-bold text-sm mb-3">🖼️ Kapak Görseli</div>
+                      {showcase?.cover_url && <img src={showcase.cover_url} alt="Kapak" className="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100"/>}
+                      <input placeholder="Kapak görseli URL (https://...)" value={showcase?.cover_url||''} onChange={e=>setShowcase(p=>({...p,cover_url:e.target.value}))}
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                      <p className="text-xs text-gray-400 mt-2">Imgur, Cloudinary veya herhangi bir görsel URL girebilirsiniz</p>
+                    </div>
+                    {/* Hakkımızda */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                      <div className="font-bold text-sm mb-3">📝 Hakkımızda</div>
+                      <textarea rows={5} placeholder="İşletmenizi tanıtın..." value={showcase?.bio||''} onChange={e=>setShowcase(p=>({...p,bio:e.target.value}))}
+                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 resize-none"/>
+                    </div>
+                    {/* Sosyal Medya */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                      <div className="font-bold text-sm mb-3">📱 Sosyal Medya & Web</div>
+                      <div className="space-y-3">
+                        {[
+                          {key:'instagram',label:'Instagram',ph:'https://instagram.com/...'},
+                          {key:'facebook',label:'Facebook',ph:'https://facebook.com/...'},
+                          {key:'website',label:'Website',ph:'https://...'},
+                        ].map(({key,label,ph})=>(
+                          <div key={key}>
+                            <label className="text-xs font-bold block mb-1">{label}</label>
+                            <input placeholder={ph} value={showcase?.[key]||''} onChange={e=>setShowcase(p=>({...p,[key]:e.target.value}))}
+                              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Galeri */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                      <div className="font-bold text-sm mb-3">🎨 Galeri (URL ile ekle)</div>
+                      <div className="flex gap-2 mb-3">
+                        <input id="gallery-input" placeholder="Görsel URL ekle..." className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                        <button onClick={()=>{
+                          const input = document.getElementById('gallery-input')
+                          if(input?.value) { setShowcase(p=>({...p,gallery_urls:[...(p.gallery_urls||[]),input.value]})); input.value='' }
+                        }} className="px-4 py-2.5 bg-orange-500 text-white text-sm font-bold rounded-xl hover:bg-orange-600">+ Ekle</button>
+                      </div>
+                      {(showcase?.gallery_urls||[]).length>0 ? (
+                        <div className="grid grid-cols-3 gap-2">
+                          {(showcase?.gallery_urls||[]).map((url,i)=>(
+                            <div key={i} className="relative group">
+                              <img src={url} alt="" className="w-full h-20 object-cover rounded-lg border border-gray-100"/>
+                              <button onClick={()=>setShowcase(p=>({...p,gallery_urls:p.gallery_urls.filter((_,j)=>j!==i)}))}
+                                className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs hidden group-hover:flex items-center justify-center">×</button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : <div className="text-xs text-gray-400 text-center py-4">Henüz görsel eklenmedi</div>}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* REKLAMLAR */}
+              {view==='ads'&&(
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <div><h1 className="text-lg sm:text-xl font-bold">Reklam & Kampanya</h1><p className="text-gray-500 text-sm">{ads.length} aktif reklam</p></div>
+                  </div>
+                  {/* Yeni reklam formu */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mb-5">
+                    <div className="font-bold text-sm mb-4">➕ Yeni Reklam Oluştur</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-bold block mb-1">Başlık *</label>
+                        <input placeholder="Örn: Kış Sezonu %30 İndirim!" value={adForm.title} onChange={e=>setAdForm(p=>({...p,title:e.target.value}))}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-bold block mb-1">Açıklama</label>
+                        <textarea rows={2} placeholder="Kampanya detayları..." value={adForm.description} onChange={e=>setAdForm(p=>({...p,description:e.target.value}))}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 resize-none"/>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold block mb-1">Görsel URL</label>
+                        <input placeholder="https://..." value={adForm.image_url} onChange={e=>setAdForm(p=>({...p,image_url:e.target.value}))}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold block mb-1">İndirim Oranı (%)</label>
+                        <input type="number" min="0" max="100" placeholder="0" value={adForm.discount_pct} onChange={e=>setAdForm(p=>({...p,discount_pct:+e.target.value}))}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold block mb-1">Reklam Türü</label>
+                        <select value={adForm.type} onChange={e=>setAdForm(p=>({...p,type:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
+                          <option value="general">🌍 Genel (Herkese göster)</option>
+                          <option value="regional">📍 Bölgesel (Yakınlara göster)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold block mb-1">Bitiş Tarihi</label>
+                        <input type="date" min={new Date().toISOString().split('T')[0]} value={adForm.ends_at} onChange={e=>setAdForm(p=>({...p,ends_at:e.target.value}))}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                      </div>
+                      {adForm.type==='regional' && (<>
+                        <div>
+                          <label className="text-xs font-bold block mb-1">Hedef Şehir</label>
+                          <input placeholder="İstanbul" value={adForm.target_city} onChange={e=>setAdForm(p=>({...p,target_city:e.target.value}))}
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold block mb-1">Hedef İlçe (opsiyonel)</label>
+                          <input placeholder="Kadıköy" value={adForm.target_district} onChange={e=>setAdForm(p=>({...p,target_district:e.target.value}))}
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold block mb-1">Yarıçap (km)</label>
+                          <input type="number" min="1" max="100" value={adForm.target_radius_km} onChange={e=>setAdForm(p=>({...p,target_radius_km:+e.target.value}))}
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                        </div>
+                      </>)}
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <button onClick={async()=>{
+                        if(!adForm.title) { toast3('❌ Başlık zorunlu'); return }
+                        setSavingAd(true)
+                        const { data: newAd } = await supabase.from('ads').insert({
+                          business_id: bizId,
+                          title: adForm.title,
+                          description: adForm.description,
+                          image_url: adForm.image_url,
+                          discount_pct: adForm.discount_pct,
+                          type: adForm.type,
+                          target_city: adForm.target_city||null,
+                          target_district: adForm.target_district||null,
+                          target_radius_km: adForm.target_radius_km,
+                          target_lat: bizInfo?.lat||null,
+                          target_lng: bizInfo?.lng||null,
+                          ends_at: adForm.ends_at ? new Date(adForm.ends_at).toISOString() : new Date(Date.now()+30*24*60*60*1000).toISOString(),
+                          status: 'pending',
+                        }).select().maybeSingle()
+                        if(newAd) setAds(p=>[newAd,...p])
+                        setAdForm({title:'',description:'',image_url:'',discount_pct:0,type:'general',target_city:'',target_district:'',target_radius_km:20,ends_at:''})
+                        setSavingAd(false)
+                        toast3('✅ Reklam oluşturuldu! Admin onayından sonra yayına girer.')
+                      }} disabled={savingAd} className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-bold rounded-xl">
+                        {savingAd?'Gönderiliyor...':'📢 Reklam Oluştur'}
+                      </button>
+                    </div>
+                  </div>
+                  {/* Mevcut reklamlar */}
+                  {ads.length===0 ? (
+                    <div className="bg-white border border-gray-200 rounded-xl p-12 text-center shadow-sm">
+                      <div className="text-4xl mb-3">📢</div>
+                      <div className="font-bold mb-1">Henüz reklam yok</div>
+                      <div className="text-sm text-gray-400">İlk reklamınızı oluşturun ve müşterilere ulaşın</div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {ads.map(ad=>(
+                        <div key={ad.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex items-start gap-4">
+                          {ad.image_url && <img src={ad.image_url} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0 border border-gray-100"/>}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2 flex-wrap">
+                              <div className="font-bold text-sm">{ad.title}</div>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${ad.status==='active'?'bg-green-50 text-green-700 border-green-200':ad.status==='pending'?'bg-amber-50 text-amber-700 border-amber-200':'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                                {ad.status==='active'?'● Aktif':ad.status==='pending'?'⏳ Onay Bekliyor':'⏸ Durduruldu'}
+                              </span>
+                            </div>
+                            {ad.description && <div className="text-xs text-gray-500 mt-0.5 truncate">{ad.description}</div>}
+                            <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 flex-wrap">
+                              <span>{ad.type==='regional'?'📍 Bölgesel':'🌍 Genel'}</span>
+                              {ad.discount_pct>0 && <span className="text-orange-500 font-bold">%{ad.discount_pct} indirim</span>}
+                              {ad.target_city && <span>📍 {ad.target_city}{ad.target_district ? ' / ' + ad.target_district : ''}</span>}
+                              <span>👁 {ad.impressions} gösterim</span>
+                              <span>🖱 {ad.clicks} tıklama</span>
+                              <span>Bitiş: {new Date(ad.ends_at).toLocaleDateString('tr-TR')}</span>
+                            </div>
+                          </div>
+                          <button onClick={async()=>{
+                            await supabase.from('ads').delete().eq('id',ad.id)
+                            setAds(p=>p.filter(a=>a.id!==ad.id))
+                            toast3('Reklam silindi')
+                          }} className="text-red-400 hover:text-red-600 text-xs flex-shrink-0">🗑️</button>
                         </div>
                       ))}
                     </div>
