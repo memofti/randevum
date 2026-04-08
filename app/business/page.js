@@ -42,11 +42,6 @@ export default function BusinessPage() {
   const [ads, setAds] = useState([])
   const [savingShowcase, setSavingShowcase] = useState(false)
   const [savingAd, setSavingAd] = useState(false)
-  const [showcase, setShowcase] = useState(null) // vitrin bilgileri
-  const [adForm, setAdForm] = useState({ title:'', description:'', image_url:'', discount_pct:0, type:'general', target_city:'', target_district:'', target_radius_km:20, ends_at:'' })
-  const [ads, setAds] = useState([])
-  const [savingShowcase, setSavingShowcase] = useState(false)
-  const [savingAd, setSavingAd] = useState(false)
   const [appts, setAppts] = useState([])
   const [staff, setStaff] = useState([])
   const [services, setSvcs] = useState([])
