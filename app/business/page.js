@@ -1191,7 +1191,7 @@ export default function BusinessPage() {
                         <input type="file" accept="image/*" className="hidden" onChange={async e=>{
                           const file = e.target.files?.[0]
                           if(!file) return
-                          if(file.size > 5*1024*1024) { toast3('❌ Dosya 5MB'dan büyük olamaz'); return }
+                          if(file.size > 5*1024*1024) { toast3('❌ Dosya max 5MB olabilir'); return }
                           toast3('⏳ Yükleniyor...')
                           try {
                             const url = await uploadMedia(file, 'covers/' + bizId)
