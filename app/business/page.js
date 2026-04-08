@@ -25,7 +25,7 @@ function KPI({ label, value, sub, color }) {
   )
 }
 
-const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['showcase','🖼️','Vitrin'],['ads','📢','Reklamlar'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['showcase','🖼️','Vitrin'],['ads','📢','Reklamlar'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
+const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['showcase','🖼️','Vitrin'],['ads','📢','Reklamlar'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
 
 export default function BusinessPage() {
   const router = useRouter()
