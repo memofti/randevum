@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, sendNotification, sendWhatsApp } from '@/lib/supabase'
+import { supabase, sendNotification, sendWhatsApp, uploadMedia, deleteMedia } from '@/lib/supabase'
 
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
 const MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık']
@@ -1185,9 +1185,25 @@ export default function BusinessPage() {
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                       <div className="font-bold text-sm mb-3">🖼️ Kapak Görseli</div>
                       {showcase?.cover_url && <img src={showcase.cover_url} alt="Kapak" className="w-full h-40 object-cover rounded-xl mb-3 border border-gray-100"/>}
-                      <input placeholder="Kapak görseli URL (https://...)" value={showcase?.cover_url||''} onChange={e=>setShowcase(p=>({...p,cover_url:e.target.value}))}
-                        className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
-                      <p className="text-xs text-gray-400 mt-2">Imgur, Cloudinary veya herhangi bir görsel URL girebilirsiniz</p>
+                      <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-orange-300 rounded-xl cursor-pointer hover:bg-orange-50 transition-colors">
+                        <span className="text-orange-500 text-sm font-semibold">📤 Kapak Görseli Yükle</span>
+                        <span className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP — max 5MB</span>
+                        <input type="file" accept="image/*" className="hidden" onChange={async e=>{
+                          const file = e.target.files?.[0]
+                          if(!file) return
+                          if(file.size > 5*1024*1024) { toast3('❌ Dosya 5MB'dan büyük olamaz'); return }
+                          toast3('⏳ Yükleniyor...')
+                          try {
+                            const url = await uploadMedia(file, 'covers/' + bizId)
+                            setShowcase(p=>({...p, cover_url: url}))
+                            toast3('✅ Kapak görseli yüklendi!')
+                          } catch(err) { toast3('❌ Yükleme hatası: ' + err.message) }
+                        }}/>
+                      </label>
+                      {showcase?.cover_url && (
+                        <button onClick={async()=>{ await deleteMedia(showcase.cover_url); setShowcase(p=>({...p,cover_url:''})) }}
+                          className="mt-2 text-xs text-red-500 hover:text-red-700">🗑️ Kapak görselini kaldır</button>
+                      )}
                     </div>
                     {/* Hakkımızda */}
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
@@ -1215,13 +1231,22 @@ export default function BusinessPage() {
                     {/* Galeri */}
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                       <div className="font-bold text-sm mb-3">🎨 Galeri (URL ile ekle)</div>
-                      <div className="flex gap-2 mb-3">
-                        <input id="gallery-input" placeholder="Görsel URL ekle..." className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
-                        <button onClick={()=>{
-                          const input = document.getElementById('gallery-input')
-                          if(input?.value) { setShowcase(p=>({...p,gallery_urls:[...(p.gallery_urls||[]),input.value]})); input.value='' }
-                        }} className="px-4 py-2.5 bg-orange-500 text-white text-sm font-bold rounded-xl hover:bg-orange-600">+ Ekle</button>
-                      </div>
+                      <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-orange-300 rounded-xl cursor-pointer hover:bg-orange-50 transition-colors mb-3">
+                        <span className="text-orange-500 text-sm font-semibold">📤 Galeri Görseli Ekle</span>
+                        <span className="text-xs text-gray-400">Max {planLimits?.max_gallery_images||5} görsel · 5MB</span>
+                        <input type="file" accept="image/*" multiple className="hidden" onChange={async e=>{
+                          const files = Array.from(e.target.files||[])
+                          const current = showcase?.gallery_urls?.length||0
+                          const limit = planLimits?.max_gallery_images||5
+                          if(current + files.length > limit) { toast3('❌ Plan limitiniz: ' + limit + ' görsel'); return }
+                          toast3('⏳ Yükleniyor...')
+                          try {
+                            const urls = await Promise.all(files.map(f => uploadMedia(f, 'gallery/' + bizId)))
+                            setShowcase(p=>({...p, gallery_urls:[...(p.gallery_urls||[]),...urls]}))
+                            toast3('✅ ' + files.length + ' görsel yüklendi!')
+                          } catch(err) { toast3('❌ Hata: ' + err.message) }
+                        }}/>
+                      </label>
                       {(showcase?.gallery_urls||[]).length>0 ? (
                         <div className="grid grid-cols-3 gap-2">
                           {(showcase?.gallery_urls||[]).map((url,i)=>(
@@ -1259,9 +1284,27 @@ export default function BusinessPage() {
                           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 resize-none"/>
                       </div>
                       <div>
-                        <label className="text-xs font-bold block mb-1">Görsel URL</label>
-                        <input placeholder="https://..." value={adForm.image_url} onChange={e=>setAdForm(p=>({...p,image_url:e.target.value}))}
-                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                        <label className="text-xs font-bold block mb-1">Reklam Görseli</label>
+                        <label className="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-orange-300 rounded-xl cursor-pointer hover:bg-orange-50 transition-colors">
+                          {adForm.image_url ? (
+                            <img src={adForm.image_url} alt="" className="h-full w-full object-cover rounded-xl"/>
+                          ) : (
+                            <>
+                              <span className="text-orange-500 text-sm font-semibold">📤 Görsel Yükle</span>
+                              <span className="text-xs text-gray-400">JPG, PNG — max 5MB</span>
+                            </>
+                          )}
+                          <input type="file" accept="image/*" className="hidden" onChange={async e=>{
+                            const file = e.target.files?.[0]
+                            if(!file) return
+                            toast3('⏳ Yükleniyor...')
+                            try {
+                              const url = await uploadMedia(file, 'ads/' + bizId)
+                              setAdForm(p=>({...p, image_url: url}))
+                              toast3('✅ Görsel yüklendi!')
+                            } catch(err) { toast3('❌ ' + err.message) }
+                          }}/>
+                        </label>
                       </div>
                       <div>
                         <label className="text-xs font-bold block mb-1">İndirim Oranı (%)</label>
