@@ -37,6 +37,7 @@ export default function BusinessPage() {
   const [bizSwitcher, setBizSwitcher] = useState(false)
   const [qrModal, setQrModal] = useState(null)
   const [planModal, setPlanModal] = useState(false)
+  const [realtimeToast, setRealtimeToast] = useState('')
   const [showcase, setShowcase] = useState(null) // vitrin bilgileri
   const [adForm, setAdForm] = useState({ title:'', description:'', image_url:'', discount_pct:0, type:'general', target_city:'', target_district:'', target_radius_km:20, ends_at:'' })
   const [ads, setAds] = useState([])
@@ -101,7 +102,6 @@ export default function BusinessPage() {
         supabase.from('reviews').select('*, profiles(full_name)').eq('business_id',bId).order('created_at',{ascending:false}),
         supabase.from('plan_limits').select('*').eq('plan', bizInfo?.plan || 'free').maybeSingle(),
         supabase.from('ads').select('*').eq('business_id', bId).order('created_at', {ascending:false}),
-        supabase.from('ads').select('*').eq('business_id', bId).order('created_at', {ascending:false}),
       ])
       setAppts(ar.data||[])
       setStaff(sr.data||[])
@@ -109,7 +109,6 @@ export default function BusinessPage() {
       setNotifs(nr.data||[])
       setReviews(rr?.data||[])
       if (pr2?.data) setPlanLimits(pr2.data)
-      setAds(adsr?.data||[])
       setAds(adsr?.data||[])
     } catch(e) { console.error(e) }
     finally { setLoading(false) }

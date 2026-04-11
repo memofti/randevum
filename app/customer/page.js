@@ -223,6 +223,20 @@ export default function CustomerPage() {
             serviceName:svc?.name||'Hizmet',date:dateStr,time:bookForm.time,price:svc?.price||0
           }})}).catch(()=>{})
       }
+      // Sadakat puanı — randevu alındığında 10 puan
+      try {
+        await supabase.from('loyalty_transactions').insert({
+          profile_id: user.id,
+          business_id: detailBiz.id,
+          points: 10,
+          type: 'earn',
+          description: detailBiz.name + ' randevusu'
+        })
+        await supabase.from('profiles').update({
+          loyalty_points: (user.loyalty_points||0) + 10
+        }).eq('id', user.id)
+        setUser(p=>({...p, loyalty_points:(p.loyalty_points||0)+10}))
+      } catch(e) { console.log('Puan hatasi:', e) }
       setBookModal(false)
       setDetailBiz(null)
       setBookForm({ service:'', staff:'', date:'', time:'' })
@@ -386,11 +400,16 @@ export default function CustomerPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
           onClick={e => e.target===e.currentTarget && setDetailBiz(null)}>
           <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
-            {/* Header */}
-            <div className="relative h-36 flex items-center justify-center text-6xl flex-shrink-0" style={{ background: `${COLORS[businesses.findIndex(b=>b.id===detailBiz.id)%COLORS.length]}18` }}>
-              {detailBiz.emoji||'🏢'}
-              <button onClick={() => setDetailBiz(null)} className="absolute top-4 right-4 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center text-gray-600 shadow-sm">✕</button>
-              <div className="absolute top-4 left-4"><span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-50 text-green-700 border border-green-200">● Müsait</span></div>
+            {/* Header — Kapak Görseli */}
+            <div className="relative h-48 flex items-center justify-center text-6xl flex-shrink-0 overflow-hidden" style={{ background: `${COLORS[businesses.findIndex(b=>b.id===detailBiz.id)%COLORS.length]}18` }}>
+              {detailBiz.cover_url
+                ? <img src={detailBiz.cover_url} alt={detailBiz.name} className="w-full h-full object-cover"/>
+                : <span className="text-7xl">{detailBiz.emoji||'🏢'}</span>
+              }
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"/>
+              <button onClick={() => setDetailBiz(null)} className="absolute top-4 right-4 w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center text-gray-600 shadow-sm z-10">✕</button>
+              <div className="absolute top-4 left-4 z-10"><span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-500 text-white">● Müsait</span></div>
+              {detailBiz.cover_url && <div className="absolute bottom-3 left-4 z-10 text-3xl">{detailBiz.emoji||'🏢'}</div>}
             </div>
             <div className="p-5">
               <div className="flex items-start justify-between mb-3">
@@ -403,7 +422,16 @@ export default function CustomerPage() {
                   <div className="text-gray-400 text-xs">({detailBiz.review_count} yorum)</div>
                 </div>
               </div>
-              {detailBiz.description && <p className="text-gray-600 text-sm mb-4 leading-relaxed">{detailBiz.description}</p>}
+              {detailBiz.bio && <p className="text-gray-600 text-sm mb-3 leading-relaxed">{detailBiz.bio}</p>}
+              {detailBiz.description && <p className="text-gray-500 text-sm mb-4 leading-relaxed">{detailBiz.description}</p>}
+              {/* Sosyal Medya */}
+              {(detailBiz.instagram||detailBiz.facebook||detailBiz.website) && (
+                <div className="flex gap-2 mb-4 flex-wrap">
+                  {detailBiz.instagram && <a href={detailBiz.instagram} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-pink-200 text-pink-600 hover:bg-pink-50">📸 Instagram</a>}
+                  {detailBiz.facebook && <a href={detailBiz.facebook} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-blue-200 text-blue-600 hover:bg-blue-50">👍 Facebook</a>}
+                  {detailBiz.website && <a href={detailBiz.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 text-gray-600 hover:bg-gray-50">🌐 Website</a>}
+                </div>
+              )}
               <div className="flex gap-3 mb-5 text-sm">
                 {detailBiz.phone && <a href={`tel:${detailBiz.phone}`} className="flex items-center gap-1.5 text-orange-500 font-semibold"><span>📞</span>{detailBiz.phone}</a>}
                 {detailBiz.address && <span className="text-gray-500 flex items-center gap-1.5"><span>📍</span>{detailBiz.address}</span>}
@@ -413,6 +441,18 @@ export default function CustomerPage() {
                 <div className="flex items-center justify-center py-8 gap-2 text-gray-400"><Spin /> Yükleniyor...</div>
               ) : (
                 <>
+                  {/* Galeri */}
+                  {(detailBiz.gallery_urls||[]).length > 0 && (
+                    <div className="mb-5">
+                      <div className="font-bold text-sm mb-3">📸 Galeri</div>
+                      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        {(detailBiz.gallery_urls||[]).map((url,i)=>(
+                          <img key={i} src={url} alt="" className="flex-none w-28 h-28 object-cover rounded-xl border border-gray-100 cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={()=>window.open(url,'_blank')}/>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {/* Hizmetler */}
                   <div className="mb-5">
                     <div className="font-bold text-sm mb-3">Hizmetler</div>
