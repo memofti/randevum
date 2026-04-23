@@ -65,11 +65,13 @@ export default function AdminPage() {
         supabase.from('profiles').select('*').order('created_at',{ascending:false}),
         supabase.from('appointments').select('id,status,business_id'),
         supabase.from('payments').select('amount,created_at,status').eq('status','completed'),
+        supabase.from('ads').select('*, businesses(name,emoji)').order('created_at',{ascending:false}),
       ])
       setFirms(fr.data||[])
       setProfiles(pr.data||[])
       setAppts(ar.data||[])
       setPayments(payr?.data||[])
+      if(adsr2?.data) setAllAds(adsr2.data)
     } catch(e){console.error(e)}
     finally{setLoading(false)}
   }
@@ -417,7 +419,7 @@ export default function AdminPage() {
               {view==='users'&&(
                 <div>
                   <div className="flex items-center justify-between mb-5">
-                    <div><h1 className="text-xl font-bold">Kullanıcılar</h1><p className="text-gray-500 text-sm">{profiles.length} kayıtlı</p></div>
+                    <div><h1 className="text-xl font-bold">Kullanıcılar</h1><p className="text-gray-500 text-sm">{profiles.length} kayıtlı kullanıcı</p></div>
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
                     <KPI label="Toplam" value={profiles.length} color="blue" />
@@ -425,20 +427,33 @@ export default function AdminPage() {
                     <KPI label="Firma Sahibi" value={profiles.filter(p=>p.role==='business_owner').length} color="orange" />
                     <KPI label="Admin" value={profiles.filter(p=>p.role==='admin').length} color="gray" />
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                    <table className="w-full">
-                      <thead className="bg-gray-50"><tr>{['Kullanıcı','Telefon','Rol','Puan','Üyelik','Kayıt'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
+                  {/* Segment tabları */}
+                  {['Tümü','Müşteriler','Firma Sahipleri','Adminler'].map((seg,si)=>{
+                    const roleMap=[null,'customer','business_owner','admin']
+                    const segProfiles = roleMap[si] ? profiles.filter(p=>p.role===roleMap[si]) : profiles
+                    return null
+                  })}
+                  <div className="flex gap-2 mb-4 flex-wrap">
+                    {[['all','Tümü',profiles.length],['customer','Müşteriler',profiles.filter(p=>p.role==='customer').length],['business_owner','Firma Sahipleri',profiles.filter(p=>p.role==='business_owner').length],['admin','Adminler',profiles.filter(p=>p.role==='admin').length]].map(([r,l,c])=>(
+                      <button key={r} onClick={()=>setSearch(r==='all'?'':r)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${(r==='all'&&!['customer','business_owner','admin'].includes(search))||search===r?'bg-orange-500 text-white border-orange-500':'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+                        {l} <span className="opacity-70">({c})</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
+                    <table className="w-full min-w-[600px]">
+                      <thead className="bg-gray-50"><tr>{['Kullanıcı','Telefon','Rol','Sadakat Puanı','Kayıt'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
                       <tbody>
-                        {profiles.map((p,i)=>(
+                        {profiles.filter(p=>!['customer','business_owner','admin'].includes(search)||p.role===search).map((p,i)=>(
                           <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
                             <td className="px-4 py-3"><div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{background:COLORS[i%COLORS.length]}}>{p.full_name?.[0]}</div>
+                              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{background:COLORS[i%COLORS.length]}}>{p.full_name?.[0]||'?'}</div>
                               <div><div className="font-semibold text-sm">{p.full_name}</div><div className="text-xs text-gray-400">{p.email}</div></div>
                             </div></td>
                             <td className="px-4 py-3 text-sm text-gray-500">{p.phone||'—'}</td>
-                            <td className="px-4 py-3"><span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${p.role==='admin'?'bg-slate-800 text-white border-slate-700':p.role==='business_owner'?'bg-orange-50 text-orange-600 border-orange-200':'bg-gray-100 text-gray-600 border-gray-200'}`}>{p.role==='admin'?'Admin':p.role==='business_owner'?'Firma Sahibi':'Müşteri'}</span></td>
-                            <td className="px-4 py-3 text-sm font-semibold">{p.loyalty_points||0}</td>
-                            <td className="px-4 py-3"><span className="text-xs font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200 capitalize">{p.loyalty_tier}</span></td>
+                            <td className="px-4 py-3"><span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${p.role==='admin'?'bg-slate-800 text-white border-slate-700':p.role==='business_owner'?'bg-orange-50 text-orange-600 border-orange-200':'bg-gray-100 text-gray-600 border-gray-200'}`}>{p.role==='admin'?'👑 Admin':p.role==='business_owner'?'🏢 Firma Sahibi':'👤 Müşteri'}</span></td>
+                            <td className="px-4 py-3"><div className="flex items-center gap-1.5"><span className="text-sm font-bold">{p.loyalty_points||0}</span><span className="text-xs text-amber-500">⭐</span></div></td>
                             <td className="px-4 py-3 text-xs text-gray-400">{new Date(p.created_at).toLocaleDateString('tr-TR')}</td>
                           </tr>
                         ))}

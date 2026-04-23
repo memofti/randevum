@@ -949,7 +949,7 @@ export default function CustomerPage() {
       {tab === 'profile' && (
         <div className="max-w-4xl mx-auto w-full px-3 sm:px-6 py-5 sm:py-8">
           <h1 className="text-xl font-bold mb-6">Profilim</h1>
-          {!user ? (
+          {loading ? (
             <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /></div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
