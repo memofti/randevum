@@ -788,10 +788,15 @@ export default function CustomerPage() {
                 {filteredBiz.map((b,i) => (
                   <div key={b.id} onClick={() => openDetail(b)}
                     className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group">
-                    <div className="h-28 flex items-center justify-center text-5xl relative" style={{ background:`${COLORS[i%COLORS.length]}15` }}>
-                      {b.emoji||'🏢'}
-                      <div className="absolute top-2 right-2"><span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">● Müsait</span></div>
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <div className="h-28 flex items-center justify-center text-5xl relative overflow-hidden" style={{ background:`${COLORS[i%COLORS.length]}15` }}>
+                      {b.cover_url
+                        ? <img src={b.cover_url} alt={b.name} className="w-full h-full object-cover"/>
+                        : <span>{b.emoji||'🏢'}</span>
+                      }
+                      {b.cover_url && <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"/>}
+                      <div className="absolute top-2 right-2 z-10"><span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-500 text-white">● Müsait</span></div>
+                      {b.cover_url && <div className="absolute bottom-2 left-2 z-10 text-xl">{b.emoji||'🏢'}</div>}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 z-10">
                         <span className="bg-white/90 text-sm font-bold px-3 py-1.5 rounded-full shadow-md">Detay Gör →</span>
                       </div>
                     </div>
