@@ -76,9 +76,10 @@ export default function CustomerPage() {
         setBusinesses(data||[])
         setLoading(false)
         setBizLoading(false)
-        // Aktif reklamları yükle
-        const { data: ads } = await supabase.from('ads').select('*, businesses(name,emoji,category,city,price_from,rating)').eq('status','active').gte('ends_at', new Date().toISOString())
-        setActiveAds(ads||[])
+        try {
+          const { data: ads } = await supabase.from('ads').select('*, businesses(name,emoji,category,city,price_from,rating)').eq('status','active').gte('ends_at', new Date().toISOString())
+          setActiveAds(ads||[])
+        } catch(e) { console.log('ads load err:', e) }
       })
   }, [])
 
@@ -300,7 +301,12 @@ export default function CustomerPage() {
       const matchPrice = maxPrice >= 9999 || (b.price_from||0) <= maxPrice
       return matchCat && matchQ && matchRating && matchPrice
     })
+    .map(b => {
+      const dist = (userLoc && b.lat && b.lng) ? distKm(userLoc.lat, userLoc.lng, b.lat, b.lng) : null
+      return { ...b, dist }
+    })
     .sort((a, b) => {
+      if (sortBy === 'distance' && userLoc) return (a.dist||999) - (b.dist||999)
       if (sortBy === 'price_asc') return (a.price_from||0) - (b.price_from||0)
       if (sortBy === 'price_desc') return (b.price_from||0) - (a.price_from||0)
       if (sortBy === 'reviews') return (b.review_count||0) - (a.review_count||0)
@@ -943,7 +949,7 @@ export default function CustomerPage() {
       {tab === 'profile' && (
         <div className="max-w-4xl mx-auto w-full px-3 sm:px-6 py-5 sm:py-8">
           <h1 className="text-xl font-bold mb-6">Profilim</h1>
-          {loading || !profile ? (
+          {!user ? (
             <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /></div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
