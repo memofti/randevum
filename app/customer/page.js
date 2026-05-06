@@ -32,7 +32,8 @@ export default function CustomerPage() {
   const [minRating, setMinRating] = useState(0)
   const [maxPrice, setMaxPrice] = useState(9999)
   const [showFilters, setShowFilters] = useState(false)
-  const [userLoc, setUserLoc] = useState(null) // harita için konum
+  const [userLoc, setUserLoc] = useState(null)
+  const [locStatus, setLocStatus] = useState('idle') // idle | loading | granted | denied
   const [appointments, setAppointments] = useState([])
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -77,12 +78,22 @@ export default function CustomerPage() {
   // Konum — sayfa açılınca iste
   useEffect(() => {
     if (typeof window === 'undefined') return
+    setLocStatus('loading')
     navigator.geolocation?.getCurrentPosition(
-      pos => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => {},
+      pos => { setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocStatus('granted') },
+      () => setLocStatus('denied'),
       { timeout: 8000, enableHighAccuracy: false }
     )
   }, [])
+
+  const requestLocation = () => {
+    setLocStatus('loading')
+    navigator.geolocation?.getCurrentPosition(
+      pos => { setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocStatus('granted'); setSortBy('distance') },
+      () => { setLocStatus('denied'); toast3('❌ Konum izni reddedildi. Tarayıcı ayarlarından izin verin.') },
+      { timeout: 10000, enableHighAccuracy: true }
+    )
+  }
 
   // İşletmeler
   useEffect(() => {
@@ -766,7 +777,7 @@ export default function CustomerPage() {
                     <div className="text-white/50 text-xs font-semibold mb-2">Sıralama</div>
                     <div className="flex gap-1.5 flex-wrap">
                       {[['rating','⭐ Puan'],['distance','📍 En Yakın'],['price_asc','₺ Ucuz→Pahalı'],['price_desc','₺ Pahalı→Ucuz'],['reviews','💬 Yorum']].map(([v,l])=>(
-                        <button key={v} onClick={()=>setSortBy(v)}
+                        <button key={v} onClick={()=>{ if(v==='distance' && !userLoc) { requestLocation(); return } setSortBy(v) }}
                           className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${sortBy===v?'bg-orange-500 text-white':'bg-white/10 text-white/70 hover:bg-white/20'}`}>{l}</button>
                       ))}
                     </div>
