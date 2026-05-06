@@ -1057,6 +1057,8 @@ export default function CustomerPage() {
           <h1 className="text-xl font-bold mb-6">Profilim</h1>
           {profLoading ? (
             <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /> Yükleniyor...</div>
+          ) : !profile ? (
+            <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /> Profil yükleniyor...</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-4">
