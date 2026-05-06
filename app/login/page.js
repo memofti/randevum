@@ -259,6 +259,14 @@ function RegisterForm({ onSuccess }) {
         })
       }
 
+      // localStorage'a kaydet
+      localStorage.setItem('randevu_user', JSON.stringify({
+        id: userId,
+        email: form.email,
+        name: form.name,
+        role: role === 'business_owner' ? 'business_owner' : 'customer',
+        loyalty_points: 0,
+      }))
       // Başarı
       router.push(role === 'business_owner' ? '/business' : '/customer')
     } catch (e) {
