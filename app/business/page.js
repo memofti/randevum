@@ -135,7 +135,7 @@ export default function BusinessPage() {
       if (b) { 
         setBizId(b.id); 
         setBizInfo(b); 
-        setBizForm(b);
+        setBizForm({name:b.name||'',category:b.category||'',city:b.city||'',phone:b.phone||'',address:b.address||'',price_from:b.price_from||0,email:b.email||'',description:b.description||'',lat:b.lat||'',lng:b.lng||''});
         setShowcase({ cover_url: b.cover_url||'', gallery_urls: b.gallery_urls||[], bio: b.bio||'', instagram: b.instagram||'', facebook: b.facebook||'', website: b.website||'' });
         setWorkingHours(b.working_hours || {
           "1": { str: "09:00", end: "18:00", off: false },
@@ -298,7 +298,7 @@ export default function BusinessPage() {
   async function saveBizInfo() {
     setBizSaving(true)
     try {
-      const { error } = await supabase.from('businesses').update({ name: bizForm.name, category: bizForm.category, city: bizForm.city, phone: bizForm.phone, address: bizForm.address, price_from: +bizForm.price_from }).eq('id', bizId)
+      const { error } = await supabase.from('businesses').update({ name: bizForm.name, category: bizForm.category, city: bizForm.city, phone: bizForm.phone, address: bizForm.address, price_from: +bizForm.price_from, email: bizForm.email||null, description: bizForm.description||null, lat: bizForm.lat ? +bizForm.lat : null, lng: bizForm.lng ? +bizForm.lng : null }).eq('id', bizId)
       if (error) throw error
       setBizInfo(p => ({ ...p, ...bizForm }))
       setBizModal(false)
@@ -1511,6 +1511,16 @@ export default function BusinessPage() {
                       </div>
                       <div><label className="text-xs font-bold block mb-1">Adres</label>
                         <input value={bizForm.address||''} onChange={e=>setBizForm(p=>({...p,address:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                      <div><label className="text-xs font-bold block mb-1">E-posta</label>
+                        <input type="email" value={bizForm.email||''} onChange={e=>setBizForm(p=>({...p,email:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                      <div><label className="text-xs font-bold block mb-1">Açıklama</label>
+                        <textarea rows={3} value={bizForm.description||''} onChange={e=>setBizForm(p=>({...p,description:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 resize-none"/></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><label className="text-xs font-bold block mb-1">Enlem (Lat)</label>
+                          <input type="number" step="0.0001" value={bizForm.lat||''} onChange={e=>setBizForm(p=>({...p,lat:e.target.value}))} placeholder="41.0534" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                        <div><label className="text-xs font-bold block mb-1">Boylam (Lng)</label>
+                          <input type="number" step="0.0001" value={bizForm.lng||''} onChange={e=>setBizForm(p=>({...p,lng:e.target.value}))} placeholder="28.9897" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                      </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div><label className="text-xs font-bold block mb-1">Telefon</label>
                           <input value={bizForm.phone||''} onChange={e=>setBizForm(p=>({...p,phone:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>

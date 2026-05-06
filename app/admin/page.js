@@ -234,7 +234,7 @@ export default function AdminPage() {
                   )}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
                     <KPI label="Toplam Firma" value={firms.length} sub={`${activeFirms.length} aktif`} color="orange" />
-                    <KPI label="Kullanıcı" value={profiles.filter(p=>p.role==='customer').length} sub="↑ %12" color="green" />
+                    <KPI label="Kullanıcı" value={profiles.filter(p=>p.role==='customer').length} sub={'Firma: '+firms.length} color="green" />
                     <KPI label="Randevu" value={appts.length} sub="↑ %8" color="blue" />
                     <KPI label="Bekleyen Başvuru" value={reviewFirms.length} color="red" />
                   </div>
@@ -318,6 +318,14 @@ export default function AdminPage() {
                       </div>
                       <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                         <div className="font-bold text-sm mb-3">Abonelik Dağılımı</div>
+                      <div className="grid grid-cols-3 gap-2 mb-4">
+                        {[['free','Ücretsiz','#6b7280'],['pro','Pro','#f97316'],['enterprise','Enterprise','#1e293b']].map(([p,l,c])=>(
+                          <div key={p} className="text-center p-2 rounded-xl border border-gray-100">
+                            <div className="text-xl font-extrabold" style={{color:c}}>{planCounts[p]||0}</div>
+                            <div className="text-xs text-gray-500">{l}</div>
+                          </div>
+                        ))}
+                      </div>
                         {[['Pro',planCounts.pro||0,'#f97316'],['Enterprise',planCounts.enterprise||0,'#1e3a5f'],['Ücretsiz',planCounts.free||0,'#9ca3af']].map(([l,c,color])=>(
                           <div key={l} className="mb-2.5">
                             <div className="flex justify-between text-xs mb-1"><span>{l}</span><span className="font-bold">{c}</span></div>
