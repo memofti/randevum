@@ -336,7 +336,7 @@ export default function CustomerPage() {
       return matchCat && matchQ && matchRating && matchPrice
     })
     .map(b => {
-      const dist = (userLoc && b.lat && b.lng) ? distKm(userLoc.lat, userLoc.lng, b.lat, b.lng) : null
+      const dist = (userLoc && b.lat && b.lng) ? distKm(userLoc.lat, userLoc.lng, parseFloat(b.lat), parseFloat(b.lng)) : null
       return { ...b, dist }
     })
     .sort((a, b) => {
