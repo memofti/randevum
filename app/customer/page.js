@@ -80,16 +80,24 @@ export default function CustomerPage() {
     if (typeof window === 'undefined') return
     setLocStatus('loading')
     navigator.geolocation?.getCurrentPosition(
-      pos => { setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocStatus('granted') },
+      pos => {
+        setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setLocStatus('granted')
+      },
       () => setLocStatus('denied'),
       { timeout: 8000, enableHighAccuracy: false }
     )
   }, [])
 
-  const requestLocation = () => {
+  const requestLocation = (autoSort=true) => {
     setLocStatus('loading')
     navigator.geolocation?.getCurrentPosition(
-      pos => { setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setLocStatus('granted'); setSortBy('distance') },
+      pos => {
+        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        setUserLoc(loc)
+        setLocStatus('granted')
+        if(autoSort) setSortBy('distance')
+      },
       () => { setLocStatus('denied'); toast3('❌ Konum izni reddedildi. Tarayıcı ayarlarından izin verin.') },
       { timeout: 10000, enableHighAccuracy: true }
     )
@@ -332,7 +340,7 @@ export default function CustomerPage() {
       return { ...b, dist }
     })
     .sort((a, b) => {
-      if (sortBy === 'distance' && userLoc) return (a.dist||999) - (b.dist||999)
+      if (sortBy === 'distance') return (a.dist||999) - (b.dist||999)
       if (sortBy === 'price_asc') return (a.price_from||0) - (b.price_from||0)
       if (sortBy === 'price_desc') return (b.price_from||0) - (a.price_from||0)
       if (sortBy === 'reviews') return (b.review_count||0) - (a.review_count||0)
