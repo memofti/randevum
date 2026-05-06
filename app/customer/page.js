@@ -755,6 +755,29 @@ export default function CustomerPage() {
                   value={searchQ} onChange={e => setSearchQ(e.target.value)} />
                 <button className="px-5 py-3 bg-orange-500 text-white text-sm font-bold">Ara</button>
               </div>
+              {/* Konum Butonu */}
+              {locStatus === 'idle' && (
+                <button onClick={requestLocation} className="mt-3 flex items-center gap-2 bg-white/5 border border-white/15 rounded-xl px-3 py-2 hover:bg-white/10 transition-colors">
+                  <span className="text-lg">📍</span>
+                  <span className="text-xs text-white/70">Yakınındaki işletmeleri görmek için konumunu paylaş</span>
+                </button>
+              )}
+              {locStatus === 'loading' && (
+                <div className="mt-3 flex items-center gap-2 bg-white/5 border border-white/15 rounded-xl px-3 py-2">
+                  <span className="text-xs text-white/60">🔄 Konum alınıyor...</span>
+                </div>
+              )}
+              {locStatus === 'denied' && (
+                <div className="mt-3 flex items-center gap-2 bg-red-500/10 border border-red-400/30 rounded-xl px-3 py-2">
+                  <span className="text-xs text-red-300 flex-1">⚠️ Konum izni reddedildi</span>
+                  <button onClick={requestLocation} className="text-xs bg-white/10 hover:bg-white/20 text-white px-2.5 py-1 rounded-lg font-semibold">Tekrar Dene</button>
+                </div>
+              )}
+              {locStatus === 'granted' && userLoc && (
+                <div className="mt-3 flex items-center gap-2 bg-green-500/10 border border-green-400/30 rounded-xl px-3 py-2">
+                  <span className="text-xs text-green-300">✅ Konum aktif — yakınındaki işletmeler gösteriliyor</span>
+                </div>
+              )}
               <div className="flex gap-2 mt-4 flex-wrap items-center">
                 <button onClick={() => setCatFilter('')}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${!catFilter?'bg-orange-500 border-orange-500 text-white':'bg-white/10 border-white/15 text-white/75 hover:bg-white/20'}`}>
