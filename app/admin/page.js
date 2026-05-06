@@ -493,16 +493,24 @@ export default function AdminPage() {
                             </div>
                             <div className="flex flex-col gap-2 flex-shrink-0">
                               {/* Durum değiştir */}
-                              <select value={ad.status} onChange={async e=>{
-                                const s = e.target.value
-                                await supabase.from('ads').update({status:s}).eq('id',ad.id)
-                                setAllAds(p=>p.map(a=>a.id===ad.id?{...a,status:s}:a))
-                              }} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-orange-400">
-                                <option value="pending">⏳ Bekliyor</option>
-                                <option value="active">● Aktif</option>
-                                <option value="paused">⏸ Durdur</option>
-                                <option value="expired">❌ Süresi doldu</option>
-                              </select>
+                              <div className="flex flex-col gap-1.5">
+                                {ad.status==='pending' && (
+                                  <button onClick={async()=>{
+                                    await supabase.from('ads').update({status:'active'}).eq('id',ad.id)
+                                    setAllAds(p=>p.map(a=>a.id===ad.id?{...a,status:'active'}:a))
+                                  }} className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold">✓ Onayla</button>
+                                )}
+                                <select value={ad.status} onChange={async e=>{
+                                  const s = e.target.value
+                                  await supabase.from('ads').update({status:s}).eq('id',ad.id)
+                                  setAllAds(p=>p.map(a=>a.id===ad.id?{...a,status:s}:a))
+                                }} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-orange-400">
+                                  <option value="pending">⏳ Bekliyor</option>
+                                  <option value="active">● Aktif</option>
+                                  <option value="paused">⏸ Durdur</option>
+                                  <option value="expired">❌ Süresi doldu</option>
+                                </select>
+                              </div>
                               {/* Tür değiştir */}
                               <select value={ad.type} onChange={async e=>{
                                 const t = e.target.value
@@ -538,8 +546,15 @@ export default function AdminPage() {
                             <td className="px-4 py-3"><PlanBdg p={f.plan} /></td>
                             <td className="px-4 py-3"><StatusBdg s={f.status} /></td>
                             <td className="px-4 py-3"><div className="flex gap-2">
-                              {f.plan!=='enterprise'&&<button className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1 rounded-lg font-semibold">Yükselt</button>}
-                              <button className="text-xs border border-gray-200 hover:bg-gray-50 px-2.5 py-1 rounded-lg font-semibold">Değiştir</button>
+                              <select value={f.plan} onChange={async e=>{
+                                const p=e.target.value
+                                await supabase.from('businesses').update({plan:p}).eq('id',f.id)
+                                setFirms(prev=>prev.map(x=>x.id===f.id?{...x,plan:p}:x))
+                              }} className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-orange-400">
+                                <option value="free">Ücretsiz</option>
+                                <option value="pro">Pro</option>
+                                <option value="enterprise">Enterprise</option>
+                              </select>
                             </div></td>
                           </tr>
                         ))}

@@ -32,6 +32,7 @@ export default function CustomerPage() {
   const [appointments, setAppointments] = useState([])
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [profLoading, setProfLoading] = useState(false)
   const [bizLoading, setBizLoading] = useState(true)
   const [activeAds, setActiveAds] = useState([])
   const [toast, setToast] = useState('')
@@ -97,13 +98,13 @@ export default function CustomerPage() {
   // Profil
   useEffect(() => {
     if (tab !== 'profile' || !user) return
-    setLoading(true)
+    setProfLoading(true)
     supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
       .then(({ data }) => {
         setProfile(data)
         setProfileForm({ full_name: data?.full_name || '', phone: data?.phone || '' })
-        setLoading(false)
-      })
+        setProfLoading(false)
+      }).catch(()=>setProfLoading(false))
   }, [tab, user])
 
   // Profil kaydet
@@ -765,7 +766,8 @@ export default function CustomerPage() {
                       await supabase.from('ads').update({clicks: (ad.clicks||0)+1}).eq('id',ad.id)
                       const biz = businesses.find(b => b.id === ad.business_id)
                       if(biz) setDetailBiz(biz)
-                    }} className="flex-none w-64 bg-white rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:shadow-md transition-all overflow-hidden">
+                    }} className="flex-none w-64 bg-white rounded-2xl border border-orange-200 shadow-sm cursor-pointer hover:shadow-md transition-all overflow-hidden relative">
+                      <div className="absolute top-2 left-2 z-10 bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">Reklam</div>
                       {ad.image_url && <img src={ad.image_url} alt={ad.title} className="w-full h-32 object-cover"/>}
                       <div className="p-3">
                         <div className="flex items-center gap-2 mb-1">
@@ -949,8 +951,8 @@ export default function CustomerPage() {
       {tab === 'profile' && (
         <div className="max-w-4xl mx-auto w-full px-3 sm:px-6 py-5 sm:py-8">
           <h1 className="text-xl font-bold mb-6">Profilim</h1>
-          {loading ? (
-            <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /></div>
+          {profLoading ? (
+            <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /> Yükleniyor...</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="space-y-4">
