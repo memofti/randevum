@@ -336,11 +336,11 @@ export default function CustomerPage() {
       return matchCat && matchQ && matchRating && matchPrice
     })
     .map(b => {
-      const dist = (userLoc && b.lat && b.lng) ? distKm(userLoc.lat, userLoc.lng, parseFloat(b.lat), parseFloat(b.lng)) : null
+      const dist = (userLoc && b.lat && b.lng) ? distKm(userLoc.lat, userLoc.lng, parseFloat(b.lat), parseFloat(b.lng)) : (userLoc ? 9999 : null)
       return { ...b, dist }
     })
     .sort((a, b) => {
-      if (sortBy === 'distance') return (a.dist||999) - (b.dist||999)
+      if (sortBy === 'distance') return (a.dist ?? 9999) - (b.dist ?? 9999)
       if (sortBy === 'price_asc') return (a.price_from||0) - (b.price_from||0)
       if (sortBy === 'price_desc') return (b.price_from||0) - (a.price_from||0)
       if (sortBy === 'reviews') return (b.review_count||0) - (a.review_count||0)
