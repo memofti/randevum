@@ -1515,11 +1515,29 @@ export default function BusinessPage() {
                         <input type="email" value={bizForm.email||''} onChange={e=>setBizForm(p=>({...p,email:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
                       <div><label className="text-xs font-bold block mb-1">Açıklama</label>
                         <textarea rows={3} value={bizForm.description||''} onChange={e=>setBizForm(p=>({...p,description:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 resize-none"/></div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div><label className="text-xs font-bold block mb-1">Enlem (Lat)</label>
-                          <input type="number" step="0.0001" value={bizForm.lat||''} onChange={e=>setBizForm(p=>({...p,lat:e.target.value}))} placeholder="41.0534" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
-                        <div><label className="text-xs font-bold block mb-1">Boylam (Lng)</label>
-                          <input type="number" step="0.0001" value={bizForm.lng||''} onChange={e=>setBizForm(p=>({...p,lng:e.target.value}))} placeholder="28.9897" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                      {/* Geocoding */}
+                      <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                        <div className="flex-1">
+                          {bizForm.lat && bizForm.lng
+                            ? <span className="text-xs text-green-700 font-semibold">✅ Konum belirlendi: {parseFloat(bizForm.lat).toFixed(4)}, {parseFloat(bizForm.lng).toFixed(4)}</span>
+                            : <span className="text-xs text-blue-600">📍 Adres ve şehri kaydettikten sonra harita konumunu otomatik belirleyin</span>
+                          }
+                        </div>
+                        <button type="button" onClick={async()=>{
+                          const addr = [bizForm.address, bizForm.city, 'Türkiye'].filter(Boolean).join(', ')
+                          if(!addr.trim()){toast3('❌ Önce adres ve şehir girin');return}
+                          toast3('🔍 Konum aranıyor...')
+                          try {
+                            const r = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(addr)+'&format=json&limit=1',{headers:{'Accept-Language':'tr','User-Agent':'RandevuApp/1.0'}})
+                            const d = await r.json()
+                            if(d[0]){
+                              setBizForm(p=>({...p,lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)}))
+                              toast3('✅ Konum belirlendi!')
+                            } else { toast3('❌ Adres bulunamadı, daha detaylı girin') }
+                          } catch(e){toast3('❌ Konum servisi hatası')}
+                        }} className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg whitespace-nowrap">
+                          📍 Konumu Bul
+                        </button>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div><label className="text-xs font-bold block mb-1">Telefon</label>
