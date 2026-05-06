@@ -5,6 +5,10 @@ import { supabase } from '@/lib/supabase'
 import dynamic from 'next/dynamic'
 
 const MapView = dynamic(() => import('@/app/components/MapView'), { ssr: false })
+import BusinessCard from '@/app/components/customer/BusinessCard'
+import AdBanner from '@/app/components/customer/AdBanner'
+import BusinessDetailModal from '@/app/components/customer/BusinessDetailModal'
+import BookingModal from '@/app/components/customer/BookingModal'
 
 function distKm(lat1,lng1,lat2,lng2){const R=6371,dL=(lat2-lat1)*Math.PI/180,dN=(lng2-lng1)*Math.PI/180,a=Math.sin(dL/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dN/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))}
 
@@ -413,7 +417,16 @@ export default function CustomerPage() {
       )}
 
       {/* İşletme Detay Modal */}
-      {detailBiz && (
+      <BusinessDetailModal
+        biz={detailBiz}
+        bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)}
+        services={bizServices}
+        staff={bizStaff}
+        loading={detailLoading}
+        onClose={()=>setDetailBiz(null)}
+        onBook={()=>setBookModal(true)}
+      />
+      {false && detailBiz && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
           onClick={e => e.target===e.currentTarget && setDetailBiz(null)}>
           <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -512,7 +525,42 @@ export default function CustomerPage() {
       )}
 
       {/* Randevu Al Modal */}
-      {bookModal && detailBiz && (
+      <BookingModal
+        biz={bookModal && detailBiz ? detailBiz : null}
+        services={bizServices}
+        staff={bizStaff}
+        onClose={()=>{setBookModal(false)}}
+        onBook={async(form, payCard)=>{
+          if (!form.service||!form.date||!form.time){toast3('❌ Hizmet, tarih ve saat seçin');return}
+          setBooking(true)
+          try {
+            const svc = bizServices.find(s=>s.id===form.service)
+            const { data: newAppt } = await supabase.from('appointments').insert({
+              business_id: detailBiz.id, profile_id: user.id,
+              service_id: form.service, staff_id: form.staff||null,
+              appointment_date: form.date, appointment_time: form.time,
+              status: 'pending', price: svc?.price||0,
+            }).select().maybeSingle()
+            if(newAppt){
+              await supabase.from('payments').insert({
+                appointment_id: newAppt.id, profile_id: user.id,
+                business_id: detailBiz.id, amount: svc?.price||0,
+                status: 'completed', method: 'card',
+                card_last4: payCard.number?payCard.number.replace(/\s/g,'').slice(-4):null,
+              })
+            }
+            try {
+              await supabase.from('loyalty_transactions').insert({profile_id:user.id,business_id:detailBiz.id,points:10,type:'earn',description:detailBiz.name+' randevusu'})
+              await supabase.from('profiles').update({loyalty_points:(user.loyalty_points||0)+10}).eq('id',user.id)
+              setUser(p=>({...p,loyalty_points:(p.loyalty_points||0)+10}))
+            } catch(e){}
+            setBookModal(false); setDetailBiz(null)
+            toast3('✅ Randevu talebiniz alındı!')
+          } catch(e){ toast3('❌ '+e.message) } finally { setBooking(false) }
+        }}
+        toast3={toast3}
+      />
+      {false && bookModal && detailBiz && (
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4"
           onClick={e => e.target===e.currentTarget && (setBookModal(false), setPayStep(false))}>
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
@@ -758,7 +806,8 @@ export default function CustomerPage() {
               </h2>
             </div>
             {/* REKLAM BANNER'LARI */}
-            {activeAds.length > 0 && (
+            <AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail}/>
+            {false && activeAds.length > 0 && (
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Sponsorlu</span>
@@ -804,6 +853,9 @@ export default function CustomerPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredBiz.map((b,i) => (
+                  <BusinessCard key={b.id} b={b} i={i} onDetail={openDetail} onMap={()=>setTab('map')}/>
+                ))}
+                {false && filteredBiz.map((b,i) => (
                   <div key={b.id} onClick={() => openDetail(b)}
                     className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group">
                     <div className="h-28 flex items-center justify-center text-5xl relative overflow-hidden" style={{ background:`${COLORS[i%COLORS.length]}15` }}>
