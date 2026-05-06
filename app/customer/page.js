@@ -70,6 +70,16 @@ export default function CustomerPage() {
     } catch { router.push('/login') }
   }, [router])
 
+  // Konum — sayfa açılınca iste
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    navigator.geolocation?.getCurrentPosition(
+      pos => setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {},
+      { timeout: 8000, enableHighAccuracy: false }
+    )
+  }, [])
+
   // İşletmeler
   useEffect(() => {
     supabase.from('businesses').select('*').eq('status','active').order('rating',{ascending:false})
