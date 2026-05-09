@@ -1518,58 +1518,58 @@ export default function BusinessPage() {
                         <input type="email" value={bizForm.email||''} onChange={e=>setBizForm(p=>({...p,email:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
                       <div><label className="text-xs font-bold block mb-1">Açıklama</label>
                         <textarea rows={3} value={bizForm.description||''} onChange={e=>setBizForm(p=>({...p,description:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 resize-none"/></div>
-                      {/* Adres Arama */}
+                      {/* Harita Konumu */}
                       <div>
-                        <label className="text-xs font-bold block mb-1">📍 Konum Ara</label>
+                        <label className="text-xs font-bold block mb-1">🗺️ Harita Konumu <span className="text-gray-400 font-normal">(mahalle, ilçe veya sokak adı yaz)</span></label>
                         <div className="relative">
-                          <div className="flex gap-2">
-                            <input
-                              placeholder="Örn: Kadıköy, İstanbul veya tam adres..."
-                              value={geoQuery}
-                              onChange={async e => {
-                                const q = e.target.value
-                                setGeoQuery(q)
-                                setGeoSuggestions([])
-                                if(q.length < 3) return
-                                setGeoLoading(true)
-                                try {
-                                  const r = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q+', Türkiye')+'&format=json&limit=5&addressdetails=1',{headers:{'Accept-Language':'tr','User-Agent':'RandevuApp/1.0'}})
-                                  const d = await r.json()
-                                  setGeoSuggestions(d||[])
-                                } catch(e){}
-                                setGeoLoading(false)
-                              }}
-                              className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
-                            />
-                            {geoLoading && <div className="flex items-center px-2 text-gray-400 text-xs">🔍</div>}
-                          </div>
+                          <input
+                            placeholder="Örn: Kadıköy, Beşiktaş, Bağcılar..."
+                            value={geoQuery}
+                            onChange={async e => {
+                              const q = e.target.value
+                              setGeoQuery(q)
+                              setGeoSuggestions([])
+                              if(q.length < 2) return
+                              setGeoLoading(true)
+                              try {
+                                const r = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q+', Türkiye')+'&format=json&limit=6&addressdetails=1',{headers:{'Accept-Language':'tr','User-Agent':'RandevuApp/1.0'}})
+                                const d = await r.json()
+                                setGeoSuggestions(d||[])
+                              } catch(e){}
+                              setGeoLoading(false)
+                            }}
+                            className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 pr-8"
+                          />
+                          {geoLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs animate-spin">⟳</div>}
                           {geoSuggestions.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-xl mt-1 max-h-60 overflow-y-auto">
-                              {geoSuggestions.map((s,i) => (
-                                <button key={i} type="button" onClick={()=>{
-                                  setBizForm(p=>({...p,
-                                    lat: parseFloat(s.lat),
-                                    lng: parseFloat(s.lon),
-                                    address: s.address?.road ? (s.address.road+(s.address.house_number?' '+s.address.house_number:'')) : (bizForm.address||''),
-                                    city: s.address?.city||s.address?.town||s.address?.county||s.address?.province||bizForm.city||''
-                                  }))
-                                  setGeoQuery(s.display_name.split(',').slice(0,3).join(','))
-                                  setGeoSuggestions([])
-                                  toast3('✅ Konum seçildi!')
-                                }} className="w-full text-left px-4 py-3 hover:bg-orange-50 border-b border-gray-100 last:border-0 transition-colors">
-                                  <div className="text-sm font-semibold text-gray-800 truncate">📍 {s.display_name.split(',').slice(0,3).join(',')}</div>
-                                  <div className="text-xs text-gray-400 truncate mt-0.5">{s.display_name}</div>
-                                </button>
-                              ))}
+                            <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-2xl mt-1 max-h-56 overflow-y-auto">
+                              {geoSuggestions.map((s,i) => {
+                                const parts = s.display_name.split(',')
+                                const main = parts.slice(0,2).join(',').trim()
+                                const sub = parts.slice(2,4).join(',').trim()
+                                return (
+                                  <button key={i} type="button" onClick={()=>{
+                                    setBizForm(p=>({...p,
+                                      lat: parseFloat(s.lat),
+                                      lng: parseFloat(s.lon),
+                                      city: s.address?.city||s.address?.town||s.address?.county||s.address?.province||p.city||''
+                                    }))
+                                    setGeoQuery(main)
+                                    setGeoSuggestions([])
+                                    toast3('✅ Konum seçildi!')
+                                  }} className="w-full text-left px-4 py-2.5 hover:bg-orange-50 border-b border-gray-50 last:border-0 transition-colors">
+                                    <div className="text-sm font-semibold text-gray-800">📍 {main}</div>
+                                    {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
+                                  </button>
+                                )
+                              })}
                             </div>
                           )}
                         </div>
-                        {bizForm.lat && bizForm.lng && (
-                          <div className="mt-2 flex items-center gap-2 text-xs text-green-700 font-semibold bg-green-50 px-3 py-2 rounded-lg border border-green-200">
-                            <span>✅ Konum belirlendi</span>
-                            <span className="text-gray-400">({parseFloat(bizForm.lat).toFixed(4)}, {parseFloat(bizForm.lng).toFixed(4)})</span>
-                          </div>
-                        )}
+                        {bizForm.lat && bizForm.lng
+                          ? <div className="mt-1.5 text-xs text-green-700 font-semibold flex items-center gap-1.5"><span>✅ Konum belirlendi</span><span className="text-gray-400 font-normal">· {parseFloat(bizForm.lat).toFixed(4)}, {parseFloat(bizForm.lng).toFixed(4)}</span></div>
+                          : <div className="mt-1.5 text-xs text-gray-400">Konumunuzu seçin — keşfet sayfasında haritada görünmek için gerekli</div>
+                        }
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         <div><label className="text-xs font-bold block mb-1">Telefon</label>
