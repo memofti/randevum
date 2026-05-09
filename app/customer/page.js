@@ -40,6 +40,7 @@ export default function CustomerPage() {
   const [profLoading, setProfLoading] = useState(false)
   const [bizLoading, setBizLoading] = useState(true)
   const [activeAds, setActiveAds] = useState([])
+  const [paymentEnabled, setPaymentEnabled] = useState(false)
   const [toast, setToast] = useState('')
   // İşletme detay modal
   const [detailBiz, setDetailBiz] = useState(null)
@@ -111,9 +112,14 @@ export default function CustomerPage() {
         setLoading(false)
         setBizLoading(false)
         try {
-          const { data: ads } = await supabase.from('ads').select('*, businesses(name,emoji,category,city,price_from,rating)').eq('status','active').gte('ends_at', new Date().toISOString())
+          const [{ data: ads }, { data: settings }] = await Promise.all([
+            supabase.from('ads').select('*, businesses(name,emoji,category,city,price_from,rating)').eq('status','active').gte('ends_at', new Date().toISOString()),
+            supabase.from('platform_settings').select('*'),
+          ])
           setActiveAds(ads||[])
-        } catch(e) { console.log('ads load err:', e) }
+          const paySet = (settings||[]).find(s=>s.key==='payment_enabled')
+          if(paySet) setPaymentEnabled(paySet.value==='true')
+        } catch(e) { console.log('load err:', e) }
       })
   }, [])
 
@@ -574,7 +580,7 @@ export default function CustomerPage() {
               setUser(p=>({...p,loyalty_points:(p.loyalty_points||0)+10}))
             } catch(e){}
             setBookModal(false); setDetailBiz(null)
-            toast3('✅ Randevu talebiniz alındı!')
+            toast3(paymentEnabled ? '✅ Randevu talebiniz alındı! Firma onayı bekleniyor.' : '✅ Randevunuz oluşturuldu! Firma 1 saat içinde onaylamazsa otomatik onaylanacak.')
           } catch(e){ toast3('❌ '+e.message) } finally { setBooking(false) }
         }}
         toast3={toast3}
@@ -657,9 +663,10 @@ export default function CustomerPage() {
                     if (!bookForm.service || !bookForm.date) { toast3('❌ Hizmet ve tarih seçin'); return }
                     if (!bookForm.time) { toast3('❌ Lütfen saat seçin'); return }
                     if (takenSlots.includes(bookForm.time)) { toast3('❌ Bu saat dolu, başka saat seçin'); return }
+                    if(!paymentEnabled) { bookAppt(); return }
                     setPayStep(true)
                   }} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold transition-colors">
-                    Devam → Ödeme
+                    {paymentEnabled ? 'Devam → Ödeme' : 'Randevu Al'}
                   </button>
                 </div>
               </>

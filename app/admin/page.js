@@ -41,6 +41,8 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [allAds, setAllAds] = useState([])
+  const [paymentEnabled, setPaymentEnabled] = useState(false)
+  const [savingPayment, setSavingPayment] = useState(false)
   const [statusF, setStatusF] = useState('')
   const [form, setForm] = useState({name:'',category:'',city:'',owner_name:'',email:'',phone:'',price_from:0,plan:'free'})
 
@@ -60,18 +62,21 @@ export default function AdminPage() {
   async function loadAll() {
     setLoading(true)
     try {
-      const [fr,pr,ar,payr,adsr2]=await Promise.all([
+      const [fr,pr,ar,payr,adsr2,settingsr]=await Promise.all([
         supabase.from('businesses').select('*').order('created_at',{ascending:false}),
         supabase.from('profiles').select('*').order('created_at',{ascending:false}),
         supabase.from('appointments').select('id,status,business_id'),
         supabase.from('payments').select('amount,created_at,status').eq('status','completed'),
         supabase.from('ads').select('*, businesses(name,emoji)').order('created_at',{ascending:false}),
+        supabase.from('platform_settings').select('*'),
       ])
       setFirms(fr.data||[])
       setProfiles(pr.data||[])
       setAppts(ar.data||[])
       setPayments(payr?.data||[])
       if(adsr2?.data) setAllAds(adsr2.data)
+      const paySet = settingsr?.data?.find(s=>s.key==='payment_enabled')
+      if(paySet) setPaymentEnabled(paySet.value==='true')
     } catch(e){console.error(e)}
     finally{setLoading(false)}
   }
