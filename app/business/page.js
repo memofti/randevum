@@ -1525,18 +1525,21 @@ export default function BusinessPage() {
                           <input
                             placeholder="Örn: Kadıköy, Beşiktaş, Bağcılar..."
                             value={geoQuery}
-                            onChange={async e => {
+                            onChange={e => {
                               const q = e.target.value
                               setGeoQuery(q)
                               setGeoSuggestions([])
-                              if(q.length < 2) return
+                              if(q.length < 2) { setGeoLoading(false); return }
                               setGeoLoading(true)
-                              try {
-                                const r = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q+', Türkiye')+'&format=json&limit=6&addressdetails=1',{headers:{'Accept-Language':'tr','User-Agent':'RandevuApp/1.0'}})
-                                const d = await r.json()
-                                setGeoSuggestions(d||[])
-                              } catch(e){}
-                              setGeoLoading(false)
+                              clearTimeout(window._geoTimer)
+                              window._geoTimer = setTimeout(async () => {
+                                try {
+                                  const r = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q+', Türkiye')+'&format=json&limit=6&addressdetails=1',{headers:{'Accept-Language':'tr','User-Agent':'RandevuApp/1.0'}})
+                                  const d = await r.json()
+                                  setGeoSuggestions(d||[])
+                                } catch(e){}
+                                setGeoLoading(false)
+                              }, 600)
                             }}
                             className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 pr-8"
                           />

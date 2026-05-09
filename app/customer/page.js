@@ -228,6 +228,14 @@ export default function CustomerPage() {
   async function bookAppt() {
     if (!bookForm.service || !bookForm.date || !bookForm.time) { toast3('❌ Hizmet, tarih ve saat seçin'); return }
     if (takenSlots.includes(bookForm.time)) { toast3('❌ Bu saat dolu, başka saat seçin'); return }
+    // Müşterinin aynı saatte başka randevusu var mı?
+    const { data: existing } = await supabase.from('appointments')
+      .select('id').eq('profile_id', user.id)
+      .eq('appointment_date', bookForm.date)
+      .eq('appointment_time', bookForm.time)
+      .not('status','in','("cancelled")')
+      .maybeSingle()
+    if (existing) { toast3('❌ Bu tarih ve saatte zaten aktif bir randevunuz var!'); return }
     setBooking(true)
     try {
       const svc = bizServices.find(s => s.id === bookForm.service)
