@@ -1688,7 +1688,7 @@ export default function BusinessPage() {
                         <label className="text-xs font-bold block mb-1">🗺️ Harita Konumu <span className="text-gray-400 font-normal">(mahalle, ilçe veya sokak adı yaz)</span></label>
                         <div className="relative">
                           <input
-                            placeholder="Örn: Kadıköy, Beşiktaş, Bağcılar..."
+                            placeholder="İlçe veya mahalle yaz — örn: Kadıköy, Beşiktaş..."
                             value={geoQuery}
                             onChange={e => {
                               const q = e.target.value
@@ -1699,16 +1699,22 @@ export default function BusinessPage() {
                               clearTimeout(window._geoTimer)
                               window._geoTimer = setTimeout(async () => {
                                 try {
-                                  const r = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q+', Türkiye')+'&format=json&limit=6&addressdetails=1',{headers:{'Accept-Language':'tr','User-Agent':'RandevuApp/1.0'}})
+                                  const r = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+',+Türkiye&format=json&limit=5&addressdetails=1&accept-language=tr',{headers:{'User-Agent':'RandevuApp/1.0 (contact@randevuapp.com)'}})
+                                  if(!r.ok) { setGeoLoading(false); return }
                                   const d = await r.json()
-                                  setGeoSuggestions(d||[])
-                                } catch(e){}
+                                  setGeoSuggestions(Array.isArray(d)?d:[])
+                                } catch(e){ console.log('geo err:',e) }
                                 setGeoLoading(false)
-                              }, 600)
+                              }, 800)
                             }}
                             className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 pr-8"
                           />
-                          {geoLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs animate-spin">⟳</div>}
+                          {geoLoading && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs">🔍</div>}
+                          {!geoLoading && geoQuery.length>=2 && geoSuggestions.length===0 && (
+                            <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-lg mt-1 p-3 text-xs text-gray-400 text-center">
+                              Sonuç bulunamadı — farklı bir arama deneyin
+                            </div>
+                          )}
                           {geoSuggestions.length > 0 && (
                             <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-200 rounded-xl shadow-2xl mt-1 max-h-56 overflow-y-auto">
                               {geoSuggestions.map((s,i) => {
