@@ -35,6 +35,10 @@ export default function BusinessCard({ b, i, onDetail, onMap }) {
                 🗺️ Harita
               </button>
             )}
+            <a href={"/firma/"+b.id} onClick={e=>e.stopPropagation()}
+              className="text-xs text-gray-400 hover:text-blue-500 px-2 py-1.5 rounded-lg hover:bg-blue-50 transition-colors font-medium">
+              🏢 Vitrin
+            </a>
             <button onClick={e=>{e.stopPropagation(); onDetail(b)}}
               className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
               Randevu Al
