@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 
-export default function BookingModal({ biz, services, staff, onClose, onBook, toast3 }) {
+export default function BookingModal({ biz, services, staff, onClose, onBook, toast3, discount=0 }) {
   const [form, setForm] = useState({ service:'', staff:'', date:'', time:'' })
   const [payStep, setPayStep] = useState(false)
   const [payCard, setPayCard] = useState({ name:'', number:'', expire:'', cvv:'' })

@@ -41,6 +41,7 @@ export default function CustomerPage() {
   const [bizLoading, setBizLoading] = useState(true)
   const [activeAds, setActiveAds] = useState([])
   const [paymentEnabled, setPaymentEnabled] = useState(false)
+  const [activeAdDiscount, setActiveAdDiscount] = useState(0) // aktif kampanya indirimi %
   const [toast, setToast] = useState('')
   // İşletme detay modal
   const [detailBiz, setDetailBiz] = useState(null)
@@ -197,8 +198,9 @@ export default function CustomerPage() {
   }
 
   // İşletme detay aç
-  async function openDetail(biz) {
+  async function openDetail(biz, discount=0) {
     setDetailBiz(biz)
+    setActiveAdDiscount(discount)
     setDetailLoading(true)
     setTakenSlots([])
     const [{ data: svcs }, { data: stff }] = await Promise.all([
@@ -562,6 +564,8 @@ export default function CustomerPage() {
         biz={bookModal && detailBiz ? detailBiz : null}
         services={bizServices}
         staff={bizStaff}
+        discount={activeAdDiscount}
+        discount={activeAdDiscount}
         onClose={()=>{setBookModal(false)}}
         onBook={async(form, payCard)=>{
           if (!form.service||!form.date||!form.time){toast3('❌ Hizmet, tarih ve saat seçin');return}

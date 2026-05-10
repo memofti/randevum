@@ -30,7 +30,7 @@ export default function AdBanner({ ads, userLoc, businesses, onBizDetail }) {
           <div key={ad.id} onClick={async () => {
             await supabase.from('ads').update({clicks: (ad.clicks||0)+1}).eq('id', ad.id)
             const biz = businesses.find(b => b.id === ad.business_id)
-            if (biz) onBizDetail(biz)
+            if (biz) onBizDetail(biz, ad.discount_pct||0)
           }} className="flex-none w-72 bg-white rounded-2xl shadow-md cursor-pointer hover:shadow-xl transition-all overflow-hidden border border-gray-100 hover:-translate-y-0.5">
             {ad.image_url
               ? <div className="relative h-36 overflow-hidden">
