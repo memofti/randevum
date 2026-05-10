@@ -1702,6 +1702,7 @@ export default function BusinessPage() {
                           </div>
                         )}
                       </div>
+                    </div>
                     {/* Çalışma Saatleri */}
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
                       <div className="font-bold text-sm border-b border-gray-100 pb-3">Çalışma Saatleri</div>
