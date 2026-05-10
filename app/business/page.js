@@ -1147,6 +1147,14 @@ export default function BusinessPage() {
                 <div>
                   <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
                     <div><h1 className="text-xl font-bold">Müşteriler</h1><p className="text-gray-500 text-sm">{Object.keys(custMap).length} kayıtlı</p></div>
+                    <button onClick={async()=>{
+                      const msg = window.prompt('KVKK onayı olan müşterilere gönderilecek SMS:')
+                      if(!msg) return
+                      const eligible = uniqueCustomers.filter(c=>c.sms_consent&&!c.sms_unsubscribed)
+                      if(eligible.length===0){ toast3('SMS onayı olan müşteri yok'); return }
+                      await supabase.from('sms_campaigns').insert({business_id:bizId,title:'Toplu SMS',message:msg,target:'all',status:'sent',sent_count:eligible.length})
+                      toast3('SMS kampanyası oluşturuldu! (' + eligible.length + '/' + uniqueCustomers.length + ' müşteri)')
+                    }} className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-xl flex items-center gap-1.5">📱 Toplu SMS</button>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                     <div className="p-4 border-b border-gray-100">

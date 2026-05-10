@@ -1169,6 +1169,55 @@ export default function CustomerPage() {
                   className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm font-semibold rounded-xl transition-colors border border-blue-200">
                   🔔 Bildirimleri Aç
                 </button>
+                {/* KVKK SMS Onayı */}
+                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
+                  <div className="text-xs font-bold text-gray-600">📱 SMS Bildirimleri</div>
+                  {profile?.sms_unsubscribed ? (
+                    <div className="space-y-2">
+                      <div className="text-xs text-red-500">SMS bildirimlerinden çıkış yapıldı.</div>
+                      <button onClick={async()=>{
+                        await supabase.from('profiles').update({sms_unsubscribed:false,sms_unsubscribed_at:null,sms_consent:true,sms_consent_at:new Date().toISOString()}).eq('id',user.id)
+                        setProfile(p=>({...p,sms_unsubscribed:false,sms_consent:true}))
+                        toast3('✅ SMS bildirimleri yeniden aktif edildi')
+                      }} className="w-full py-2 bg-green-50 text-green-600 border border-green-200 rounded-lg text-xs font-semibold">
+                        ✓ Yeniden Abone Ol
+                      </button>
+                    </div>
+                  ) : profile?.sms_consent ? (
+                    <div className="space-y-2">
+                      <div className="text-xs text-green-600">✅ SMS bildirimlerine onay verildi.</div>
+                      <button onClick={async()=>{
+                        if(!window.confirm('SMS bildirimlerinden çıkmak istediğinize emin misiniz?')) return
+                        await supabase.from('profiles').update({sms_unsubscribed:true,sms_unsubscribed_at:new Date().toISOString(),sms_consent:false}).eq('id',user.id)
+                        setProfile(p=>({...p,sms_unsubscribed:true,sms_consent:false}))
+                        toast3('SMS bildirimlerinden çıkış yapıldı')
+                      }} className="w-full py-2 bg-red-50 text-red-500 border border-red-200 rounded-lg text-xs font-semibold">
+                        ✗ Listeden Çık (Unsubscribe)
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="text-xs text-gray-500 leading-relaxed">
+                        Randevu hatırlatma ve kampanya SMS'leri almak istiyor musunuz?
+                      </div>
+                      <label className="flex items-start gap-2 cursor-pointer">
+                        <input type="checkbox" id="sms-consent" className="mt-0.5 accent-orange-500"/>
+                        <span className="text-xs text-gray-600 leading-relaxed">
+                          6698 sayılı KVKK kapsamında kişisel verilerimin işlenmesine ve tarafıma SMS gönderilmesine onay veriyorum. İstediğim zaman bu onayı geri alabilirim.
+                        </span>
+                      </label>
+                      <button onClick={async()=>{
+                        const cb = document.getElementById('sms-consent')
+                        if(!cb?.checked){ toast3('❌ Lütfen KVKK onayını işaretleyin'); return }
+                        await supabase.from('profiles').update({sms_consent:true,sms_consent_at:new Date().toISOString(),sms_unsubscribed:false}).eq('id',user.id)
+                        setProfile(p=>({...p,sms_consent:true,sms_unsubscribed:false}))
+                        toast3('✅ SMS bildirimleri aktif edildi')
+                      }} className="w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-bold">
+                        Onaylıyorum
+                      </button>
+                    </div>
+                  )}
+                </div>
                 <div className="flex gap-2">
                   {['tr','en'].map(l=>(
                     <button key={l} onClick={()=>{ localStorage.setItem('lang',l); setUiLang(l) }}
