@@ -63,6 +63,7 @@ export default function CustomerPage() {
   const [savingProfile, setSavingProfile] = useState(false)
   // Yorum sistemi
   const [reviewModal, setReviewModal] = useState(null)
+  const [qrModal, setQrModal] = useState(null)
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' })
   const [submittingReview, setSubmittingReview] = useState(false)
 
@@ -371,6 +372,20 @@ export default function CustomerPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* QR KOD MODAL */}
+      {qrModal && (
+        <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setQrModal(null)}>
+          <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-2xl">
+            <div className="font-bold mb-1">{qrModal.businesses?.name}</div>
+            <div className="text-xs text-gray-500 mb-4">{new Date(qrModal.appointment_date).toLocaleDateString('tr-TR',{day:'numeric',month:'long'})} · {String(qrModal.appointment_time).slice(0,5)}</div>
+            <div className="bg-gray-50 rounded-xl p-3 mb-4 inline-block">
+              <img src={'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(window.location.origin+'/qr/'+(qrModal.qr_token||qrModal.id))} alt="QR" className="w-48 h-48 mx-auto"/>
+            </div>
+            <p className="text-xs text-gray-400 mb-4">Firmaya gelince bu QR kodu okutun</p>
+            <button onClick={()=>setQrModal(null)} className="w-full py-2.5 border border-gray-200 rounded-xl text-sm font-semibold">Kapat</button>
+          </div>
+        </div>
+      )}
       {toast && <div className="fixed bottom-6 right-6 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-xl animate-in slide-in-from-bottom-2">{toast}</div>}
 
       {/* YORUM MODAL */}
@@ -1037,8 +1052,9 @@ export default function CustomerPage() {
                           <div className="flex gap-2 mt-3 pt-3 border-t border-gray-50">
                             <button onClick={()=>{
                               if(window.confirm('Randevuyu iptal etmek istediğinize emin misiniz?')) cancelAppt(a.id)
-                            }} className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-semibold">✗ İptal Et</button>
-                            <button onClick={()=>setTab('map')} className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 font-semibold">🗺️ Yol Tarifi</button>
+                            }} className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-semibold">✗ İptal</button>
+                            <button onClick={()=>setTab('map')} className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 font-semibold">🗺️ Yol</button>
+                            {a.qr_token && <button onClick={()=>setQrModal(a)} className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 font-semibold">📲 QR</button>}
                           </div>
                         </div>
                       )
@@ -1062,10 +1078,12 @@ export default function CustomerPage() {
                         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                           <Bdg s={a.status} />
                           {a.status === 'completed' && (
-                            <button onClick={() => { setReviewModal(a); setReviewForm({ rating: 5, comment: '' }) }}
-                              className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 font-semibold">
-                              ⭐ Değerlendir
-                            </button>
+                            <div className="flex gap-1.5">
+                              <button onClick={() => { setReviewModal(a); setReviewForm({ rating: 5, comment: '' }) }}
+                                className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 font-semibold">
+                                ⭐ Değerlendir
+                              </button>
+                            </div>
                           )}
                         </div>
                       </div>
