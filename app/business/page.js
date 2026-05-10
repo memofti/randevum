@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, sendNotification, sendWhatsApp, uploadMedia, deleteMedia } from '@/lib/supabase'
+import dynamic from 'next/dynamic'
+const LocationPicker = dynamic(() => import('@/app/components/LocationPicker'), { ssr: false })
 
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
 const MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık']
@@ -1686,75 +1688,20 @@ export default function BusinessPage() {
                         <textarea rows={3} value={bizForm.description||''} onChange={e=>setBizForm(p=>({...p,description:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 resize-none"/></div>
                       {/* Harita Konumu */}
                       <div>
-                        <label className="text-xs font-bold block mb-2">🗺️ Harita Konumu</label>
-                        {bizForm.lat && bizForm.lng ? (
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-xs text-green-700 font-semibold bg-green-50 px-3 py-2 rounded-lg border border-green-200">
-                              <span>✅ Konum belirlendi</span>
-                              <span className="text-gray-400 font-normal">({parseFloat(bizForm.lat).toFixed(4)}, {parseFloat(bizForm.lng).toFixed(4)})</span>
-                              <button onClick={()=>setBizForm(p=>({...p,lat:'',lng:''}))} className="ml-auto text-red-400 hover:text-red-600 text-base">✕</button>
-                            </div>
-                            <iframe
-                              src={'https://www.openstreetmap.org/export/embed.html?bbox='+(parseFloat(bizForm.lng)-0.005)+','+(parseFloat(bizForm.lat)-0.005)+','+(parseFloat(bizForm.lng)+0.005)+','+(parseFloat(bizForm.lat)+0.005)+'&layer=mapnik&marker='+bizForm.lat+','+bizForm.lng}
-                              className="w-full h-40 rounded-xl border border-gray-200"
-                              title="Konum"
-                            />
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <div className="flex gap-2">
-                              <input id="geo-input" placeholder="Adres ara — örn: Kadıköy, İstanbul"
-                                className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
-                                onKeyDown={e=>{ if(e.key==='Enter') document.getElementById('geo-btn')?.click() }}/>
-                              <button id="geo-btn" onClick={async()=>{
-                                const q = document.getElementById('geo-input')?.value
-                                if(!q) return
-                                setGeoLoading(true)
-                                setGeoSuggestions([])
-                                try {
-                                  const r = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q+', Türkiye')+'&format=json&limit=5&addressdetails=1',{headers:{'User-Agent':'RandevuApp/1.0'}})
-                                  const d = await r.json()
-                                  setGeoSuggestions(Array.isArray(d)?d:[])
-                                  if(!d.length) toast3('Sonuç bulunamadı, farklı arama deneyin')
-                                } catch(e){}
-                                setGeoLoading(false)
-                              }} disabled={geoLoading} className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl">
-                                {geoLoading?'...':'🔍 Ara'}
-                              </button>
-                            </div>
-                            {geoSuggestions.length > 0 && (
-                              <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm max-h-48 overflow-y-auto">
-                                {geoSuggestions.map((s,i) => (
-                                  <button key={i} type="button" onClick={()=>{
-                                    setBizForm(p=>({...p,lat:parseFloat(s.lat),lng:parseFloat(s.lon),city:s.address?.city||s.address?.town||s.address?.county||p.city}))
-                                    setGeoSuggestions([])
-                                    toast3('✅ Konum seçildi!')
-                                  }} className="w-full text-left px-4 py-2.5 hover:bg-orange-50 border-b border-gray-100 last:border-0 flex items-start gap-2">
-                                    <span className="text-orange-500">📍</span>
-                                    <div><div className="text-sm font-semibold">{s.display_name.split(',').slice(0,3).join(',')}</div><div className="text-xs text-gray-400">{s.display_name}</div></div>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            <button onClick={()=>navigator.geolocation?.getCurrentPosition(
-                              p=>{setBizForm(prev=>({...prev,lat:p.coords.latitude,lng:p.coords.longitude}));toast3('✅ Konum alındı!')},
-                              ()=>toast3('❌ Konum alınamadı')
-                            )} className="w-full py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-xl text-xs font-semibold">
-                              📍 Mevcut Konumumu Kullan
-                            </button>
+                        <label className="text-xs font-bold block mb-2">🗺️ Harita Konumu <span className="text-gray-400 font-normal">— haritaya tıkla veya pin'i sürükle</span></label>
+                        <LocationPicker
+                          lat={bizForm.lat ? parseFloat(bizForm.lat) : null}
+                          lng={bizForm.lng ? parseFloat(bizForm.lng) : null}
+                          onChange={(lat, lng) => setBizForm(p => ({...p, lat, lng}))}
+                        />
+                        {bizForm.lat && bizForm.lng && (
+                          <div className="mt-1.5 text-xs text-green-700 font-semibold flex items-center gap-1.5">
+                            <span>✅ Konum belirlendi</span>
+                            <span className="text-gray-400 font-normal">({parseFloat(bizForm.lat).toFixed(4)}, {parseFloat(bizForm.lng).toFixed(4)})</span>
+                            <button onClick={()=>setBizForm(p=>({...p,lat:'',lng:''}))} className="ml-auto text-red-400 hover:text-red-600">✕ Sıfırla</button>
                           </div>
                         )}
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div><label className="text-xs font-bold block mb-1">Telefon</label>
-                          <input value={bizForm.phone||''} onChange={e=>setBizForm(p=>({...p,phone:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
-                        <div><label className="text-xs font-bold block mb-1">Başlangıç Fiyatı (₺)</label>
-                          <input type="number" value={bizForm.price_from||0} onChange={e=>setBizForm(p=>({...p,price_from:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
-                      </div>
-                      <div className="pt-2">
-                         <button onClick={saveBizInfo} disabled={bizSaving} className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{bizSaving?'Kaydediliyor...':'Firma Bilgilerini Kaydet'}</button>
-                      </div>
-                    </div>
                     {/* Çalışma Saatleri */}
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
                       <div className="font-bold text-sm border-b border-gray-100 pb-3">Çalışma Saatleri</div>
