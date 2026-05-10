@@ -25,7 +25,7 @@ function KPI({ label, value, sub, color }) {
     </div>
   )
 }
-const NAV=[['dashboard','⊞','Dashboard'],['firms','🏢','Firmalar'],['requests','📬','Başvurular'],['ads','📢','Reklamlar'],['subscriptions','💳','Abonelikler'],['users','👥','Kullanıcılar']]
+const NAV=[['dashboard','⊞','Dashboard'],['firms','🏢','Firmalar'],['requests','📬','Başvurular'],['ads','📢','Reklamlar'],['revenue','💰','Gelir'],['subscriptions','💳','Abonelikler'],['users','👥','Kullanıcılar']]
 
 export default function AdminPage() {
   const router = useRouter()
@@ -43,6 +43,7 @@ export default function AdminPage() {
   const [allAds, setAllAds] = useState([])
   const [paymentEnabled, setPaymentEnabled] = useState(false)
   const [savingPayment, setSavingPayment] = useState(false)
+  const [commissionRate, setCommissionRate] = useState(10)
   const [statusF, setStatusF] = useState('')
   const [form, setForm] = useState({name:'',category:'',city:'',owner_name:'',email:'',phone:'',price_from:0,plan:'free'})
 
@@ -77,6 +78,8 @@ export default function AdminPage() {
       if(adsr2?.data) setAllAds(adsr2.data)
       const paySet = settingsr?.data?.find(s=>s.key==='payment_enabled')
       if(paySet) setPaymentEnabled(paySet.value==='true')
+      const commSet = settingsr?.data?.find(s=>s.key==='commission_rate')
+      if(commSet) setCommissionRate(+commSet.value||10)
     } catch(e){console.error(e)}
     finally{setLoading(false)}
   }
@@ -126,7 +129,7 @@ export default function AdminPage() {
     <div className="flex h-screen overflow-hidden bg-gray-50 relative">
       {/* Mobil Alt Navbar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-slate-800 border-t border-white/10 flex">
-        {[['dashboard','⊞','Panel'],['firms','🏢','Firmalar'],['requests','📬','Başvuru'],['users','👥','Kullanıcı'],['ads','📢','Reklam'],['subscriptions','💳','Abonelik']].map(([k,ic,l])=>(
+        {[['dashboard','⊞','Panel'],['firms','🏢','Firmalar'],['requests','📬','Başvuru'],['users','👥','Kullanıcı'],['ads','📢','Reklam'],['revenue','💰','Gelir'],['subscriptions','💳','Abonelik']].map(([k,ic,l])=>(
           <button key={k} onClick={()=>setView(k)}
             className={`flex-1 flex flex-col items-center justify-center py-2 text-xs font-semibold transition-all relative ${view===k?'text-orange-500':'text-white/40'}`}>
             <span className="text-base">{ic}</span>
@@ -558,6 +561,61 @@ export default function AdminPage() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+              {view==='revenue'&&(
+                <div>
+                  <div className="mb-5 flex items-center justify-between flex-wrap gap-3">
+                    <h1 className="text-xl font-bold">Gelir Takibi</h1>
+                    <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2">
+                      <span className="text-xs font-bold text-gray-500">Komisyon:</span>
+                      <input type="number" min="0" max="100" value={commissionRate}
+                        onChange={e=>setCommissionRate(+e.target.value)}
+                        className="w-12 text-center font-bold text-orange-500 outline-none text-sm border-b border-orange-300"/>
+                      <span className="text-xs text-gray-400">%</span>
+                      <button onClick={async()=>{
+                        await supabase.from('platform_settings').upsert({key:'commission_rate',value:String(commissionRate),updated_at:new Date().toISOString()})
+                        toast3('Komisyon oranı güncellendi')
+                      }} className="text-xs bg-orange-500 text-white px-2.5 py-1 rounded-lg font-bold">Kaydet</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                    {[
+                      ['Toplam Ciro','₺'+(payments.reduce((s,p)=>s+(+p.amount||0),0)).toLocaleString(),'text-gray-800','💳'],
+                      ['Komisyon Geliri','₺'+(payments.reduce((s,p)=>s+(+p.amount||0),0)*commissionRate/100).toLocaleString(),'text-orange-500','💰'],
+                      ['Bu Ay','₺'+(payments.filter(p=>p.created_at?.startsWith(new Date().toISOString().slice(0,7))).reduce((s,p)=>s+(+p.amount||0),0)).toLocaleString(),'text-blue-600','📅'],
+                      ['İşlem Sayısı',payments.length,'text-green-600','📊'],
+                    ].map(([l,v,c,icon])=>(
+                      <div key={l} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                        <div className="text-xl mb-2">{icon}</div>
+                        <div className={'text-lg font-extrabold mb-0.5 '+c}>{v}</div>
+                        <div className="text-xs text-gray-500">{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                    <div className="px-5 py-3.5 border-b border-gray-100 font-bold text-sm">Firma Bazlı Gelir</div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[500px]">
+                        <thead className="bg-gray-50"><tr>{['Firma','Plan','İşlem','Ciro','Komisyon'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
+                        <tbody>
+                          {firms.filter(f=>f.status==='active').map(f=>{
+                            const fp = payments.filter(p=>p.business_id===f.id)
+                            const total = fp.reduce((s,p)=>s+(+p.amount||0),0)
+                            return (
+                              <tr key={f.id} className="border-t border-gray-100 hover:bg-gray-50">
+                                <td className="px-4 py-3"><div className="font-semibold text-sm">{f.name}</div><div className="text-xs text-gray-400">{f.city}</div></td>
+                                <td className="px-4 py-3"><PlanBdg p={f.plan}/></td>
+                                <td className="px-4 py-3 text-sm text-gray-600">{fp.length}</td>
+                                <td className="px-4 py-3 text-sm font-bold">₺{total.toLocaleString()}</td>
+                                <td className="px-4 py-3 text-sm font-bold text-orange-500">₺{(total*commissionRate/100).toLocaleString()}</td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               )}
               {view==='subscriptions'&&(

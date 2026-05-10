@@ -41,7 +41,13 @@ export default function CustomerPage() {
   const [bizLoading, setBizLoading] = useState(true)
   const [activeAds, setActiveAds] = useState([])
   const [paymentEnabled, setPaymentEnabled] = useState(false)
-  const [activeAdDiscount, setActiveAdDiscount] = useState(0) // aktif kampanya indirimi %
+  const [activeAdDiscount, setActiveAdDiscount] = useState(0)
+  const [uiLang, setUiLang] = useState('tr')
+
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('lang')||'tr' : 'tr'
+    setUiLang(saved)
+  }, []) // aktif kampanya indirimi %
   const [toast, setToast] = useState('')
   // İşletme detay modal
   const [detailBiz, setDetailBiz] = useState(null)
@@ -91,6 +97,16 @@ export default function CustomerPage() {
       { timeout: 8000, enableHighAccuracy: false }
     )
   }, [])
+
+  const requestPushPermission = async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
+    try {
+      const perm = await Notification.requestPermission()
+      if (perm === 'granted') {
+        toast3('🔔 Bildirimler aktif!')
+      }
+    } catch(e) {}
+  }
 
   const requestLocation = (autoSort=true) => {
     setLocStatus('loading')
@@ -1138,6 +1154,18 @@ export default function CustomerPage() {
                       <span className="text-sm text-gray-500">{l}</span>
                       <span className="text-sm font-semibold">{v}</span>
                     </div>
+                  ))}
+                </div>
+                <button onClick={requestPushPermission}
+                  className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm font-semibold rounded-xl transition-colors border border-blue-200">
+                  🔔 Bildirimleri Aç
+                </button>
+                <div className="flex gap-2">
+                  {['tr','en'].map(l=>(
+                    <button key={l} onClick={()=>{ localStorage.setItem('lang',l); setUiLang(l) }}
+                      className={'flex-1 py-2 rounded-xl text-sm font-bold border transition-colors '+(uiLang===l?'bg-orange-500 text-white border-orange-500':'bg-gray-50 text-gray-600 border-gray-200')}>
+                      {l==='tr'?'🇹🇷 Türkçe':'🇬🇧 English'}
+                    </button>
                   ))}
                 </div>
                 <button onClick={async () => { await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); router.push('/login') }}
