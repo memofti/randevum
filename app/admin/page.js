@@ -231,6 +231,25 @@ export default function AdminPage() {
             <>
               {view==='dashboard'&&(
                 <div>
+                  <div className="bg-white border-2 border-orange-200 rounded-xl p-4 shadow-sm mb-5 flex items-center gap-4">
+                    <div className="text-2xl">💳</div>
+                    <div className="flex-1">
+                      <div className="font-bold text-sm">Ödeme Modu</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{paymentEnabled ? 'Aktif — ödemeler alınıyor' : 'Kapalı — 1 saatte otomatik onay'}</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold">{paymentEnabled?'AÇIK':'KAPALI'}</span>
+                      <button onClick={async()=>{
+                        setSavingPayment(true)
+                        const v = !paymentEnabled
+                        await supabase.from('platform_settings').upsert({key:'payment_enabled',value:String(v),updated_at:new Date().toISOString()})
+                        setPaymentEnabled(v)
+                        setSavingPayment(false)
+                      }} disabled={savingPayment} className={'relative w-14 h-7 rounded-full transition-colors '+(paymentEnabled?'bg-orange-500':'bg-gray-300')}>
+                        <div className={'absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-all '+(paymentEnabled?'left-7':'left-0.5')}/>
+                      </button>
+                    </div>
+                  </div>
                   <div className="mb-4"><h1 className="text-lg sm:text-xl font-bold">Platform Genel Bakış</h1><p className="text-gray-500 text-sm">Gerçek zamanlı Supabase verisi</p></div>
                   {reviewFirms.length>0&&(
                     <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-5 text-sm cursor-pointer hover:bg-amber-100" onClick={()=>setView('requests')}>
