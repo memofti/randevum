@@ -1415,7 +1415,85 @@ export default function BusinessPage() {
               {/* RAPORLAR */}
               {view==='reports' && (
                 <div>
-                  <h1 className="text-xl font-bold mb-5">Raporlar</h1>
+                  <div className="flex items-center justify-between mb-5">
+                    <h1 className="text-xl font-bold">Raporlar & Analitik</h1>
+                    <div className="text-xs text-gray-400">{new Date().toLocaleDateString('tr-TR',{month:'long',year:'numeric'})}</div>
+                  </div>
+                  {/* Gelir Özeti */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                    {[
+                      ['Toplam Gelir','₺'+(appts.filter(a=>a.status==='completed').reduce((s,a)=>s+(+a.price||0),0)).toLocaleString(),'text-green-600','💰'],
+                      ['Bu Ay','₺'+(appts.filter(a=>a.status==='completed'&&a.appointment_date?.startsWith(new Date().toISOString().slice(0,7))).reduce((s,a)=>s+(+a.price||0),0)).toLocaleString(),'text-orange-500','📅'],
+                      ['Tamamlanan',appts.filter(a=>a.status==='completed').length+' randevu','text-blue-600','✅'],
+                      ['İptal Oranı',(appts.length?Math.round(appts.filter(a=>a.status==='cancelled').length/appts.length*100):0)+'%','text-red-500','❌'],
+                    ].map(([l,v,c,icon])=>(
+                      <div key={l} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                        <div className="text-xl mb-2">{icon}</div>
+                        <div className={`text-xl font-extrabold ${c} mb-0.5`}>{v}</div>
+                        <div className="text-xs text-gray-500">{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Aylık Gelir Grafiği */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mb-5">
+                    <div className="font-bold text-sm mb-4">Son 6 Ay Gelir</div>
+                    <div className="flex items-end gap-2 h-32">
+                      {Array.from({length:6},(_,i)=>{
+                        const d = new Date(); d.setMonth(d.getMonth()-5+i)
+                        const key = d.toISOString().slice(0,7)
+                        const label = d.toLocaleDateString('tr-TR',{month:'short'})
+                        const rev = appts.filter(a=>a.status==='completed'&&a.appointment_date?.startsWith(key)).reduce((s,a)=>s+(+a.price||0),0)
+                        return {key,label,rev}
+                      }).map(({label,rev},i,arr)=>{
+                        const max = Math.max(...arr.map(a=>a.rev),1)
+                        const h = Math.round((rev/max)*100)
+                        return (
+                          <div key={label} className="flex-1 flex flex-col items-center gap-1">
+                            <div className="text-xs font-bold text-gray-600">{rev>0?'₺'+(rev/1000).toFixed(1)+'k':''}</div>
+                            <div className="w-full rounded-t-lg transition-all" style={{height:h+'%',minHeight:'4px',background:i===5?'#f97316':'#fed7aa'}}/>
+                            <div className="text-xs text-gray-400">{label}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  {/* Hizmet bazlı analiz */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                      <div className="font-bold text-sm mb-3">Hizmet Analizi</div>
+                      {svcs.map(s=>{
+                        const cnt = appts.filter(a=>a.service_id===s.id&&a.status==='completed').length
+                        const rev = cnt * (s.price||0)
+                        return cnt > 0 ? (
+                          <div key={s.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                            <div className="flex-1">
+                              <div className="text-sm font-semibold">{s.name}</div>
+                              <div className="text-xs text-gray-400">{cnt} randevu</div>
+                            </div>
+                            <div className="text-sm font-bold text-orange-500">₺{rev.toLocaleString()}</div>
+                          </div>
+                        ) : null
+                      })}
+                      {svcs.filter(s=>appts.some(a=>a.service_id===s.id&&a.status==='completed')).length===0&&<div className="text-xs text-gray-400">Henüz tamamlanan randevu yok</div>}
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+                      <div className="font-bold text-sm mb-3">Personel Performansı</div>
+                      {staff.map(s=>{
+                        const cnt = appts.filter(a=>a.staff_id===s.id&&a.status==='completed').length
+                        return (
+                          <div key={s.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                            <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-sm font-bold text-orange-600">{s.name[0]}</div>
+                            <div className="flex-1">
+                              <div className="text-sm font-semibold">{s.name}</div>
+                              <div className="text-xs text-gray-400">{cnt} randevu tamamlandı</div>
+                            </div>
+                            <div className="text-xs font-bold text-amber-500">★ {s.rating||0}</div>
+                          </div>
+                        )
+                      })}
+                      {staff.length===0&&<div className="text-xs text-gray-400">Personel bulunamadı</div>}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-6">
                     <KPI label="Toplam Gelir" value={`₺${revenue.toLocaleString()}`} sub={`${appts.filter(a=>a.status==='confirmed').length} onaylı`} color="orange" />
                     <KPI label="Randevu" value={appts.length} sub={`${appts.filter(a=>a.status==='pending').length} bekliyor`} color="green" />

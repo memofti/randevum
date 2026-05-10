@@ -593,7 +593,15 @@ export default function CustomerPage() {
               setUser(p=>({...p,loyalty_points:(p.loyalty_points||0)+10}))
             } catch(e){}
             setBookModal(false); setDetailBiz(null)
-            toast3(paymentEnabled ? '✅ Randevu talebiniz alındı! Firma onayı bekleniyor.' : '✅ Randevunuz oluşturuldu! Firma 1 saat içinde onaylamazsa otomatik onaylanacak.')
+            // Bildirimleri gönder
+      if (newAppt) {
+        fetch(process.env.NEXT_PUBLIC_SUPABASE_URL + '/functions/v1/send-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY },
+          body: JSON.stringify({ type: 'new_appointment', appointment_id: newAppt.id })
+        }).catch(() => {})
+      }
+      toast3(paymentEnabled ? '✅ Randevu talebiniz alındı! Firma onayı bekleniyor.' : '✅ Randevunuz oluşturuldu! Firma 1 saat içinde onaylamazsa otomatik onaylanacak.')
           } catch(e){ toast3('❌ '+e.message) } finally { setBooking(false) }
         }}
         toast3={toast3}
@@ -1010,20 +1018,27 @@ export default function CustomerPage() {
                     {upcomingAppts.map(a => {
                       const sc = {confirmed:'#ff6b35',pending:'#f59e0b'}[a.status]||'#ccc'
                       return (
-                        <div key={a.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
-                          <div className="w-1 h-14 rounded-full flex-shrink-0" style={{background:sc}} />
-                          <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{background:sc+'22'}}>{a.businesses?.emoji||'🏢'}</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-bold text-sm">{a.businesses?.name||'—'}</div>
-                            <div className="text-gray-500 text-xs">{a.staff?.name||'Personel'} · {a.services?.name||'—'}</div>
-                            <div className="text-xs font-semibold text-gray-700 mt-1">
-                              📅 {new Date(a.appointment_date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})} · ⏰ {String(a.appointment_time).slice(0,5)}
+                        <div key={a.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex items-center gap-3">
+                            <div className="w-1 h-14 rounded-full flex-shrink-0" style={{background:sc}} />
+                            <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{background:sc+'22'}}>{a.businesses?.emoji||'🏢'}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-sm">{a.businesses?.name||'—'}</div>
+                              <div className="text-gray-500 text-xs">{a.services?.name||'—'} · {a.staff?.name||'Herhangi personel'}</div>
+                              <div className="text-xs font-semibold text-gray-700 mt-1">
+                                📅 {new Date(a.appointment_date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})} · ⏰ {String(a.appointment_time).slice(0,5)}
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                              <Bdg s={a.status} />
+                              <div className="text-xs font-bold text-gray-700">₺{a.price||0}</div>
                             </div>
                           </div>
-                          <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                            <Bdg s={a.status} />
-                            <button onClick={() => cancelAppt(a.id)}
-                              className="text-xs px-2.5 py-1 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100">İptal</button>
+                          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-50">
+                            <button onClick={()=>{
+                              if(window.confirm('Randevuyu iptal etmek istediğinize emin misiniz?')) cancelAppt(a.id)
+                            }} className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-semibold">✗ İptal Et</button>
+                            <button onClick={()=>setTab('map')} className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 font-semibold">🗺️ Yol Tarifi</button>
                           </div>
                         </div>
                       )
