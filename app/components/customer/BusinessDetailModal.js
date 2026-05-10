@@ -3,7 +3,7 @@ const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06
 
 function Spin() { return <div className="w-5 h-5 border-2 border-gray-200 border-t-orange-500 rounded-full animate-spin flex-shrink-0" /> }
 
-export default function BusinessDetailModal({ biz, bizIdx, services, staff, loading, onClose, onBook }) {
+export default function BusinessDetailModal({ biz, bizIdx, services, staff, loading, onClose, onBook, onWaitList }) {
   if (!biz) return null
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -93,9 +93,12 @@ export default function BusinessDetailModal({ biz, bizIdx, services, staff, load
               )}
             </>
           )}
-          <button onClick={onBook} className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors shadow-md shadow-orange-500/25">
-            📅 Randevu Al
-          </button>
+          <div className="space-y-2">
+            <button onClick={onBook} className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors shadow-md shadow-orange-500/25">
+              📅 Randevu Al
+            </button>
+            {onWaitList && <button onClick={onWaitList} className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold rounded-xl text-sm">⏳ Bekleme Listesine Eklen</button>}
+          </div>
         </div>
       </div>
     </div>

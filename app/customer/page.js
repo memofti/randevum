@@ -491,6 +491,11 @@ export default function CustomerPage() {
         loading={detailLoading}
         onClose={()=>setDetailBiz(null)}
         onBook={()=>setBookModal(true)}
+        onWaitList={async()=>{
+          if(!user||!detailBiz) return
+          await supabase.from('waiting_list').insert({business_id:detailBiz.id,profile_id:user.id,status:'waiting'})
+          toast3('⏳ Bekleme listesine eklendiniz!')
+        }}
       />
       {false && detailBiz && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -1094,11 +1099,15 @@ export default function CustomerPage() {
                         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                           <Bdg s={a.status} />
                           {a.status === 'completed' && (
-                            <div className="flex gap-1.5">
+                            <div className="flex gap-1.5 flex-wrap">
                               <button onClick={() => { setReviewModal(a); setReviewForm({ rating: 5, comment: '' }) }}
                                 className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 font-semibold">
                                 ⭐ Değerlendir
                               </button>
+                              <a href={'/fatura/'+a.id} target="_blank" rel="noopener noreferrer"
+                                className="text-xs px-2.5 py-1 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 font-semibold">
+                                🧾 Fatura
+                              </a>
                             </div>
                           )}
                         </div>
