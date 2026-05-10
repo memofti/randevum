@@ -67,6 +67,7 @@ export default function BusinessPage() {
   // Form
   const [form, setForm] = useState({cname:'',cemail:'',service:'',staff:'',date:'',time:'10:00'})
   // Staff CRUD
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [staffModal, setStaffModal] = useState(false) // false | 'add' | staffObj
   const [staffForm, setStaffForm] = useState({name:'',speciality:'',phone:'',status:'available',rating:5.0})
   const [staffSaving, setStaffSaving] = useState(false)
@@ -935,8 +936,8 @@ export default function BusinessPage() {
                       }
                     </div>
                   )}
-                  <div className="flex items-center justify-between mb-5">
-                    <h1 className="text-xl font-bold" style={{display:'none'}}>Takvim</h1>
+                  <div className="flex items-center justify-between mb-5" style={{display:'none'}}>
+                    <h1 className="text-xl font-bold">Takvim</h1>
                     <div className="flex items-center gap-2">
                       <button onClick={()=>setCalDate(new Date(year,month-1,1))} className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600">←</button>
                       <span className="font-semibold text-sm w-32 text-center">{MONTHS[month]} {year}</span>
@@ -1548,7 +1549,7 @@ export default function BusinessPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                       <div className="font-bold text-sm mb-3">Hizmet Analizi</div>
-                      {svcs.map(s=>{
+                      {services.map(s=>{
                         const cnt = appts.filter(a=>a.service_id===s.id&&a.status==='completed').length
                         const rev = cnt * (s.price||0)
                         return cnt > 0 ? (
@@ -1561,7 +1562,7 @@ export default function BusinessPage() {
                           </div>
                         ) : null
                       })}
-                      {svcs.filter(s=>appts.some(a=>a.service_id===s.id&&a.status==='completed')).length===0&&<div className="text-xs text-gray-400">Henüz tamamlanan randevu yok</div>}
+                      {services.filter(s=>appts.some(a=>a.service_id===s.id&&a.status==='completed')).length===0&&<div className="text-xs text-gray-400">Henüz tamamlanan randevu yok</div>}
                     </div>
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                       <div className="font-bold text-sm mb-3">Personel Performansı</div>
@@ -1690,6 +1691,7 @@ export default function BusinessPage() {
                           <input
                             placeholder="İlçe veya mahalle yaz — örn: Kadıköy, Beşiktaş..."
                             value={geoQuery}
+                            onBlur={()=>setTimeout(()=>setGeoSuggestions([]),200)}
                             onChange={e => {
                               const q = e.target.value
                               setGeoQuery(q)
