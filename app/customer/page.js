@@ -565,6 +565,7 @@ export default function CustomerPage() {
         services={bizServices}
         staff={bizStaff}
         discount={activeAdDiscount}
+        paymentEnabled={paymentEnabled}
         discount={activeAdDiscount}
         onClose={()=>{setBookModal(false)}}
         onBook={async(form, payCard)=>{

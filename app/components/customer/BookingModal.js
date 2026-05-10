@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 
-export default function BookingModal({ biz, services, staff, onClose, onBook, toast3, discount=0 }) {
+export default function BookingModal({ biz, services, staff, onClose, onBook, toast3, discount=0, paymentEnabled=false }) {
   const [form, setForm] = useState({ service:'', staff:'', date:'', time:'' })
   const [payStep, setPayStep] = useState(false)
   const [payCard, setPayCard] = useState({ name:'', number:'', expire:'', cvv:'' })
@@ -111,8 +111,10 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
                 if(!form.service||!form.date){toast3('❌ Hizmet ve tarih seçin');return}
                 if(!form.time){toast3('❌ Saat seçin');return}
                 if(takenSlots.includes(form.time)){toast3('❌ Bu saat dolu');return}
+                if(!paymentEnabled){ handleBook(); return }
                 setPayStep(true)
-              }} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold">Devam → Ödeme</button>
+              }} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold">{paymentEnabled?'Devam → Ödeme':'Randevu Al'}</button>
+
             </div>
           </>
         ) : (
