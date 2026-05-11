@@ -1690,19 +1690,30 @@ export default function BusinessPage() {
                         <div><label className="text-xs font-bold block mb-1">Başlangıç Fiyatı (₺)</label>
                           <input type="number" value={bizForm.price_from||0} onChange={e=>setBizForm(p=>({...p,price_from:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
                       </div>
-                      {/* Harita Konumu */}
+                      {/* Konum */}
                       <div>
-                        <label className="text-xs font-bold block mb-2">🗺️ Harita Konumu <span className="text-gray-400 font-normal">— haritaya tıkla veya pin sürükle</span></label>
-                        <LocationPicker
-                          lat={bizForm.lat ? parseFloat(bizForm.lat) : null}
-                          lng={bizForm.lng ? parseFloat(bizForm.lng) : null}
-                          onChange={(lat, lng) => setBizForm(p => ({...p, lat, lng}))}
-                        />
+                        <label className="text-xs font-bold block mb-2">📍 Konum <span className="text-gray-400 font-normal">(adresi yazıp "Konumu Bul" butonuna tıklayın)</span></label>
+                        <div className="flex gap-2">
+                          <input id="geo-input" placeholder="Örn: Kadıköy, İstanbul" defaultValue={bizForm.address||''}
+                            className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
+                            onKeyDown={e=>{ if(e.key==='Enter') document.getElementById('geo-btn')?.click() }}/>
+                          <button id="geo-btn" type="button" onClick={async()=>{
+                            const q = document.getElementById('geo-input')?.value
+                            if(!q) return
+                            try {
+                              const r = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q+', Türkiye')+'&format=json&limit=1',{headers:{'User-Agent':'RandevuApp/1.0'}})
+                              const d = await r.json()
+                              if(d[0]){ setBizForm(p=>({...p,lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)})); toast3('✅ Konum bulundu!') }
+                              else toast3('❌ Konum bulunamadı')
+                            } catch(e){ toast3('❌ Hata') }
+                          }} className="px-3 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl whitespace-nowrap">
+                            🔍 Konumu Bul
+                          </button>
+                        </div>
                         {bizForm.lat && bizForm.lng && (
-                          <div className="mt-1.5 text-xs text-green-700 font-semibold flex items-center gap-1.5">
-                            <span>✅ Konum belirlendi</span>
-                            <span className="text-gray-400 font-normal">({parseFloat(bizForm.lat).toFixed(4)}, {parseFloat(bizForm.lng).toFixed(4)})</span>
-                            <button type="button" onClick={()=>setBizForm(p=>({...p,lat:'',lng:''}))} className="ml-auto text-red-400 hover:text-red-600">✕</button>
+                          <div className="mt-1.5 text-xs text-green-700 font-semibold flex items-center gap-1.5 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
+                            ✅ Konum belirlendi · {parseFloat(bizForm.lat).toFixed(4)}, {parseFloat(bizForm.lng).toFixed(4)}
+                            <button type="button" onClick={()=>setBizForm(p=>({...p,lat:'',lng:''}))} className="ml-auto text-red-400">✕</button>
                           </div>
                         )}
                       </div>
