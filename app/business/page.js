@@ -1,9 +1,59 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, sendNotification, sendWhatsApp, uploadMedia, deleteMedia } from '@/lib/supabase'
 
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
+
+// Inline harita konum seçici
+function LocPickerInline({ lat, lng, onSelect }) {
+  const ref = useRef(null)
+  const mapRef = useRef(null)
+  const markerRef = useRef(null)
+  useEffect(() => {
+    if (!ref.current || mapRef.current) return
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+    document.head.appendChild(link)
+    import('leaflet').then(mod => {
+      const L = mod.default
+      delete L.Icon.Default.prototype._getIconUrl
+      L.Icon.Default.mergeOptions({
+        iconUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconRetinaUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      })
+      const initLat = lat ? parseFloat(lat) : 41.015
+      const initLng = lng ? parseFloat(lng) : 28.979
+      const map = L.map(ref.current).setView([initLat, initLng], lat ? 14 : 10)
+      mapRef.current = map
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution:'© OSM © CartoDB', maxZoom:19, subdomains:'abcd'
+      }).addTo(map)
+      if (lat && lng) {
+        markerRef.current = L.marker([parseFloat(lat), parseFloat(lng)], {draggable:true}).addTo(map)
+        markerRef.current.on('dragend', e => { const p=e.target.getLatLng(); onSelect(p.lat,p.lng) })
+      }
+      map.on('click', e => {
+        const {lat:la, lng:lo} = e.latlng
+        if (markerRef.current) markerRef.current.setLatLng([la,lo])
+        else {
+          markerRef.current = L.marker([la,lo],{draggable:true}).addTo(map)
+          markerRef.current.on('dragend', ev => { const p=ev.target.getLatLng(); onSelect(p.lat,p.lng) })
+        }
+        onSelect(la,lo)
+      })
+    })
+    return () => { if(mapRef.current){mapRef.current.remove();mapRef.current=null} }
+  }, [])
+  return (
+    <div>
+      <div ref={ref} style={{height:'240px',borderRadius:'12px',overflow:'hidden',border:'1px solid #e5e7eb'}}/>
+      <p className="text-xs text-gray-400 mt-1 text-center">📍 Haritaya tıklayın veya pin sürükleyin</p>
+    </div>
+  )
+}
 const MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık']
 const DAYS   = ['Pzt','Sal','Çar','Per','Cum','Cmt','Paz']
 
@@ -42,6 +92,7 @@ export default function BusinessPage() {
   const [adForm, setAdForm] = useState({ title:'', description:'', image_url:'', discount_pct:0, type:'general', target_city:'', target_district:'', target_radius_km:20, ends_at:'' })
   const [ads, setAds] = useState([])
   const [savingShowcase, setSavingShowcase] = useState(false)
+  const [showLocPicker, setShowLocPicker] = useState(false)
   const [geoQuery, setGeoQuery] = useState('')
   const [geoSuggestions, setGeoSuggestions] = useState([])
   const [geoLoading, setGeoLoading] = useState(false)
@@ -1693,12 +1744,11 @@ export default function BusinessPage() {
                       {/* Konum */}
                       <div>
                         <label className="text-xs font-bold block mb-2">📍 Konum <span className="text-gray-400 font-normal">(adresi yazıp "Konumu Bul" butonuna tıklayın)</span></label>
-                        <button type="button" onClick={()=>{
-                          const w = window.open('/konum-sec', 'konum', 'width=800,height=600,scrollbars=no')
-                          if(!w) toast3('❌ Popup engellendi — tarayıcı ayarlarından izin verin')
-                        }} className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2">
-                          🗺️ Haritadan Konum Seç
+                        <button type="button" onClick={()=>setShowLocPicker(p=>!p)}
+                          className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2">
+                          🗺️ {showLocPicker ? 'Haritayı Kapat' : 'Haritadan Konum Seç'}
                         </button>
+                        {showLocPicker && <LocPickerInline lat={bizForm.lat} lng={bizForm.lng} onSelect={(lat,lng)=>{setBizForm(p=>({...p,lat,lng}));toast3('✅ Konum seçildi!')}} />}
                         {bizForm.lat && bizForm.lng && (
                           <div className="mt-1.5 text-xs text-green-700 font-semibold flex items-center gap-1.5 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
                             ✅ Konum belirlendi · {parseFloat(bizForm.lat).toFixed(4)}, {parseFloat(bizForm.lng).toFixed(4)}
