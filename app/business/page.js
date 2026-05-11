@@ -2,8 +2,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, sendNotification, sendWhatsApp, uploadMedia, deleteMedia } from '@/lib/supabase'
-import dynamic from 'next/dynamic'
-const LocationPicker = dynamic(() => import('@/app/components/LocationPicker'), { ssr: false })
 
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
 const MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık']
@@ -1686,9 +1684,15 @@ export default function BusinessPage() {
                         <input type="email" value={bizForm.email||''} onChange={e=>setBizForm(p=>({...p,email:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
                       <div><label className="text-xs font-bold block mb-1">Açıklama</label>
                         <textarea rows={3} value={bizForm.description||''} onChange={e=>setBizForm(p=>({...p,description:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 resize-none"/></div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div><label className="text-xs font-bold block mb-1">Telefon</label>
+                          <input value={bizForm.phone||''} onChange={e=>setBizForm(p=>({...p,phone:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                        <div><label className="text-xs font-bold block mb-1">Başlangıç Fiyatı (₺)</label>
+                          <input type="number" value={bizForm.price_from||0} onChange={e=>setBizForm(p=>({...p,price_from:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                      </div>
                       {/* Harita Konumu */}
                       <div>
-                        <label className="text-xs font-bold block mb-2">🗺️ Harita Konumu <span className="text-gray-400 font-normal">— haritaya tıkla veya pin'i sürükle</span></label>
+                        <label className="text-xs font-bold block mb-2">🗺️ Harita Konumu <span className="text-gray-400 font-normal">— haritaya tıkla veya pin sürükle</span></label>
                         <LocationPicker
                           lat={bizForm.lat ? parseFloat(bizForm.lat) : null}
                           lng={bizForm.lng ? parseFloat(bizForm.lng) : null}
@@ -1698,48 +1702,50 @@ export default function BusinessPage() {
                           <div className="mt-1.5 text-xs text-green-700 font-semibold flex items-center gap-1.5">
                             <span>✅ Konum belirlendi</span>
                             <span className="text-gray-400 font-normal">({parseFloat(bizForm.lat).toFixed(4)}, {parseFloat(bizForm.lng).toFixed(4)})</span>
-                            <button onClick={()=>setBizForm(p=>({...p,lat:'',lng:''}))} className="ml-auto text-red-400 hover:text-red-600">✕ Sıfırla</button>
+                            <button type="button" onClick={()=>setBizForm(p=>({...p,lat:'',lng:''}))} className="ml-auto text-red-400 hover:text-red-600">✕</button>
                           </div>
                         )}
+                      </div>
+                      <div className="pt-2">
+                        <button onClick={saveBizInfo} disabled={bizSaving} className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{bizSaving?'Kaydediliyor...':'Firma Bilgilerini Kaydet'}</button>
                       </div>
                     </div>
                     {/* Çalışma Saatleri */}
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
                       <div className="font-bold text-sm border-b border-gray-100 pb-3">Çalışma Saatleri</div>
                       <div className="space-y-3">
-                         {['1','2','3','4','5','6','0'].map(d => {
-                           const days = {'1':'Pazartesi','2':'Salı','3':'Çarşamba','4':'Perşembe','5':'Cuma','6':'Cumartesi','0':'Pazar'}
-                           const wh = workingHours[d] || { str: '09:00', end: '18:00', off: false }
-                           return (
-                             <div key={d} className="flex items-center justify-between gap-3 p-2 hover:bg-gray-50 rounded-lg">
-                               <div className="w-24 text-sm font-semibold text-gray-700">{days[d]}</div>
-                               <div className="flex-1 flex gap-2 items-center">
-                                 {wh.off ? (
-                                   <div className="flex-1 text-center text-sm text-red-500 font-bold py-1.5 bg-red-50 rounded-lg border border-red-100">Kapalı</div>
-                                 ) : (
-                                   <>
-                                     <input type="time" value={wh.str} onChange={e=>setWorkingHours(p=>({...p, [d]: {...wh, str: e.target.value}}))} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" />
-                                     <span className="text-gray-400">-</span>
-                                     <input type="time" value={wh.end} onChange={e=>setWorkingHours(p=>({...p, [d]: {...wh, end: e.target.value}}))} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" />
-                                   </>
-                                 )}
-                               </div>
-                               <label className="flex items-center gap-2 cursor-pointer w-20 justify-end">
-                                 <input type="checkbox" checked={wh.off} onChange={e=>setWorkingHours(p=>({...p, [d]: {...wh, off: e.target.checked}}))} className="w-4 h-4 text-orange-500 rounded border-gray-300 focus:ring-orange-500 accent-orange-500" />
-                                 <span className="text-sm font-medium text-gray-600">Kapalı</span>
-                               </label>
-                             </div>
-                           )
-                         })}
+                        {['1','2','3','4','5','6','0'].map(d => {
+                          const days = {'1':'Pazartesi','2':'Salı','3':'Çarşamba','4':'Perşembe','5':'Cuma','6':'Cumartesi','0':'Pazar'}
+                          const wh = workingHours[d] || { str: '09:00', end: '18:00', off: false }
+                          return (
+                            <div key={d} className="flex items-center justify-between gap-3 p-2 hover:bg-gray-50 rounded-lg">
+                              <div className="w-24 text-sm font-semibold text-gray-700">{days[d]}</div>
+                              <div className="flex-1 flex gap-2 items-center">
+                                {wh.off ? (
+                                  <div className="flex-1 text-center text-sm text-red-500 font-bold py-1.5 bg-red-50 rounded-lg border border-red-100">Kapalı</div>
+                                ) : (
+                                  <>
+                                    <input type="time" value={wh.str} onChange={e=>setWorkingHours(p=>({...p,[d]:{...wh,str:e.target.value}}))} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" />
+                                    <span className="text-gray-400">-</span>
+                                    <input type="time" value={wh.end} onChange={e=>setWorkingHours(p=>({...p,[d]:{...wh,end:e.target.value}}))} className="flex-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" />
+                                  </>
+                                )}
+                              </div>
+                              <label className="flex items-center gap-2 cursor-pointer w-20 justify-end">
+                                <input type="checkbox" checked={wh.off} onChange={e=>setWorkingHours(p=>({...p,[d]:{...wh,off:e.target.checked}}))} className="w-4 h-4 accent-orange-500" />
+                                <span className="text-sm font-medium text-gray-600">Kapalı</span>
+                              </label>
+                            </div>
+                          )
+                        })}
                       </div>
                       <div className="pt-2">
-                         <button onClick={saveWorkingHours} disabled={whSaving} className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{whSaving?'Kaydediliyor...':'Çalışma Saatlerini Kaydet'}</button>
+                        <button onClick={saveWorkingHours} disabled={whSaving} className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{whSaving?'Kaydediliyor...':'Çalışma Saatlerini Kaydet'}</button>
                       </div>
                     </div>
                   </div>
+                </div>
               )}
-            </>
-          )}
         </div>
       </div>
     </div>
