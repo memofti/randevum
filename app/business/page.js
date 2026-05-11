@@ -7,6 +7,32 @@ const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06
 
 // Inline harita konum seçici
 function LocPickerInline({ lat, lng, onSelect }) {
+  const [searchQ, setSearchQ] = useState('')
+  const [searching, setSearching] = useState(false)
+
+  const searchAndGo = async () => {
+    if (!searchQ.trim() || !mapRef.current) return
+    setSearching(true)
+    try {
+      const r = await fetch('/api/geocode?q=' + encodeURIComponent(searchQ))
+      const d = await r.json()
+      if (d[0]) {
+        const la = parseFloat(d[0].lat), lo = parseFloat(d[0].lon)
+        mapRef.current.setView([la, lo], 16)
+        import('leaflet').then(mod => {
+          const L = mod.default
+          if (markerRef.current) markerRef.current.setLatLng([la, lo])
+          else {
+            markerRef.current = L.marker([la,lo],{draggable:true}).addTo(mapRef.current)
+            markerRef.current.on('dragend', e => { const p=e.target.getLatLng(); onSelect(p.lat,p.lng) })
+          }
+          onSelect(la, lo)
+        })
+      } else { alert('Adres bulunamadı') }
+    } catch(e) {}
+    setSearching(false)
+  }
+
   const ref = useRef(null)
   const mapRef = useRef(null)
   const markerRef = useRef(null)
@@ -48,6 +74,17 @@ function LocPickerInline({ lat, lng, onSelect }) {
     return () => { if(mapRef.current){mapRef.current.remove();mapRef.current=null} }
   }, [])
   return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <input placeholder="Adres ara — örn: Kadıköy, İstanbul"
+          value={searchQ} onChange={e=>setSearchQ(e.target.value)}
+          onKeyDown={e=>e.key==='Enter'&&searchAndGo()}
+          className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400"/>
+        <button onClick={searchAndGo} disabled={searching}
+          className="px-3 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-xs font-bold rounded-lg">
+          {searching?'...':'🔍 Ara'}
+        </button>
+      </div>
     <div>
       <div ref={ref} style={{height:'240px',borderRadius:'12px',overflow:'hidden',border:'1px solid #e5e7eb'}}/>
       <p className="text-xs text-gray-400 mt-1 text-center">📍 Haritaya tıklayın veya pin sürükleyin</p>
