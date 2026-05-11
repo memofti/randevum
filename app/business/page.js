@@ -1747,7 +1747,6 @@ export default function BusinessPage() {
                 </div>
               )}
         </div>
-      </div>
     </div>
   )
 }
