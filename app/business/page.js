@@ -85,7 +85,6 @@ function LocPickerInline({ lat, lng, onSelect }) {
           {searching?'...':'🔍 Ara'}
         </button>
       </div>
-    <div>
       <div ref={ref} style={{height:'240px',borderRadius:'12px',overflow:'hidden',border:'1px solid #e5e7eb'}}/>
       <p className="text-xs text-gray-400 mt-1 text-center">📍 Haritaya tıklayın veya pin sürükleyin</p>
     </div>
