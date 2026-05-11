@@ -1693,23 +1693,12 @@ export default function BusinessPage() {
                       {/* Konum */}
                       <div>
                         <label className="text-xs font-bold block mb-2">📍 Konum <span className="text-gray-400 font-normal">(adresi yazıp "Konumu Bul" butonuna tıklayın)</span></label>
-                        <div className="flex gap-2">
-                          <input id="geo-input" placeholder="Örn: Kadıköy, İstanbul" defaultValue={bizForm.address||''}
-                            className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"
-                            onKeyDown={e=>{ if(e.key==='Enter') document.getElementById('geo-btn')?.click() }}/>
-                          <button id="geo-btn" type="button" onClick={async()=>{
-                            const q = document.getElementById('geo-input')?.value
-                            if(!q) return
-                            try {
-                              const r = await fetch('/api/geocode?q='+encodeURIComponent(q))
-                              const d = await r.json()
-                              if(d[0]){ setBizForm(p=>({...p,lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)})); toast3('✅ Konum bulundu: '+d[0].display_name.split(',').slice(0,2).join(',')) }
-                              else toast3('❌ Konum bulunamadı — daha detaylı adres deneyin')
-                            } catch(e){ toast3('❌ Bağlantı hatası') }
-                          }} className="px-3 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl whitespace-nowrap">
-                            🔍 Konumu Bul
-                          </button>
-                        </div>
+                        <button type="button" onClick={()=>{
+                          const w = window.open('/konum-sec', 'konum', 'width=800,height=600,scrollbars=no')
+                          if(!w) toast3('❌ Popup engellendi — tarayıcı ayarlarından izin verin')
+                        }} className="w-full py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2">
+                          🗺️ Haritadan Konum Seç
+                        </button>
                         {bizForm.lat && bizForm.lng && (
                           <div className="mt-1.5 text-xs text-green-700 font-semibold flex items-center gap-1.5 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
                             ✅ Konum belirlendi · {parseFloat(bizForm.lat).toFixed(4)}, {parseFloat(bizForm.lng).toFixed(4)}
