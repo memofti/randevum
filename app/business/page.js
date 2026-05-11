@@ -1701,11 +1701,11 @@ export default function BusinessPage() {
                             const q = document.getElementById('geo-input')?.value
                             if(!q) return
                             try {
-                              const r = await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q+', Türkiye')+'&format=json&limit=1',{headers:{'User-Agent':'RandevuApp/1.0'}})
+                              const r = await fetch('/api/geocode?q='+encodeURIComponent(q))
                               const d = await r.json()
-                              if(d[0]){ setBizForm(p=>({...p,lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)})); toast3('✅ Konum bulundu!') }
-                              else toast3('❌ Konum bulunamadı')
-                            } catch(e){ toast3('❌ Hata') }
+                              if(d[0]){ setBizForm(p=>({...p,lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)})); toast3('✅ Konum bulundu: '+d[0].display_name.split(',').slice(0,2).join(',')) }
+                              else toast3('❌ Konum bulunamadı — daha detaylı adres deneyin')
+                            } catch(e){ toast3('❌ Bağlantı hatası') }
                           }} className="px-3 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl whitespace-nowrap">
                             🔍 Konumu Bul
                           </button>
