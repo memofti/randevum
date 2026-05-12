@@ -43,6 +43,8 @@ export default function CustomerPage() {
   const [paymentEnabled, setPaymentEnabled] = useState(false)
   const [activeAdDiscount, setActiveAdDiscount] = useState(0)
   const [uiLang, setUiLang] = useState('tr')
+  const [theme, setTheme] = useState({primary:'#f97316',primaryDark:'#ea580c',navBg:'#1e293b',heroFrom:'#1e293b',heroTo:'#334155',accent:'#ff6b35'})
+  const [theme, setTheme] = useState({primary:'#f97316',primaryDark:'#ea580c',navBg:'#1e293b',heroFrom:'#1e293b',heroTo:'#334155',accent:'#ff6b35',name:'orange'})
 
   useEffect(() => {
     const saved = typeof window !== 'undefined' ? localStorage.getItem('lang')||'tr' : 'tr'
@@ -137,6 +139,10 @@ export default function CustomerPage() {
           setActiveAds(ads||[])
           const paySet = (settings||[]).find(s=>s.key==='payment_enabled')
           if(paySet) setPaymentEnabled(paySet.value==='true')
+          const themeSet2 = (settings||[]).find(s=>s.key==='theme')
+          if(themeSet2){const T={orange:{primary:'#f97316',primaryDark:'#ea580c',navBg:'#1e293b',heroFrom:'#1e293b',heroTo:'#334155',accent:'#ff6b35'},purple:{primary:'#8b5cf6',primaryDark:'#7c3aed',navBg:'#1e1b4b',heroFrom:'#1e1b4b',heroTo:'#312e81',accent:'#a78bfa'},green:{primary:'#10b981',primaryDark:'#059669',navBg:'#064e3b',heroFrom:'#064e3b',heroTo:'#065f46',accent:'#34d399'},blue:{primary:'#3b82f6',primaryDark:'#2563eb',navBg:'#1e3a5f',heroFrom:'#1e3a5f',heroTo:'#1d4ed8',accent:'#60a5fa'}};setTheme(T[themeSet2.value]||T.orange)}
+          const themeSet2 = (settings||[]).find(s=>s.key==='theme')
+          if(themeSet2){const THEMES={orange:{primary:'#f97316',primaryDark:'#ea580c',navBg:'#1e293b',heroFrom:'#1e293b',heroTo:'#334155',accent:'#ff6b35',name:'orange'},purple:{primary:'#8b5cf6',primaryDark:'#7c3aed',navBg:'#1e1b4b',heroFrom:'#1e1b4b',heroTo:'#312e81',accent:'#a78bfa',name:'purple'},green:{primary:'#10b981',primaryDark:'#059669',navBg:'#064e3b',heroFrom:'#064e3b',heroTo:'#065f46',accent:'#34d399',name:'green'},blue:{primary:'#3b82f6',primaryDark:'#2563eb',navBg:'#1e3a5f',heroFrom:'#1e3a5f',heroTo:'#1d4ed8',accent:'#60a5fa',name:'blue'}};setTheme(THEMES[themeSet2.value]||THEMES.orange)}
           const themeSet = (settings||[]).find(s=>s.key==='theme')
           if(themeSet && typeof window !== 'undefined') {
             import('/lib/themes.js').catch(()=>{}).then(m=>{
@@ -798,7 +804,7 @@ export default function CustomerPage() {
       )}
 
       {/* NAV */}
-      <nav className="bg-slate-800 h-14 flex items-center px-6 gap-2 flex-shrink-0">
+      <nav className="h-14 flex items-center px-4 sm:px-6 gap-2 flex-shrink-0" style={{background:theme.navBg}}>
         <div className="flex items-center gap-2 mr-4">
           <div className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center text-sm">📅</div>
           <span className="text-white font-bold text-sm hidden sm:block">RandevuApp</span>
@@ -808,7 +814,7 @@ export default function CustomerPage() {
             className={`px-2 sm:px-3 py-1.5 rounded-lg text-sm font-semibold transition-all relative ${tab===k?'bg-white/20 text-white':'text-white/50 hover:text-white hover:bg-white/10'}`}>
             <span className="sm:hidden">{ic}</span>
             <span className="hidden sm:inline">{l}</span>
-            {k==='appts' && upcomingAppts.length>0 && <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full text-white text-xs flex items-center justify-center font-bold">{upcomingAppts.length}</span>}
+            {k==='appts' && upcomingAppts.length>0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-xs flex items-center justify-center font-bold">{upcomingAppts.length}</span>}
           </button>
         ))}
         <div className="ml-auto flex items-center gap-2">
@@ -823,7 +829,7 @@ export default function CustomerPage() {
       {/* HOME */}
       {tab === 'home' && (
         <>
-          <div className="bg-gradient-to-r from-slate-800 to-slate-700 py-8 sm:py-12 px-4 sm:px-6 relative overflow-hidden">
+          <div className="py-8 sm:py-12 px-4 sm:px-6 relative overflow-hidden" style={{background:`linear-gradient(135deg, ${theme.heroFrom} 0%, ${theme.heroTo} 100%)`}}>
             <div className="absolute right-0 top-0 w-72 h-72 bg-orange-500/10 rounded-full blur-3xl" />
             <div className="max-w-4xl mx-auto relative z-10">
               <div className="text-white/60 text-sm mb-1">Merhaba, {user.name?.split(' ')[0]} 👋</div>
@@ -831,7 +837,7 @@ export default function CustomerPage() {
               <div className="flex bg-white rounded-xl overflow-hidden shadow-xl w-full sm:max-w-lg">
                 <input className="flex-1 px-4 py-3 text-sm outline-none" placeholder="İşletme veya hizmet ara..."
                   value={searchQ} onChange={e => setSearchQ(e.target.value)} />
-                <button className="px-5 py-3 bg-orange-500 text-white text-sm font-bold">Ara</button>
+                <button className="px-5 py-3 text-white text-sm font-bold" style={{background:theme.primary}}>Ara</button>
               </div>
               {/* Konum Butonu */}
               {locStatus === 'idle' && (
