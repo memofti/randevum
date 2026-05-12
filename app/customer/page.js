@@ -9,6 +9,11 @@ import BusinessCard from '@/app/components/customer/BusinessCard'
 import AdBanner from '@/app/components/customer/AdBanner'
 import BusinessDetailModal from '@/app/components/customer/BusinessDetailModal'
 import BookingModal from '@/app/components/customer/BookingModal'
+import dynamic from 'next/dynamic'
+const MinimalTheme = dynamic(() => import('@/app/customer/themes/minimal'), { ssr: false })
+const LuxuryTheme = dynamic(() => import('@/app/customer/themes/luxury'), { ssr: false })
+const SoftTheme = dynamic(() => import('@/app/customer/themes/soft'), { ssr: false })
+const BoldTheme = dynamic(() => import('@/app/customer/themes/bold'), { ssr: false })
 
 function distKm(lat1,lng1,lat2,lng2){const R=6371,dL=(lat2-lat1)*Math.PI/180,dN=(lng2-lng1)*Math.PI/180,a=Math.sin(dL/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dN/2)**2;return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))}
 
@@ -385,7 +390,23 @@ export default function CustomerPage() {
   const pastAppts = appointments.filter(a => ['completed','cancelled'].includes(a.status))
   const pct = profile ? Math.min(100, Math.round((profile.loyalty_points||0)/3000*100)) : 0
 
+  const themeKey = theme?.name || 'default'
+  const themeProps = {
+    user, businesses, appointments, activeAds, profile,
+    tab, setTab, openDetail, detailBiz, bizServices, bizStaff,
+    detailLoading, bookModal, setBookModal, setDetailBiz,
+    activeAdDiscount, paymentEnabled, toast3, userLoc,
+    searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
+    cancelAppt, setReviewModal, setReviewForm, qrModal, setQrModal,
+    upcomingAppts, pastAppts,
+  }
+
   if (!user) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white/20 border-t-orange-500 rounded-full animate-spin" /></div>
+
+  if (themeKey === 'minimal') return <MinimalTheme {...themeProps} />
+  if (themeKey === 'luxury') return <LuxuryTheme {...themeProps} />
+  if (themeKey === 'soft') return <SoftTheme {...themeProps} />
+  if (themeKey === 'bold') return <BoldTheme {...themeProps} />
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
