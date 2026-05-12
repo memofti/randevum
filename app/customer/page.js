@@ -9,7 +9,6 @@ import BusinessCard from '@/app/components/customer/BusinessCard'
 import AdBanner from '@/app/components/customer/AdBanner'
 import BusinessDetailModal from '@/app/components/customer/BusinessDetailModal'
 import BookingModal from '@/app/components/customer/BookingModal'
-import dynamic from 'next/dynamic'
 const MinimalTheme = dynamic(() => import('@/app/customer/themes/minimal'), { ssr: false })
 const LuxuryTheme = dynamic(() => import('@/app/customer/themes/luxury'), { ssr: false })
 const SoftTheme = dynamic(() => import('@/app/customer/themes/soft'), { ssr: false })
