@@ -43,7 +43,6 @@ export default function CustomerPage() {
   const [paymentEnabled, setPaymentEnabled] = useState(false)
   const [activeAdDiscount, setActiveAdDiscount] = useState(0)
   const [uiLang, setUiLang] = useState('tr')
-  const [theme, setTheme] = useState({primary:'#f97316',primaryDark:'#ea580c',navBg:'#1e293b',heroFrom:'#1e293b',heroTo:'#334155',accent:'#ff6b35'})
   const [theme, setTheme] = useState({primary:'#f97316',primaryDark:'#ea580c',navBg:'#1e293b',heroFrom:'#1e293b',heroTo:'#334155',accent:'#ff6b35',name:'orange'})
 
   useEffect(() => {
