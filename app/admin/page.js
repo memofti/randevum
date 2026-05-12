@@ -256,6 +256,22 @@ export default function AdminPage() {
                       </button>
                     </div>
                   </div>
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-4">
+                    <div className="font-bold text-sm mb-3">Tema Secici</div>
+                    <div className="flex gap-3">
+                      {[["orange","Turuncu","#f97316"],["purple","Mor","#8b5cf6"],["green","Yesil","#10b981"],["blue","Mavi","#3b82f6"]].map(([k,n,c])=>(
+                        <button key={k} onClick={async()=>{
+                          await supabase.from("platform_settings").upsert({key:"theme",value:k,updated_at:new Date().toISOString()})
+                          setActiveTheme(k)
+                          toast3(n+" tema secildi")
+                        }} className={"flex flex-col items-center gap-1 p-3 rounded-xl border-2 "+(activeTheme===k?"border-orange-500 bg-orange-50":"border-gray-200 hover:border-gray-300")}>
+                          <div className="w-8 h-8 rounded-full" style={{background:c}}/>
+                          <span className="text-xs font-semibold">{n}</span>
+                          {activeTheme===k&&<span className="text-xs text-green-600 font-bold">Aktif</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <div className="mb-4"><h1 className="text-lg sm:text-xl font-bold">Platform Genel Bakış</h1><p className="text-gray-500 text-sm">Gerçek zamanlı Supabase verisi</p></div>
                   {reviewFirms.length>0&&(
                     <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl mb-5 text-sm cursor-pointer hover:bg-amber-100" onClick={()=>setView('requests')}>
