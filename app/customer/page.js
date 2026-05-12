@@ -138,14 +138,8 @@ export default function CustomerPage() {
           setActiveAds(ads||[])
           const paySet = (settings||[]).find(s=>s.key==='payment_enabled')
           if(paySet) setPaymentEnabled(paySet.value==='true')
-          const themeSet2 = (settings||[]).find(s=>s.key==='theme')
-          if(themeSet2){const T={orange:{primary:'#f97316',primaryDark:'#ea580c',navBg:'#1e293b',heroFrom:'#1e293b',heroTo:'#334155',accent:'#ff6b35'},purple:{primary:'#8b5cf6',primaryDark:'#7c3aed',navBg:'#1e1b4b',heroFrom:'#1e1b4b',heroTo:'#312e81',accent:'#a78bfa'},green:{primary:'#10b981',primaryDark:'#059669',navBg:'#064e3b',heroFrom:'#064e3b',heroTo:'#065f46',accent:'#34d399'},blue:{primary:'#3b82f6',primaryDark:'#2563eb',navBg:'#1e3a5f',heroFrom:'#1e3a5f',heroTo:'#1d4ed8',accent:'#60a5fa'}};setTheme(T[themeSet2.value]||T.orange)}
-          const themeSet2 = (settings||[]).find(s=>s.key==='theme')
-          if(themeSet2){const THEMES={orange:{primary:'#f97316',primaryDark:'#ea580c',navBg:'#1e293b',heroFrom:'#1e293b',heroTo:'#334155',accent:'#ff6b35',name:'orange'},purple:{primary:'#8b5cf6',primaryDark:'#7c3aed',navBg:'#1e1b4b',heroFrom:'#1e1b4b',heroTo:'#312e81',accent:'#a78bfa',name:'purple'},green:{primary:'#10b981',primaryDark:'#059669',navBg:'#064e3b',heroFrom:'#064e3b',heroTo:'#065f46',accent:'#34d399',name:'green'},blue:{primary:'#3b82f6',primaryDark:'#2563eb',navBg:'#1e3a5f',heroFrom:'#1e3a5f',heroTo:'#1d4ed8',accent:'#60a5fa',name:'blue'}};setTheme(THEMES[themeSet2.value]||THEMES.orange)}
           const themeSet = (settings||[]).find(s=>s.key==='theme')
-          if(themeSet && typeof window !== 'undefined') {
             import('/lib/themes.js').catch(()=>{}).then(m=>{
-              if(m?.applyTheme) m.applyTheme(themeSet.value)
             })
           }
         } catch(e) { console.log('load err:', e) }
