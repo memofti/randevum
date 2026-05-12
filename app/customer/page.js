@@ -829,7 +829,7 @@ export default function CustomerPage() {
       {/* HOME */}
       {tab === 'home' && (
         <>
-          <div className="py-8 sm:py-12 px-4 sm:px-6 relative overflow-hidden" style={{background:`linear-gradient(135deg, ${theme.heroFrom} 0%, ${theme.heroTo} 100%)`}}>
+          <div className="py-8 sm:py-12 px-4 sm:px-6 relative overflow-hidden" style={{background:"linear-gradient(135deg, "+theme.heroFrom+" 0%, "+theme.heroTo+" 100%)"}}>
             <div className="absolute right-0 top-0 w-72 h-72 bg-orange-500/10 rounded-full blur-3xl" />
             <div className="max-w-4xl mx-auto relative z-10">
               <div className="text-white/60 text-sm mb-1">Merhaba, {user.name?.split(' ')[0]} 👋</div>
