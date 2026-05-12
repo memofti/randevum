@@ -44,6 +44,7 @@ export default function AdminPage() {
   const [paymentEnabled, setPaymentEnabled] = useState(false)
   const [savingPayment, setSavingPayment] = useState(false)
   const [commissionRate, setCommissionRate] = useState(10)
+  const [activeTheme, setActiveTheme] = useState('orange')
   const [statusF, setStatusF] = useState('')
   const [form, setForm] = useState({name:'',category:'',city:'',owner_name:'',email:'',phone:'',price_from:0,plan:'free'})
 
@@ -80,6 +81,8 @@ export default function AdminPage() {
       if(paySet) setPaymentEnabled(paySet.value==='true')
       const commSet = settingsr?.data?.find(s=>s.key==='commission_rate')
       if(commSet) setCommissionRate(+commSet.value||10)
+      const themeSet = settingsr?.data?.find(s=>s.key==='theme')
+      if(themeSet) setActiveTheme(themeSet.value||'orange')
     } catch(e){console.error(e)}
     finally{setLoading(false)}
   }

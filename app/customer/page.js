@@ -137,6 +137,12 @@ export default function CustomerPage() {
           setActiveAds(ads||[])
           const paySet = (settings||[]).find(s=>s.key==='payment_enabled')
           if(paySet) setPaymentEnabled(paySet.value==='true')
+          const themeSet = (settings||[]).find(s=>s.key==='theme')
+          if(themeSet && typeof window !== 'undefined') {
+            import('/lib/themes.js').catch(()=>{}).then(m=>{
+              if(m?.applyTheme) m.applyTheme(themeSet.value)
+            })
+          }
         } catch(e) { console.log('load err:', e) }
       })
   }, [])
