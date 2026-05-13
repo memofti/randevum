@@ -248,7 +248,8 @@ export default function AdminPage() {
                       <button onClick={async()=>{
                         setSavingPayment(true)
                         const v = !paymentEnabled
-                        await supabase.from('platform_settings').upsert({key:'payment_enabled',value:String(v),updated_at:new Date().toISOString()})
+                        const { error } = await supabase.from('platform_settings').upsert({key:'payment_enabled',value:String(v),updated_at:new Date().toISOString()})
+                        if (error) { toast3('❌ Kaydedilemedi: '+error.message); setSavingPayment(false); return }
                         setPaymentEnabled(v)
                         setSavingPayment(false)
                       }} disabled={savingPayment} className={'relative w-14 h-7 rounded-full transition-colors '+(paymentEnabled?'bg-orange-500':'bg-gray-300')}>
@@ -261,9 +262,10 @@ export default function AdminPage() {
                     <div className="flex gap-3">
                       {[["default","Varsayilan","#f97316"],["minimal","Minimal","#111"],["luxury","Luxury","#d4af37"],["soft","Soft","#ff8fab"],["bold","Bold","#764ba2"]].map(([k,n,c])=>(
                         <button key={k} onClick={async()=>{
-                          await supabase.from("platform_settings").upsert({key:"theme",value:k,updated_at:new Date().toISOString()})
+                          const { error } = await supabase.from("platform_settings").upsert({key:"theme",value:k,updated_at:new Date().toISOString()})
+                          if (error) { toast3("❌ Tema kaydedilemedi: "+error.message); return }
                           setActiveTheme(k)
-                          toast3(n+" tema secildi")
+                          toast3("✅ "+n+" temasi kaydedildi")
                         }} className={"flex flex-col items-center gap-1 p-3 rounded-xl border-2 "+(activeTheme===k?"border-orange-500 bg-orange-50":"border-gray-200 hover:border-gray-300")}>
                           <div className="w-8 h-8 rounded-full" style={{background:c}}/>
                           <span className="text-xs font-semibold">{n}</span>
@@ -593,8 +595,9 @@ export default function AdminPage() {
                         className="w-12 text-center font-bold text-orange-500 outline-none text-sm border-b border-orange-300"/>
                       <span className="text-xs text-gray-400">%</span>
                       <button onClick={async()=>{
-                        await supabase.from('platform_settings').upsert({key:'commission_rate',value:String(commissionRate),updated_at:new Date().toISOString()})
-                        toast3('Komisyon oranı güncellendi')
+                        const { error } = await supabase.from('platform_settings').upsert({key:'commission_rate',value:String(commissionRate),updated_at:new Date().toISOString()})
+                        if (error) { toast3('❌ '+error.message); return }
+                        toast3('✅ Komisyon oranı güncellendi')
                       }} className="text-xs bg-orange-500 text-white px-2.5 py-1 rounded-lg font-bold">Kaydet</button>
                     </div>
                   </div>
