@@ -438,6 +438,10 @@ export default function CustomerPage() {
     searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
     cancelAppt, setReviewModal, setReviewForm, qrModal, setQrModal,
     upcomingAppts, pastAppts,
+    // Profil tab shared component props
+    profLoading, profileForm, setProfileForm, editProfile, setEditProfile,
+    savingProfile, saveProfile, setProfile, requestPushPermission,
+    uiLang, setUiLang,
   }
 
   if (!user) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white/20 border-t-orange-500 rounded-full animate-spin" /></div>

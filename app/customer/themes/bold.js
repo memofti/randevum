@@ -4,10 +4,13 @@ import dynamic from 'next/dynamic'
 import AdBanner from '@/app/components/customer/AdBanner'
 import BookingModal from '@/app/components/customer/BookingModal'
 import BusinessDetailModal from '@/app/components/customer/BusinessDetailModal'
+import ProfileTab from '@/app/components/customer/ProfileTab'
+import AppointmentsTab from '@/app/components/customer/AppointmentsTab'
 const MapView = dynamic(() => import('@/app/components/MapView'), { ssr: false })
 function distKm(a,b,c,d){const R=6371,dL=(c-a)*Math.PI/180,dN=(d-b)*Math.PI/180,e=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dN/2)**2;return R*2*Math.atan2(Math.sqrt(e),Math.sqrt(1-e))}
 
-export default function BoldTheme({ user, businesses, appointments, activeAds, profile, tab, setTab, openDetail, detailBiz, bizServices, bizStaff, detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled, toast3, userLoc, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy, upcomingAppts, pastAppts }) {
+export default function BoldTheme(props) {
+  const { user, businesses, appointments, activeAds, profile, tab, setTab, openDetail, detailBiz, bizServices, bizStaff, detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled, toast3, userLoc, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy, upcomingAppts, pastAppts } = props
   const filteredBiz = businesses
     .filter(b => (!catFilter || b.category === catFilter) && (!searchQ || b.name.toLowerCase().includes(searchQ.toLowerCase())))
     .map(b => ({ ...b, dist: userLoc && b.lat && b.lng ? distKm(userLoc.lat, userLoc.lng, parseFloat(b.lat), parseFloat(b.lng)) : null }))
@@ -94,33 +97,8 @@ export default function BoldTheme({ user, businesses, appointments, activeAds, p
       )}
 
       {tab === 'map' && <MapView businesses={businesses} onBook={(biz)=>{setDetailBiz(biz);setTab('home')}}/>}
-      {tab === 'appts' && (
-        <div className="max-w-2xl mx-auto px-6 py-8">
-          <h1 className="text-2xl font-black text-gray-900 mb-6">Randevularım</h1>
-          <div className="space-y-3">
-            {[...upcomingAppts,...pastAppts].map(a=>(
-              <div key={a.id} className="bg-white rounded-2xl p-4 flex items-center gap-4 shadow-sm">
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl" style={{background:'linear-gradient(135deg,#667eea20,#764ba220)'}}>{a.businesses?.emoji||'🏢'}</div>
-                <div className="flex-1">
-                  <div className="font-black text-gray-900">{a.businesses?.name}</div>
-                  <div className="text-xs text-gray-400">{a.services?.name} · {new Date(a.appointment_date).toLocaleDateString('tr-TR')} {String(a.appointment_time).slice(0,5)}</div>
-                </div>
-                <div className="text-xs font-bold px-3 py-1 rounded-full text-white" style={{background:'linear-gradient(135deg,#667eea,#764ba2)'}}>{a.status==='confirmed'?'Onaylı':a.status==='pending'?'Bekliyor':'Tamamlandı'}</div>
-              </div>
-            ))}
-            {upcomingAppts.length===0&&pastAppts.length===0&&<div className="text-center py-16 text-gray-300 text-5xl">📅</div>}
-          </div>
-        </div>
-      )}
-      {tab === 'profile' && (
-        <div className="max-w-md mx-auto px-6 py-8 text-center">
-          <div className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-black mx-auto mb-4 text-white" style={{background:'linear-gradient(135deg,#667eea,#764ba2)'}}>{user.name?.[0]||'?'}</div>
-          <div className="text-2xl font-black text-gray-900 mb-1">{user.name}</div>
-          <div className="text-sm text-gray-400 mb-6">{user.email}</div>
-          <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }}
-            className="w-full py-3 rounded-xl text-sm font-bold text-gray-500 bg-gray-50 hover:bg-gray-100">🚪 Çıkış Yap</button>
-        </div>
-      )}
+      {tab === 'appts' && <AppointmentsTab {...props} variant="bold" />}
+      {tab === 'profile' && <ProfileTab {...props} variant="bold" />}
       <BusinessDetailModal biz={detailBiz} bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)} services={bizServices} staff={bizStaff} loading={detailLoading} onClose={()=>setDetailBiz(null)} onBook={()=>setBookModal(true)}/>
       <BookingModal biz={bookModal&&detailBiz?detailBiz:null} services={bizServices} staff={bizStaff} onClose={()=>setBookModal(false)} onBook={async()=>{}} toast3={toast3} paymentEnabled={paymentEnabled} discount={activeAdDiscount}/>
     </div>
