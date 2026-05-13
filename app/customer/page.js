@@ -127,6 +127,23 @@ export default function CustomerPage() {
     )
   }
 
+  // Tema realtime — admin değiştirince anında uygulansın
+  useEffect(() => {
+    const ch = supabase
+      .channel('platform-settings-rt')
+      .on('postgres_changes', { event:'*', schema:'public', table:'platform_settings' }, (payload) => {
+        const row = payload.new || payload.old
+        if (row?.key === 'theme' && payload.new?.value) {
+          setTheme(p => ({ ...p, name: payload.new.value }))
+        }
+        if (row?.key === 'payment_enabled' && payload.new?.value !== undefined) {
+          setPaymentEnabled(payload.new.value === 'true')
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [])
+
   // İşletmeler
   useEffect(() => {
     supabase.from('businesses').select('*').eq('status','active').order('rating',{ascending:false})
@@ -142,6 +159,8 @@ export default function CustomerPage() {
           setActiveAds(ads||[])
           const paySet = (settings||[]).find(s=>s.key==='payment_enabled')
           if(paySet) setPaymentEnabled(paySet.value==='true')
+          const themeSet = (settings||[]).find(s=>s.key==='theme')
+          if (themeSet?.value) setTheme(p => ({ ...p, name: themeSet.value }))
         } catch(e) { console.log('load err:', e) }
       })
   }, [])
