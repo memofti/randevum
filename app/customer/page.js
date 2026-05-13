@@ -65,8 +65,8 @@ export default function CustomerPage() {
   const [booking, setBooking] = useState(false)
   const [payStep, setPayStep] = useState(false)
   const [payCard, setPayCard] = useState({ name:'', number:'', expire:'', cvv:'' })
-  // Slot doluluk
-  const [takenSlots, setTakenSlots] = useState([])
+  // Slot doluluk — staff bazlı süre kontrolü
+  const [bookedRanges, setBookedRanges] = useState([]) // [{staff_id, start, end}]
   const [slotsLoading, setSlotsLoading] = useState(false)
   // Profil düzenleme
   const [editProfile, setEditProfile] = useState(false)
@@ -234,24 +234,45 @@ export default function CustomerPage() {
     setDetailLoading(false)
   }
 
-  // Dolu slotları çek
+  // Dolu aralıkları çek — süre + staff bazlı çakışma kontrolü
   async function loadTakenSlots(bizId, date) {
-    if (!bizId || !date) { setTakenSlots([]); return }
+    if (!bizId || !date) { setBookedRanges([]); return }
     setSlotsLoading(true)
     const { data } = await supabase
       .from('appointments')
-      .select('appointment_time')
+      .select('appointment_time, staff_id, services(duration_min)')
       .eq('business_id', bizId)
       .eq('appointment_date', date)
       .in('status', ['pending', 'confirmed'])
-    setTakenSlots((data || []).map(a => String(a.appointment_time).slice(0, 5)))
+    const ranges = (data || []).map(a => {
+      const [h, m] = String(a.appointment_time).split(':').map(Number)
+      const start = h * 60 + m
+      const dur = a.services?.duration_min || 60
+      return { staff_id: a.staff_id, start, end: start + dur }
+    })
+    setBookedRanges(ranges)
     setSlotsLoading(false)
+  }
+
+  // Bir slot başlama saati + süre, secili personel için doluyla çakışıyor mu?
+  function isSlotConflict(timeStr, durationMin, staffId) {
+    if (!timeStr || !durationMin) return false
+    const [h, m] = timeStr.split(':').map(Number)
+    const start = h * 60 + m
+    const end = start + durationMin
+    const relevant = staffId
+      ? bookedRanges.filter(r => r.staff_id === staffId)
+      : bookedRanges.filter(r => !r.staff_id)
+    return relevant.some(r => start < r.end && end > r.start)
   }
 
   // Randevu al
   async function bookAppt() {
     if (!bookForm.service || !bookForm.date || !bookForm.time) { toast3('❌ Hizmet, tarih ve saat seçin'); return }
-    if (takenSlots.includes(bookForm.time)) { toast3('❌ Bu saat dolu, başka saat seçin'); return }
+    const svcCheck = bizServices.find(s => s.id === bookForm.service)
+    if (isSlotConflict(bookForm.time, svcCheck?.duration_min || 60, bookForm.staff)) {
+      toast3('❌ Bu saat dolu — başka saat veya personel seçin'); return
+    }
     // Müşterinin aynı saatte başka randevusu var mı?
     const { data: existing } = await supabase.from('appointments')
       .select('id').eq('profile_id', user.id)
@@ -723,15 +744,22 @@ export default function CustomerPage() {
                           value={bookForm.time} onChange={e => setBookForm(p=>({...p,time:e.target.value}))}
                           disabled={!bookForm.date || slotsLoading || !bookForm.service}>
                           <option value="">{bookForm.service ? 'Saat seçin' : 'Önce hizmet seçin'}</option>
-                          {availableSlots.map(t => {
-                            const isTaken = takenSlots.includes(t)
-                            return <option key={t} value={t} disabled={isTaken}>{t}{isTaken ? ' — Dolu' : ''}</option>
-                          })}
+                          {(() => {
+                            const svcSel = bizServices.find(s => s.id === bookForm.service)
+                            const dur = svcSel?.duration_min || 60
+                            return availableSlots.map(t => {
+                              const isTaken = isSlotConflict(t, dur, bookForm.staff)
+                              return <option key={t} value={t} disabled={isTaken}>{t}{isTaken ? ' — Dolu' : ''}</option>
+                            })
+                          })()}
                         </select>
                       )}
-                      {bookForm.date && takenSlots.length > 0 && !slotsLoading && availableSlots !== null && (
-                        <p className="text-xs text-amber-600 mt-1">⚠️ {takenSlots.length} saat dolu</p>
-                      )}
+                      {bookForm.date && bookedRanges.length > 0 && !slotsLoading && availableSlots !== null && (() => {
+                        const svcSel = bizServices.find(s => s.id === bookForm.service)
+                        const dur = svcSel?.duration_min || 60
+                        const blocked = availableSlots.filter(t => isSlotConflict(t, dur, bookForm.staff)).length
+                        return blocked > 0 ? <p className="text-xs text-amber-600 mt-1">⚠️ {blocked} saat dolu</p> : null
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -740,7 +768,8 @@ export default function CustomerPage() {
                   <button onClick={() => {
                     if (!bookForm.service || !bookForm.date) { toast3('❌ Hizmet ve tarih seçin'); return }
                     if (!bookForm.time) { toast3('❌ Lütfen saat seçin'); return }
-                    if (takenSlots.includes(bookForm.time)) { toast3('❌ Bu saat dolu, başka saat seçin'); return }
+                    const svcChk = bizServices.find(s => s.id === bookForm.service)
+                    if (isSlotConflict(bookForm.time, svcChk?.duration_min || 60, bookForm.staff)) { toast3('❌ Bu saat dolu — başka saat veya personel seçin'); return }
                     if(!paymentEnabled) { bookAppt(); return }
                     setPayStep(true)
                   }} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold transition-colors">

@@ -156,8 +156,12 @@ export default function BusinessPage() {
   // Staff CRUD
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [staffModal, setStaffModal] = useState(false) // false | 'add' | staffObj
-  const [staffForm, setStaffForm] = useState({name:'',speciality:'',phone:'',status:'available',rating:5.0})
+  const [staffForm, setStaffForm] = useState({name:'',speciality:'',phone:'',password:'',avatar_url:'',status:'available'})
   const [staffSaving, setStaffSaving] = useState(false)
+  // Personel takvimi
+  const [staffCalId, setStaffCalId] = useState('')
+  const [staffCalDate, setStaffCalDate] = useState(new Date().toISOString().split('T')[0])
+  const [staffAvatarUploading, setStaffAvatarUploading] = useState(false)
   // Service CRUD
   const [svcModal, setSvcModal] = useState(false) // false | 'add' | svcObj
   const [svcForm, setSvcForm] = useState({name:'',duration_min:60,price:0,status:'active',description:''})
@@ -171,7 +175,42 @@ export default function BusinessPage() {
   const [whSaving, setWhSaving] = useState(false)
 
   const toast3 = (m) => { setToast(m); setTimeout(()=>setToast(''),3500) }
+  const rtToast = (m) => { setRealtimeToast(m); setTimeout(()=>setRealtimeToast(''),6000) }
   const f = (k,v) => setForm(p=>({...p,[k]:v}))
+
+  // Realtime — yeni randevu / bildirim
+  useEffect(() => {
+    if (!bizId) return
+    const ch = supabase
+      .channel('biz-rt-'+bizId)
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'appointments', filter:`business_id=eq.${bizId}` },
+        async (payload) => {
+          try {
+            const a = payload.new
+            const [{data:p},{data:s},{data:st}] = await Promise.all([
+              a.profile_id ? supabase.from('profiles').select('full_name,email').eq('id',a.profile_id).maybeSingle() : Promise.resolve({data:null}),
+              a.service_id ? supabase.from('services').select('name,price,duration_min').eq('id',a.service_id).maybeSingle() : Promise.resolve({data:null}),
+              a.staff_id   ? supabase.from('staff').select('name').eq('id',a.staff_id).maybeSingle()   : Promise.resolve({data:null}),
+            ])
+            const full = { ...a, profiles:p, services:s, staff:st }
+            setAppts(prev => prev.find(x=>x.id===a.id) ? prev : [full, ...prev])
+            const who = p?.full_name || 'Yeni müşteri'
+            const time = String(a.appointment_time||'').slice(0,5)
+            rtToast(`🔔 Yeni randevu: ${who} — ${s?.name||'Hizmet'} · ${a.appointment_date} ${time}`)
+            try {
+              const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=')
+              audio.volume = 0.3
+              audio.play().catch(()=>{})
+            } catch {}
+          } catch(e) { console.error('rt err', e) }
+        })
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'notifications', filter:`business_id=eq.${bizId}` },
+        (payload) => {
+          setNotifs(prev => prev.find(n=>n.id===payload.new.id) ? prev : [payload.new, ...prev])
+        })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [bizId])
 
   // Auth
   useEffect(() => {
@@ -186,7 +225,7 @@ export default function BusinessPage() {
     setLoading(true)
     try {
       const [ar,sr,svr,nr,rr,pr2,adsr] = await Promise.all([
-        supabase.from('appointments').select('id,profile_id,service_id,staff_id,appointment_date,appointment_time,status,price,profiles(full_name,email),services(name,price),staff(name)').eq('business_id',bId).order('appointment_date',{ascending:false}),
+        supabase.from('appointments').select('id,profile_id,service_id,staff_id,appointment_date,appointment_time,status,price,profiles(full_name,email),services(name,price,duration_min),staff(name)').eq('business_id',bId).order('appointment_date',{ascending:false}),
         supabase.from('staff').select('*').eq('business_id',bId),
         supabase.from('services').select('*').eq('business_id',bId),
         supabase.from('notifications').select('*').eq('business_id',bId).order('created_at',{ascending:false}).limit(20),
@@ -316,19 +355,29 @@ export default function BusinessPage() {
     if (!staffForm.name.trim()) { toast3('❌ İsim zorunlu'); return }
     setStaffSaving(true)
     try {
+      const payload = {
+        name: staffForm.name,
+        speciality: staffForm.speciality || null,
+        phone: staffForm.phone || null,
+        status: staffForm.status,
+        avatar_url: staffForm.avatar_url || null,
+      }
+      if (staffForm.password && staffForm.password.length >= 4) {
+        payload.password_hash = staffForm.password
+      }
       if (staffModal === 'add') {
-        const { data, error } = await supabase.from('staff').insert({ ...staffForm, business_id: bizId, appointment_count: 0 }).select().maybeSingle()
+        const { data, error } = await supabase.from('staff').insert({ ...payload, business_id: bizId, appointment_count: 0 }).select().maybeSingle()
         if (error) throw error
         setStaff(p => [...p, data])
         toast3('✅ Personel eklendi')
       } else {
-        const { error } = await supabase.from('staff').update({ name: staffForm.name, speciality: staffForm.speciality, phone: staffForm.phone, status: staffForm.status, rating: staffForm.rating }).eq('id', staffModal.id)
+        const { error } = await supabase.from('staff').update(payload).eq('id', staffModal.id)
         if (error) throw error
-        setStaff(p => p.map(s => s.id === staffModal.id ? { ...s, ...staffForm } : s))
+        setStaff(p => p.map(s => s.id === staffModal.id ? { ...s, ...payload } : s))
         toast3('✅ Personel güncellendi')
       }
       setStaffModal(false)
-      setStaffForm({ name: '', speciality: '', phone: '', status: 'available', rating: 5.0 })
+      setStaffForm({ name:'', speciality:'', phone:'', password:'', avatar_url:'', status:'available' })
     } catch(e) { toast3('❌ ' + e.message) }
     finally { setStaffSaving(false) }
   }
@@ -340,12 +389,23 @@ export default function BusinessPage() {
     toast3('🗑️ Personel silindi')
   }
   function openStaffAdd() {
-    setStaffForm({ name: '', speciality: '', phone: '', status: 'available', rating: 5.0 })
+    setStaffForm({ name:'', speciality:'', phone:'', password:'', avatar_url:'', status:'available' })
     setStaffModal('add')
   }
   function openStaffEdit(s) {
-    setStaffForm({ name: s.name, speciality: s.speciality || '', phone: s.phone || '', status: s.status || 'available', rating: s.rating || 5.0 })
+    setStaffForm({ name: s.name, speciality: s.speciality || '', phone: s.phone || '', password: '', avatar_url: s.avatar_url || '', status: s.status || 'available' })
     setStaffModal(s)
+  }
+  async function uploadStaffAvatar(file) {
+    if (!file) return
+    if (file.size > 3*1024*1024) { toast3('❌ Foto max 3MB olmalı'); return }
+    setStaffAvatarUploading(true)
+    try {
+      const url = await uploadMedia(file, 'staff')
+      setStaffForm(p => ({ ...p, avatar_url: url }))
+      toast3('✅ Foto yüklendi')
+    } catch(e) { toast3('❌ ' + e.message) }
+    finally { setStaffAvatarUploading(false) }
   }
 
   // --- Hizmet CRUD ---
@@ -405,6 +465,27 @@ export default function BusinessPage() {
     if(!form.cname||!form.service||!form.date){ toast3('❌ Zorunlu alanları doldurun'); return }
     setSaving(true)
     try {
+      const svc=services.find(s=>s.id===form.service)
+      // Çakışma kontrolü — aynı personelde süre bazlı overlap
+      const dur = svc?.duration_min || 60
+      const [nh, nm] = String(form.time).split(':').map(Number)
+      const nStart = nh*60 + nm
+      const nEnd = nStart + dur
+      const { data: dayAppts } = await supabase
+        .from('appointments')
+        .select('appointment_time, staff_id, services(duration_min)')
+        .eq('business_id', bizId)
+        .eq('appointment_date', form.date)
+        .in('status', ['pending','confirmed'])
+      const targetStaff = form.staff || null
+      const conflict = (dayAppts||[]).some(a => {
+        if ((a.staff_id || null) !== targetStaff) return false
+        const [h,m] = String(a.appointment_time).split(':').map(Number)
+        const s = h*60+m
+        const e = s + (a.services?.duration_min || 60)
+        return nStart < e && nEnd > s
+      })
+      if (conflict) { toast3('❌ Bu saatte ' + (targetStaff ? 'personelin' : 'firmanın') + ' başka randevusu var'); setSaving(false); return }
       let profileId = null
       if(form.cemail){
         const {data:ex}=await supabase.from('profiles').select('id').eq('email',form.cemail).maybeSingle()
@@ -414,7 +495,6 @@ export default function BusinessPage() {
           profileId=np?.id
         }
       }
-      const svc=services.find(s=>s.id===form.service)
       const {data:newAppt}=await supabase.from('appointments').insert({
         business_id:bizId,profile_id:profileId,service_id:form.service||null,staff_id:form.staff||null,
         appointment_date:form.date,appointment_time:form.time,status:'pending',price:svc?.price||0
@@ -583,6 +663,16 @@ export default function BusinessPage() {
         </div>
       )}
       {toast && <div className="fixed bottom-6 right-6 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-xl">{toast}</div>}
+      {realtimeToast && (
+        <div className="fixed top-6 right-6 z-[60] bg-gradient-to-br from-orange-500 to-pink-500 text-white px-5 py-4 rounded-2xl text-sm font-bold shadow-2xl flex items-start gap-3 animate-pulse max-w-sm">
+          <span className="text-2xl">🔔</span>
+          <div className="flex-1">
+            <div className="font-extrabold mb-0.5">Yeni Randevu Geldi!</div>
+            <div className="text-xs font-semibold opacity-95">{realtimeToast.replace('🔔 Yeni randevu: ','')}</div>
+          </div>
+          <button onClick={()=>setRealtimeToast('')} className="text-white/80 hover:text-white text-lg leading-none">×</button>
+        </div>
+      )}
 
       {/* PERSONEL MODAL */}
       {staffModal&&(
@@ -593,22 +683,37 @@ export default function BusinessPage() {
               <button onClick={()=>setStaffModal(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
             </div>
             <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-bold block mb-1">Profil Fotoğrafı</label>
+                <div className="flex items-center gap-3">
+                  {staffForm.avatar_url
+                    ? <img src={staffForm.avatar_url} alt="" className="w-14 h-14 rounded-full object-cover border border-gray-200" />
+                    : <div className="w-14 h-14 rounded-full bg-gray-100 border border-gray-200 flex items-center justify-center text-xl text-gray-400">👤</div>
+                  }
+                  <label className="flex-1 px-3 py-2.5 border border-dashed border-gray-300 rounded-xl text-xs text-gray-500 cursor-pointer hover:bg-gray-50 text-center">
+                    {staffAvatarUploading ? 'Yükleniyor...' : (staffForm.avatar_url ? '✏️ Değiştir' : '📷 Foto Yükle')}
+                    <input type="file" accept="image/*" className="hidden" onChange={e=>uploadStaffAvatar(e.target.files?.[0])} />
+                  </label>
+                  {staffForm.avatar_url && <button onClick={()=>setStaffForm(p=>({...p,avatar_url:''}))} className="text-xs text-red-500">Sil</button>}
+                </div>
+              </div>
               <div><label className="text-xs font-bold block mb-1">Ad Soyad *</label>
                 <input value={staffForm.name} onChange={e=>setStaffForm(p=>({...p,name:e.target.value}))} placeholder="Örn: Ayşe Yılmaz" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
               <div><label className="text-xs font-bold block mb-1">Uzmanlık</label>
                 <input value={staffForm.speciality} onChange={e=>setStaffForm(p=>({...p,speciality:e.target.value}))} placeholder="Örn: Manikür, Saç Boyama" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
-              <div><label className="text-xs font-bold block mb-1">Telefon</label>
-                <input value={staffForm.phone} onChange={e=>setStaffForm(p=>({...p,phone:e.target.value}))} placeholder="+90 555 000 00 00" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs font-bold block mb-1">Durum</label>
-                  <select value={staffForm.status} onChange={e=>setStaffForm(p=>({...p,status:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
-                    <option value="available">Müsait</option>
-                    <option value="busy">Meşgul</option>
-                    <option value="off">İzinli</option>
-                  </select></div>
-                <div><label className="text-xs font-bold block mb-1">Puan (1-5)</label>
-                  <input type="number" min="1" max="5" step="0.1" value={staffForm.rating} onChange={e=>setStaffForm(p=>({...p,rating:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                <div><label className="text-xs font-bold block mb-1">Telefon (giriş)</label>
+                  <input value={staffForm.phone} onChange={e=>setStaffForm(p=>({...p,phone:e.target.value}))} placeholder="+90 555 000 00 00" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
+                <div><label className="text-xs font-bold block mb-1">Şifre {staffModal!=='add' && <span className="text-gray-400 font-normal">(boş bırak = değişmez)</span>}</label>
+                  <input type="password" value={staffForm.password} onChange={e=>setStaffForm(p=>({...p,password:e.target.value}))} placeholder="En az 4 karakter" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
               </div>
+              <div><label className="text-xs font-bold block mb-1">Durum</label>
+                <select value={staffForm.status} onChange={e=>setStaffForm(p=>({...p,status:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
+                  <option value="available">Müsait</option>
+                  <option value="busy">Meşgul</option>
+                  <option value="off">İzinli</option>
+                </select></div>
+              <p className="text-xs text-gray-400 leading-snug">★ Yıldız puanı sadece müşteri yorumlarıyla oluşur — buradan ayarlanamaz.</p>
             </div>
             <div className="px-5 pb-5 flex gap-2">
               {staffModal!=='add'&&<button onClick={()=>deleteStaff(staffModal.id,staffModal.name)} className="px-3 py-2.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-xl text-xs font-bold">🗑️ Sil</button>}
@@ -1168,18 +1273,21 @@ export default function BusinessPage() {
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-5">
                     <KPI label="Toplam" value={staff.length} color="blue" />
-                    <KPI label="Müssait" value={staff.filter(s=>s.status==='available').length} color="green" />
+                    <KPI label="Müsait" value={staff.filter(s=>s.status==='available').length} color="green" />
                     <KPI label="Meşgul" value={staff.filter(s=>s.status==='busy').length} color="orange" />
                     <KPI label="Ort. Puan" value={staff.length?(staff.reduce((s,x)=>s+(+x.rating||0),0)/staff.length).toFixed(1):'—'} color="purple" />
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
                     {staff.map((s,i)=>(
-                      <div key={s.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onClick={()=>openStaffEdit(s)}>
-                        <div className="relative flex-shrink-0">
-                          <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-extrabold text-white" style={{background:COLORS[i%COLORS.length]}}>{s.name[0]}</div>
+                      <div key={s.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow group">
+                        <div className="relative flex-shrink-0 cursor-pointer" onClick={()=>openStaffEdit(s)}>
+                          {s.avatar_url
+                            ? <img src={s.avatar_url} alt={s.name} className="w-12 h-12 rounded-full object-cover border border-gray-200" />
+                            : <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-extrabold text-white" style={{background:COLORS[i%COLORS.length]}}>{s.name[0]}</div>
+                          }
                           <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${s.status==='available'?'bg-green-500':s.status==='busy'?'bg-amber-500':'bg-gray-400'}`} />
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 cursor-pointer" onClick={()=>openStaffEdit(s)}>
                           <div className="font-bold text-sm">{s.name}</div>
                           <div className="text-xs text-gray-500 mt-0.5">{s.speciality||'Genel'}</div>
                           {s.phone&&<div className="text-xs text-gray-400 mt-0.5">{s.phone}</div>}
@@ -1187,12 +1295,57 @@ export default function BusinessPage() {
                         <div className="text-right flex-shrink-0">
                           <div className="text-lg font-extrabold text-orange-500">{s.appointment_count||0}</div>
                           <div className="text-xs text-gray-400">randevu</div>
-                          <div className="text-xs font-bold text-amber-500">★ {s.rating}</div>
+                          <div className="text-xs font-bold text-amber-500">★ {Number(s.rating||0).toFixed(1)}</div>
+                          <button onClick={(e)=>{e.stopPropagation(); setStaffCalId(s.id); setStaffCalDate(new Date().toISOString().split('T')[0])}}
+                            className="mt-1.5 text-xs bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 px-2 py-0.5 rounded-md font-bold">📅 Takvim</button>
                         </div>
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 text-sm">✏️</div>
                       </div>
                     ))}
                     {staff.length===0&&<div className="col-span-2 text-center py-12 text-gray-400">Henüz personel eklenmemiş — <button onClick={openStaffAdd} className="text-orange-500 hover:underline">hemen ekle</button></div>}
+                  </div>
+
+                  {/* PERSONEL TAKVİMİ */}
+                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-b border-gray-100">
+                      <div>
+                        <div className="font-bold text-sm">📅 Personel Takvimi</div>
+                        <div className="text-xs text-gray-500">Seçili personelin günlük randevuları</div>
+                      </div>
+                      <div className="flex gap-2 flex-wrap">
+                        <select value={staffCalId} onChange={e=>setStaffCalId(e.target.value)}
+                          className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400">
+                          <option value="">Personel seç</option>
+                          {staff.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                        <input type="date" value={staffCalDate} onChange={e=>setStaffCalDate(e.target.value)}
+                          className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" />
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      {!staffCalId ? (
+                        <div className="text-center py-8 text-gray-400 text-sm">Yukarıdan bir personel seçin</div>
+                      ) : (() => {
+                        const dayAppts = appts
+                          .filter(a => a.staff_id===staffCalId && a.appointment_date===staffCalDate && a.status!=='cancelled')
+                          .sort((a,b)=>String(a.appointment_time).localeCompare(String(b.appointment_time)))
+                        if (dayAppts.length===0) return <div className="text-center py-8 text-gray-400 text-sm">Bu gün için randevu yok ✨</div>
+                        return (
+                          <div className="space-y-2">
+                            {dayAppts.map(a=>(
+                              <div key={a.id} className="flex items-center gap-3 p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+                                <div className="text-sm font-bold text-orange-500 w-14 flex-shrink-0">{String(a.appointment_time).slice(0,5)}</div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-sm font-semibold truncate">{a.profiles?.full_name||'Müşteri'}</div>
+                                  <div className="text-xs text-gray-500 truncate">{a.services?.name||'—'} · {a.services?.duration_min||60}dk</div>
+                                </div>
+                                <Bdg s={a.status} />
+                                <div className="text-sm font-bold text-gray-700">₺{a.price||0}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })()}
+                    </div>
                   </div>
                 </div>
               )}

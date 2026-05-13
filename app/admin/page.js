@@ -259,7 +259,7 @@ export default function AdminPage() {
                   <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-4">
                     <div className="font-bold text-sm mb-3">Tema Secici</div>
                     <div className="flex gap-3">
-                      {[["orange","Turuncu","#f97316"],["purple","Mor","#8b5cf6"],["green","Yesil","#10b981"],["blue","Mavi","#3b82f6"]].map(([k,n,c])=>(
+                      {[["default","Varsayilan","#f97316"],["minimal","Minimal","#111"],["luxury","Luxury","#d4af37"],["soft","Soft","#ff8fab"],["bold","Bold","#764ba2"]].map(([k,n,c])=>(
                         <button key={k} onClick={async()=>{
                           await supabase.from("platform_settings").upsert({key:"theme",value:k,updated_at:new Date().toISOString()})
                           setActiveTheme(k)
