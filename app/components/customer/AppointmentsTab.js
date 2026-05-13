@@ -62,14 +62,35 @@ export default function AppointmentsTab({
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${b.cls}`}>{b.l}</span>
-                <div className="flex gap-1">
-                  {!isPast && a.status !== 'cancelled' && setQrModal && (
+                <div className="flex gap-1 flex-wrap justify-end">
+                  {(() => {
+                    const biz = a.businesses
+                    const hasLoc = biz && (biz.lat && biz.lng || biz.address || biz.name)
+                    if (!hasLoc) return null
+                    const q = biz.lat && biz.lng
+                      ? `${biz.lat},${biz.lng}`
+                      : encodeURIComponent([biz.name, biz.address, biz.city].filter(Boolean).join(' '))
+                    const url = `https://www.google.com/maps/search/?api=1&query=${q}`
+                    return (
+                      <a href={url} target="_blank" rel="noopener noreferrer" title="Yol Tarifi"
+                        className={'text-xs px-2 py-1 rounded-md font-bold '+(isDark?'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30':'bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200')}>
+                        🗺️ Yol
+                      </a>
+                    )
+                  })()}
+                  {!isPast && a.status !== 'cancelled' && setQrModal && a.qr_token && (
                     <button onClick={()=>setQrModal(a)} title="QR Kod"
-                      className={'text-xs px-2 py-1 rounded-md font-bold '+(isDark?'bg-white/5 hover:bg-white/10 text-white/70 border border-white/10':'bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200')}>QR</button>
+                      className={'text-xs px-2 py-1 rounded-md font-bold '+(isDark?'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30':'bg-purple-50 hover:bg-purple-100 text-purple-600 border border-purple-200')}>📲 QR</button>
                   )}
                   {!isPast && ['pending','confirmed'].includes(a.status) && (
-                    <button onClick={()=>cancelAppt?.(a.id)} title="İptal"
+                    <button onClick={()=>{ if(window.confirm('Randevuyu iptal etmek istediğinize emin misiniz?')) cancelAppt?.(a.id) }} title="İptal"
                       className={'text-xs px-2 py-1 rounded-md font-bold '+(isDark?'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30':'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200')}>✗ İptal</button>
+                  )}
+                  {isPast && a.status === 'completed' && (
+                    <a href={'/fatura/'+a.id} target="_blank" rel="noopener noreferrer" title="Fatura"
+                      className={'text-xs px-2 py-1 rounded-md font-bold '+(isDark?'bg-white/5 hover:bg-white/10 text-white/70 border border-white/10':'bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200')}>
+                      🧾 Fatura
+                    </a>
                   )}
                   {isPast && a.status === 'completed' && setReviewModal && (
                     <button onClick={()=>{ setReviewForm?.({rating:5,comment:''}); setReviewModal(a) }}

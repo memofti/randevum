@@ -170,7 +170,7 @@ export default function CustomerPage() {
     if (tab !== 'appts' || !user) return
     setLoading(true)
     supabase.from('appointments')
-      .select('id, business_id, appointment_date, appointment_time, status, price, businesses(name,emoji), services(name,duration_min), staff(name)')
+      .select('id, business_id, appointment_date, appointment_time, status, price, qr_token, businesses(name,emoji,address,city,lat,lng), services(name,duration_min), staff(name)')
       .eq('profile_id', user.id)
       .order('appointment_date', { ascending: false })
       .then(({ data }) => { setAppointments(data||[]); setLoading(false) })
@@ -1147,7 +1147,16 @@ export default function CustomerPage() {
                             <button onClick={()=>{
                               if(window.confirm('Randevuyu iptal etmek istediğinize emin misiniz?')) cancelAppt(a.id)
                             }} className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-semibold">✗ İptal</button>
-                            <button onClick={()=>setTab('map')} className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 font-semibold">🗺️ Yol</button>
+                            {(() => {
+                              const b = a.businesses
+                              const q = b?.lat && b?.lng
+                                ? `${b.lat},${b.lng}`
+                                : encodeURIComponent([b?.name, b?.address, b?.city].filter(Boolean).join(' '))
+                              return (
+                                <a href={`https://www.google.com/maps/search/?api=1&query=${q}`} target="_blank" rel="noopener noreferrer"
+                                  className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 font-semibold text-center">🗺️ Yol</a>
+                              )
+                            })()}
                             {a.qr_token && <button onClick={()=>setQrModal(a)} className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 font-semibold">📲 QR</button>}
                           </div>
                         </div>

@@ -111,7 +111,7 @@ function KPI({ label, value, sub, color }) {
   )
 }
 
-const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['showcase','🖼️','Vitrin'],['ads','📢','Reklamlar'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
+const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['showcase','🖼️','Vitrin'],['ads','📢','Reklamlar'],['adpkgs','🎁','Reklam Paketleri'],['plans','📦','Üyelik Paketleri'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
 
 export default function BusinessPage() {
   const router = useRouter()
@@ -146,6 +146,10 @@ export default function BusinessPage() {
   const [apptStatus, setApptStatus] = useState('')
   const [reviews, setReviews] = useState([])
   const [planLimits, setPlanLimits] = useState(null)
+  const [allPlans, setAllPlans] = useState([])
+  const [adPackages, setAdPackages] = useState([])
+  const [myAdPurchases, setMyAdPurchases] = useState([])
+  const [buyingPkg, setBuyingPkg] = useState('')
   const [apptSearch, setApptSearch] = useState('')
   const [custSearch, setCustSearch] = useState('')
   // Calendar
@@ -224,22 +228,29 @@ export default function BusinessPage() {
   const loadAll = useCallback(async (bId) => {
     setLoading(true)
     try {
-      const [ar,sr,svr,nr,rr,pr2,adsr] = await Promise.all([
+      const [ar,sr,svr,nr,rr,plAll,adsr,pkgs,myPurch] = await Promise.all([
         supabase.from('appointments').select('id,profile_id,service_id,staff_id,appointment_date,appointment_time,status,price,profiles(full_name,email),services(name,price,duration_min),staff(name)').eq('business_id',bId).order('appointment_date',{ascending:false}),
         supabase.from('staff').select('*').eq('business_id',bId),
         supabase.from('services').select('*').eq('business_id',bId),
         supabase.from('notifications').select('*').eq('business_id',bId).order('created_at',{ascending:false}).limit(20),
         supabase.from('reviews').select('*, profiles(full_name)').eq('business_id',bId).order('created_at',{ascending:false}),
-        supabase.from('plan_limits').select('*').eq('plan', bizInfo?.plan || 'free').maybeSingle(),
+        supabase.from('plan_limits').select('*').order('price_monthly'),
         supabase.from('ads').select('*').eq('business_id', bId).order('created_at', {ascending:false}),
+        supabase.from('ad_packages').select('*').eq('status','active').order('sort_order'),
+        supabase.from('ad_package_purchases').select('*').eq('business_id', bId).order('created_at',{ascending:false}),
       ])
       setAppts(ar.data||[])
       setStaff(sr.data||[])
       setSvcs(svr.data||[])
       setNotifs(nr.data||[])
       setReviews(rr?.data||[])
-      if (pr2?.data) setPlanLimits(pr2.data)
+      const allPlans = plAll?.data || []
+      setAllPlans(allPlans)
+      const myPlan = allPlans.find(p => p.plan === (bizInfo?.plan || 'free'))
+      if (myPlan) setPlanLimits(myPlan)
       setAds(adsr?.data||[])
+      setAdPackages(pkgs?.data||[])
+      setMyAdPurchases(myPurch?.data||[])
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }, [])
@@ -461,6 +472,26 @@ export default function BusinessPage() {
     await supabase.from('notifications').update({read:true}).eq('business_id',bizId)
     setNotifs(p=>p.map(n=>({...n,read:true})))
   }
+  // Reklam paketi satın al — admin onayı için pending kaydı oluştur
+  async function buyAdPackage(pkg) {
+    if (!bizId) return
+    if (!confirm(`"${pkg.name}" paketini ₺${pkg.price} karşılığında satın almak istediğinize emin misiniz?\n\nİsteğiniz admin onayına gönderilecek.`)) return
+    setBuyingPkg(pkg.id)
+    try {
+      const { data, error } = await supabase.from('ad_package_purchases').insert({
+        business_id: bizId,
+        package_id: pkg.id,
+        package_name: pkg.name,
+        price_at_purchase: pkg.price,
+        status: 'pending',
+      }).select().maybeSingle()
+      if (error) throw error
+      if (data) setMyAdPurchases(p => [data, ...p])
+      toast3('✅ Satın alma talebiniz alındı — admin onayı bekleniyor')
+    } catch(e) { toast3('❌ '+e.message) }
+    finally { setBuyingPkg('') }
+  }
+
   async function saveAppt() {
     if(!form.cname||!form.service||!form.date){ toast3('❌ Zorunlu alanları doldurun'); return }
     setSaving(true)
@@ -603,37 +634,52 @@ export default function BusinessPage() {
               <button onClick={()=>setPlanModal(false)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 text-lg">✕</button>
             </div>
             <div className="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { plan:'free', label:'Ücretsiz', price:'₺0', color:'gray', features:['3 personel','5 hizmet','50 randevu/ay','Temel raporlar'] },
-                { plan:'pro', label:'Pro', price:'₺300/ay', color:'orange', features:['10 personel','20 hizmet','500 randevu/ay','Gelişmiş raporlar','SMS bildirimi'], popular:true },
-                { plan:'enterprise', label:'Enterprise', price:'₺750/ay', color:'slate', features:['Sınırsız personel','Sınırsız hizmet','Sınırsız randevu','Özel domain','Öncelikli destek'] },
-              ].map(p=>(
-                <div key={p.plan} className={`border-2 rounded-2xl p-4 relative flex flex-col ${bizInfo?.plan===p.plan?'border-orange-500 bg-orange-50':p.popular?'border-orange-300':'border-gray-200'}`}>
-                  {p.popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">Popüler</div>}
-                  {bizInfo?.plan===p.plan && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">Mevcut Plan</div>}
-                  <div className="font-bold text-base mb-1">{p.label}</div>
-                  <div className="text-2xl font-extrabold text-gray-800 mb-3">{p.price}</div>
-                  <ul className="space-y-1.5 flex-1 mb-4">
-                    {p.features.map(f=>(
-                      <li key={f} className="flex items-center gap-2 text-xs text-gray-600">
-                        <span className="text-green-500 font-bold">✓</span>{f}
-                      </li>
-                    ))}
-                  </ul>
-                  {bizInfo?.plan===p.plan ? (
-                    <div className="w-full py-2 text-center text-xs font-bold text-green-600 bg-green-50 rounded-xl border border-green-200">Aktif Plan</div>
-                  ) : (
-                    <button onClick={async()=>{
-                      await supabase.from('businesses').update({plan:p.plan}).eq('id',bizId)
-                      setBizInfo(prev=>({...prev,plan:p.plan}))
-                      setPlanModal(false)
-                      toast3('✅ Plan ' + p.label + ' olarak güncellendi!')
-                    }} className={`w-full py-2 rounded-xl text-xs font-bold text-white transition-colors ${p.plan==='pro'?'bg-orange-500 hover:bg-orange-600':p.plan==='enterprise'?'bg-slate-800 hover:bg-slate-700':'bg-gray-400 hover:bg-gray-500'}`}>
-                      {p.plan==='free'?'Ücretsiz Geç':'Bu Planı Seç'}
-                    </button>
-                  )}
-                </div>
-              ))}
+              {allPlans.map(p=>{
+                const labels = {free:'Ücretsiz', pro:'Pro', enterprise:'Enterprise'}
+                const colorMap = {free:'gray', pro:'orange', enterprise:'slate'}
+                const label = labels[p.plan] || p.plan
+                const isCurrent = bizInfo?.plan===p.plan
+                const popular = p.plan==='pro'
+                const features = [
+                  `${p.max_staff||0} personel`,
+                  `${p.max_services||0} hizmet`,
+                  `${p.max_monthly_appts||0} randevu/ay`,
+                  `${p.max_gallery_images||0} galeri görseli`,
+                  `${p.max_ads||0} reklam`,
+                  p.has_analytics && '📊 Analitik raporlar',
+                  p.has_sms && '📱 SMS bildirimi',
+                  p.has_custom_domain && '🌐 Özel domain',
+                ].filter(Boolean)
+                return (
+                  <div key={p.plan} className={`border-2 rounded-2xl p-4 relative flex flex-col ${isCurrent?'border-orange-500 bg-orange-50':popular?'border-orange-300':'border-gray-200'}`}>
+                    {popular && !isCurrent && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">Popüler</div>}
+                    {isCurrent && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">Mevcut Plan</div>}
+                    <div className="font-bold text-base mb-1">{label}</div>
+                    <div className="text-2xl font-extrabold text-gray-800 mb-3">₺{p.price_monthly||0}<span className="text-sm text-gray-400 font-normal">/ay</span></div>
+                    <ul className="space-y-1.5 flex-1 mb-4">
+                      {features.map((f,i)=>(
+                        <li key={i} className="flex items-center gap-2 text-xs text-gray-600">
+                          <span className="text-green-500 font-bold">✓</span>{f}
+                        </li>
+                      ))}
+                    </ul>
+                    {isCurrent ? (
+                      <div className="w-full py-2 text-center text-xs font-bold text-green-600 bg-green-50 rounded-xl border border-green-200">Aktif Plan</div>
+                    ) : (
+                      <button onClick={async()=>{
+                        await supabase.from('businesses').update({plan:p.plan}).eq('id',bizId)
+                        setBizInfo(prev=>({...prev,plan:p.plan}))
+                        setPlanLimits(p)
+                        setPlanModal(false)
+                        toast3('✅ Plan ' + label + ' olarak güncellendi!')
+                      }} className={`w-full py-2 rounded-xl text-xs font-bold text-white transition-colors ${p.plan==='pro'?'bg-orange-500 hover:bg-orange-600':p.plan==='enterprise'?'bg-slate-800 hover:bg-slate-700':'bg-gray-400 hover:bg-gray-500'}`}>
+                        {p.plan==='free'?'Ücretsiz Geç':'Bu Planı Seç'}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+              {allPlans.length===0 && <div className="col-span-3 text-center py-8 text-gray-400">Plan listesi yükleniyor...</div>}
             </div>
             <div className="px-5 pb-5 text-xs text-gray-400 text-center">Gerçek ödeme entegrasyonu yakında · Şu an demo amaçlı</div>
           </div>
@@ -1737,6 +1783,137 @@ export default function BusinessPage() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* REKLAM PAKETLERİ */}
+              {view==='adpkgs' && (
+                <div>
+                  <div className="mb-5">
+                    <h1 className="text-xl font-bold">Reklam Paketleri</h1>
+                    <p className="text-sm text-gray-500">Daha fazla görünürlük için paketlerden satın al — Admin onayı sonrası aktif olur</p>
+                  </div>
+
+                  {/* Mevcut satın almalarım */}
+                  {myAdPurchases.length>0 && (
+                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm mb-5">
+                      <div className="px-4 py-3 border-b border-gray-100 font-bold text-sm">📋 Satın Almalarım ({myAdPurchases.length})</div>
+                      <div className="divide-y divide-gray-100">
+                        {myAdPurchases.slice(0,5).map(p=>{
+                          const statusMap = {
+                            pending: {l:'⏳ Onay Bekliyor', cls:'bg-amber-50 text-amber-700 border-amber-200'},
+                            approved: {l:'✓ Aktif', cls:'bg-green-50 text-green-700 border-green-200'},
+                            rejected: {l:'✗ Reddedildi', cls:'bg-red-50 text-red-600 border-red-200'},
+                            expired: {l:'Süresi Doldu', cls:'bg-gray-100 text-gray-600 border-gray-200'},
+                          }
+                          const s = statusMap[p.status] || statusMap.pending
+                          return (
+                            <div key={p.id} className="flex items-center gap-3 p-3 text-sm">
+                              <div className="flex-1">
+                                <div className="font-semibold">{p.package_name}</div>
+                                <div className="text-xs text-gray-400">₺{p.price_at_purchase} · {new Date(p.created_at).toLocaleDateString('tr-TR')}{p.expires_at?` → ${new Date(p.expires_at).toLocaleDateString('tr-TR')}`:''}</div>
+                              </div>
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${s.cls}`}>{s.l}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Paket kartları */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {adPackages.map(pkg=>{
+                      const hasPending = myAdPurchases.some(p => p.package_id===pkg.id && p.status==='pending')
+                      return (
+                        <div key={pkg.id} className={'border-2 rounded-2xl p-5 relative flex flex-col '+(pkg.is_popular?'border-orange-500 bg-orange-50':'border-gray-200 bg-white')+' shadow-sm'}>
+                          {pkg.is_popular && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">⭐ Popüler</div>}
+                          {pkg.badge && <div className="text-4xl mb-3">{pkg.badge}</div>}
+                          <div className="font-extrabold text-xl mb-1">{pkg.name}</div>
+                          {pkg.description && <div className="text-sm text-gray-500 mb-4">{pkg.description}</div>}
+                          <div className="mb-4">
+                            <div className="text-3xl font-extrabold text-orange-500">₺{pkg.price}</div>
+                            <div className="text-xs text-gray-400">{pkg.duration_days} gün boyunca aktif</div>
+                          </div>
+                          <ul className="space-y-2 mb-5 flex-1">
+                            {(pkg.features||[]).map((f,i)=>(
+                              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                <span className="text-green-500 font-bold flex-shrink-0 mt-0.5">✓</span>{f}
+                              </li>
+                            ))}
+                          </ul>
+                          <button onClick={()=>buyAdPackage(pkg)} disabled={buyingPkg===pkg.id || hasPending}
+                            className={'w-full py-3 rounded-xl text-sm font-bold transition-colors '+
+                              (hasPending?'bg-amber-100 text-amber-700 cursor-not-allowed':
+                               pkg.is_popular?'bg-orange-500 hover:bg-orange-600 text-white':'bg-slate-800 hover:bg-slate-700 text-white')+
+                              ' disabled:opacity-60'}>
+                            {buyingPkg===pkg.id ? 'İşleniyor...' : hasPending ? '⏳ Onay Bekleniyor' : '🛒 Satın Al'}
+                          </button>
+                        </div>
+                      )
+                    })}
+                    {adPackages.length===0 && <div className="col-span-3 text-center py-16 text-gray-400">Aktif paket bulunmuyor — Admin paket eklediğinde burada görünecek</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* ÜYELİK PAKETLERİ — Tüm planları incele */}
+              {view==='plans' && (
+                <div>
+                  <div className="mb-5">
+                    <h1 className="text-xl font-bold">Üyelik Paketleri</h1>
+                    <p className="text-sm text-gray-500">Mevcut planınız: <b className="text-orange-500 uppercase">{bizInfo?.plan||'free'}</b> — Daha fazla özellik için yükseltin</p>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {allPlans.map(p=>{
+                      const labels = {free:'Ücretsiz', pro:'Pro', enterprise:'Enterprise'}
+                      const label = labels[p.plan] || p.plan
+                      const isCurrent = bizInfo?.plan===p.plan
+                      const popular = p.plan==='pro'
+                      const features = [
+                        `${p.max_staff||0} personel`,
+                        `${p.max_services||0} hizmet`,
+                        `${p.max_monthly_appts||0} randevu/ay`,
+                        `${p.max_gallery_images||0} galeri görseli`,
+                        `${p.max_ads||0} reklam`,
+                        p.has_analytics && '📊 Gelişmiş analitik',
+                        p.has_sms && '📱 SMS bildirimi',
+                        p.has_custom_domain && '🌐 Özel domain',
+                      ].filter(Boolean)
+                      return (
+                        <div key={p.plan} className={'border-2 rounded-2xl p-5 relative flex flex-col shadow-sm '+(isCurrent?'border-orange-500 bg-orange-50':popular?'border-orange-300 bg-white':'border-gray-200 bg-white')}>
+                          {popular && !isCurrent && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full">Popüler</div>}
+                          {isCurrent && <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">Mevcut Plan</div>}
+                          <div className="font-extrabold text-xl mb-1">{label}</div>
+                          <div className="mb-4">
+                            <span className="text-3xl font-extrabold text-gray-800">₺{p.price_monthly||0}</span>
+                            <span className="text-sm text-gray-400 font-normal">/ay</span>
+                          </div>
+                          <ul className="space-y-2 mb-5 flex-1">
+                            {features.map((f,i)=>(
+                              <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                                <span className="text-green-500 font-bold flex-shrink-0 mt-0.5">✓</span>{f}
+                              </li>
+                            ))}
+                          </ul>
+                          {isCurrent ? (
+                            <div className="w-full py-2.5 text-center text-sm font-bold text-green-600 bg-green-50 rounded-xl border border-green-200">✓ Aktif Plan</div>
+                          ) : (
+                            <button onClick={async()=>{
+                              if (!confirm(`Planınız "${label}" olarak güncellensin mi?`)) return
+                              await supabase.from('businesses').update({plan:p.plan}).eq('id',bizId)
+                              setBizInfo(prev=>({...prev,plan:p.plan}))
+                              setPlanLimits(p)
+                              toast3('✅ Plan ' + label + ' olarak güncellendi!')
+                            }} className={'w-full py-2.5 rounded-xl text-sm font-bold text-white transition-colors '+(p.plan==='pro'?'bg-orange-500 hover:bg-orange-600':p.plan==='enterprise'?'bg-slate-800 hover:bg-slate-700':'bg-gray-400 hover:bg-gray-500')}>
+                              {p.plan==='free'?'Ücretsize Geç':'Bu Planı Seç'}
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {allPlans.length===0 && <div className="col-span-3 text-center py-16 text-gray-400">Plan listesi yükleniyor...</div>}
+                  </div>
                 </div>
               )}
 
