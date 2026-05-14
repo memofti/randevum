@@ -229,7 +229,7 @@ export default function BusinessPage() {
     } catch { router.push('/login') }
   }, [router])
 
-  const loadAll = useCallback(async (bId) => {
+  const loadAll = useCallback(async (bId, bizPlanKey='free') => {
     setLoading(true)
     try {
       const [ar,sr,svr,nr,rr,plAll,adsr,pkgs,myPurch,myPlanReq] = await Promise.all([
@@ -251,7 +251,7 @@ export default function BusinessPage() {
       setReviews(rr?.data||[])
       const allPlans = plAll?.data || []
       setAllPlans(allPlans)
-      const myPlan = allPlans.find(p => p.plan === (bizInfo?.plan || 'free'))
+      const myPlan = allPlans.find(p => p.plan === bizPlanKey) || allPlans.find(p => p.plan === 'free')
       if (myPlan) setPlanLimits(myPlan)
       setAds(adsr?.data||[])
       setAdPackages(pkgs?.data||[])
@@ -293,7 +293,7 @@ export default function BusinessPage() {
           "6": { str: "09:00", end: "18:00", off: false },
           "0": { str: "09:00", end: "18:00", off: true },
         });
-        loadAll(b.id) 
+        loadAll(b.id, b.plan || 'free')
       } else setLoading(false)
     }
     findBusiness()
@@ -587,7 +587,7 @@ export default function BusinessPage() {
       setModal(false)
       setForm({cname:'',cemail:'',service:'',staff:'',date:'',time:'10:00'})
       toast3('✅ Randevu oluşturuldu')
-      await loadAll(bizId)
+      await loadAll(bizId, bizInfo?.plan || 'free')
     } catch(e){ toast3('❌ '+e.message) }
     finally { setSaving(false) }
   }
@@ -967,7 +967,7 @@ export default function BusinessPage() {
         {bizSwitcher && myBusinesses.length > 1 && (
           <div className="border-b border-white/10 bg-slate-900/50">
             {myBusinesses.map((b) => (
-              <button key={b.id} onClick={() => { setBizId(b.id); setBizInfo(b); setBizSwitcher(false); loadAll(b.id) }}
+              <button key={b.id} onClick={() => { setBizId(b.id); setBizInfo(b); setBizSwitcher(false); loadAll(b.id, b.plan || 'free') }}
                 className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-all ${b.id === bizId ? 'bg-white/10 text-white font-semibold' : 'text-white/50 hover:text-white hover:bg-white/[0.07]'}`}>
                 <span className="text-base">{b.emoji||'🏢'}</span>
                 <div className="min-w-0">
