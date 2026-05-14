@@ -38,6 +38,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState('')
   const [modal, setModal] = useState(false)
+  const [firmDetail, setFirmDetail] = useState(null) // firma objesi veya null
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [allAds, setAllAds] = useState([])
@@ -205,22 +206,24 @@ export default function AdminPage() {
     toast3('Plan talebi reddedildi')
   }
 
-  async function approveFirm(id,name){
-    await supabase.from('businesses').update({status:'active'}).eq('id',id)
-    setFirms(p=>p.map(f=>f.id===id?{...f,status:'active'}:f))
-    toast3(`✅ ${name} onaylandı`)
+  async function setFirmStatus(id, name, status, confirmMsg) {
+    if (confirmMsg && !confirm(confirmMsg)) return
+    const { error } = await supabase.from('businesses').update({ status }).eq('id', id)
+    if (error) { toast3('❌ '+error.message); return }
+    setFirms(p => p.map(f => f.id===id ? {...f, status} : f))
+    const labels = { active:'✅ aktif', review:'🔄 inceleme', suspended:'⚠️ askıya alındı', passive:'⏸ pasif' }
+    toast3(`${name} ${labels[status]||status}`)
   }
-  async function rejectFirm(id,name){
-    await supabase.from('businesses').update({status:'passive'}).eq('id',id)
-    setFirms(p=>p.map(f=>f.id===id?{...f,status:'passive'}:f))
-    toast3(`${name} reddedildi`)
+  async function setFirmPlan(id, name, plan) {
+    const { error } = await supabase.from('businesses').update({ plan }).eq('id', id)
+    if (error) { toast3('❌ '+error.message); return }
+    setFirms(p => p.map(f => f.id===id ? {...f, plan} : f))
+    toast3(`${name} planı → ${plan.toUpperCase()}`)
   }
-  async function suspendFirm(id,name){
-    if(!confirm(`${name} askıya alınsın mı?`))return
-    await supabase.from('businesses').update({status:'suspended'}).eq('id',id)
-    setFirms(p=>p.map(f=>f.id===id?{...f,status:'suspended'}:f))
-    toast3(`⚠️ ${name} askıya alındı`)
-  }
+  const approveFirm = (id,name) => setFirmStatus(id, name, 'active')
+  const rejectFirm  = (id,name) => setFirmStatus(id, name, 'passive')
+  const suspendFirm = (id,name) => setFirmStatus(id, name, 'suspended', `${name} askıya alınsın mı?`)
+  const unsuspendFirm = (id,name) => setFirmStatus(id, name, 'active')
   async function saveFirm(){
     if(!form.name||!form.category||!form.city){toast3('❌ Zorunlu alanları doldurun');return}
     setSaving(true)
@@ -312,6 +315,106 @@ export default function AdminPage() {
               {pkgModal!=='add' && <button onClick={()=>deletePkg(pkgModal.id, pkgModal.name)} className="px-3 py-2.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-xl text-xs font-bold">🗑️ Sil</button>}
               <button onClick={()=>setPkgModal(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
               <button onClick={savePkg} disabled={pkgSaving} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{pkgSaving?'Kaydediliyor...':pkgModal==='add'?'Ekle':'Güncelle'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FIRMA DETAY MODAL */}
+      {firmDetail && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setFirmDetail(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-start">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-11 h-11 rounded-full flex items-center justify-center text-base font-bold text-white flex-shrink-0" style={{background:'#f97316'}}>{firmDetail.name?.[0]}</div>
+                <div className="min-w-0">
+                  <div className="font-bold truncate">{firmDetail.name}</div>
+                  <div className="text-xs text-gray-500">{firmDetail.category} · {firmDetail.city}</div>
+                </div>
+              </div>
+              <button onClick={()=>setFirmDetail(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 text-lg flex-shrink-0">✕</button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Status Değiştirici */}
+              <div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Durum</div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    {v:'active',l:'✓ Aktif',cls:'bg-green-50 hover:bg-green-100 text-green-700 border-green-200'},
+                    {v:'review',l:'⏳ İnceleme',cls:'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200'},
+                    {v:'suspended',l:'⚠️ Askıda',cls:'bg-red-50 hover:bg-red-100 text-red-600 border-red-200'},
+                    {v:'passive',l:'⏸ Pasif',cls:'bg-gray-100 hover:bg-gray-200 text-gray-600 border-gray-200'},
+                  ].map(s => {
+                    const active = firmDetail.status === s.v
+                    return (
+                      <button key={s.v} disabled={active}
+                        onClick={async()=>{
+                          await setFirmStatus(firmDetail.id, firmDetail.name, s.v)
+                          setFirmDetail(p => p ? {...p, status: s.v} : p)
+                        }}
+                        className={'text-xs font-bold px-3 py-2 rounded-lg border transition-colors '+(active?'ring-2 ring-orange-400 opacity-100 cursor-default '+s.cls:s.cls)}>
+                        {s.l}{active && ' ✓'}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Plan Değiştirici */}
+              <div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Üyelik Planı</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {['free','pro','enterprise'].map(plan => {
+                    const labels = {free:'🆓 Ücretsiz', pro:'🔥 Pro', enterprise:'⚡ Enterprise'}
+                    const active = firmDetail.plan === plan
+                    return (
+                      <button key={plan} disabled={active}
+                        onClick={async()=>{
+                          await setFirmPlan(firmDetail.id, firmDetail.name, plan)
+                          setFirmDetail(p => p ? {...p, plan} : p)
+                        }}
+                        className={'text-xs font-bold px-3 py-2.5 rounded-lg border transition-colors '+(active?'bg-orange-500 text-white border-orange-500 cursor-default':'bg-white hover:bg-orange-50 text-gray-700 border-gray-200 hover:border-orange-300')}>
+                        {labels[plan]}{active && ' ✓'}
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className="text-[11px] text-gray-400 mt-2">Plan değişikliği firmaya anında yansır (realtime).</div>
+              </div>
+
+              {/* Firma Bilgileri */}
+              <div>
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Bilgiler</div>
+                <div className="bg-gray-50 rounded-xl divide-y divide-gray-200 text-sm">
+                  {[
+                    ['E-posta', firmDetail.email||'—'],
+                    ['Telefon', firmDetail.phone||'—'],
+                    ['Adres', firmDetail.address||'—'],
+                    ['Sahip', firmDetail.owner_name||'—'],
+                    ['Başlangıç fiyatı', firmDetail.price_from ? '₺'+firmDetail.price_from : '—'],
+                    ['Puan', firmDetail.rating ? '★ '+firmDetail.rating+' ('+(firmDetail.review_count||0)+')' : '—'],
+                    ['Kayıt', new Date(firmDetail.created_at).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})],
+                  ].map(([k,v]) => (
+                    <div key={k} className="flex justify-between gap-3 px-3 py-2.5">
+                      <span className="text-gray-500 text-xs uppercase tracking-wide">{k}</span>
+                      <span className="font-semibold text-gray-800 text-right text-sm">{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Hızlı bağlantı */}
+              <div className="flex gap-2">
+                <a href={'/firma/'+firmDetail.id} target="_blank" rel="noopener noreferrer"
+                  className="flex-1 py-2.5 border border-gray-200 rounded-lg text-sm font-semibold text-center hover:bg-gray-50">
+                  🔗 Firma Sayfası
+                </a>
+                <button onClick={()=>setFirmDetail(null)}
+                  className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-sm font-bold">
+                  Kapat
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -633,7 +736,7 @@ export default function AdminPage() {
                         <thead className="bg-gray-50"><tr>{['Firma','Şehir','Kategori','Plan','Durum','Kayıt',''].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
                         <tbody>
                           {filtered.map((f,i)=>(
-                            <tr key={f.id} className="border-t border-gray-100 hover:bg-gray-50 group">
+                            <tr key={f.id} onClick={()=>setFirmDetail(f)} className="border-t border-gray-100 hover:bg-gray-50 group cursor-pointer">
                               <td className="px-4 py-3"><div className="flex items-center gap-2.5">
                                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{background:COLORS[i%COLORS.length]}}>{f.name[0]}</div>
                                 <div><div className="font-semibold text-sm">{f.name}</div><div className="text-xs text-gray-400">{f.email||'—'}</div></div>
@@ -643,10 +746,12 @@ export default function AdminPage() {
                               <td className="px-4 py-3"><PlanBdg p={f.plan} /></td>
                               <td className="px-4 py-3"><StatusBdg s={f.status} /></td>
                               <td className="px-4 py-3 text-xs text-gray-400 whitespace-nowrap">{new Date(f.created_at).toLocaleDateString('tr-TR')}</td>
-                              <td className="px-4 py-3">
+                              <td className="px-4 py-3" onClick={e=>e.stopPropagation()}>
                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   {f.status==='review'&&<button onClick={()=>approveFirm(f.id,f.name)} className="text-xs bg-orange-500 text-white px-2.5 py-1 rounded-lg font-semibold">Onayla</button>}
                                   {f.status==='active'&&<button onClick={()=>suspendFirm(f.id,f.name)} className="text-xs bg-red-50 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg font-semibold">Askıya Al</button>}
+                                  {(f.status==='suspended'||f.status==='passive')&&<button onClick={()=>unsuspendFirm(f.id,f.name)} className="text-xs bg-green-500 text-white px-2.5 py-1 rounded-lg font-semibold">✓ Aktifleştir</button>}
+                                  <button onClick={()=>setFirmDetail(f)} className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-2.5 py-1 rounded-lg font-semibold">Detay →</button>
                                 </div>
                               </td>
                             </tr>
