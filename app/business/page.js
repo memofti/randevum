@@ -216,9 +216,33 @@ export default function BusinessPage() {
         (payload) => {
           setNotifs(prev => prev.find(n=>n.id===payload.new.id) ? prev : [payload.new, ...prev])
         })
+      .on('postgres_changes', { event:'*', schema:'public', table:'plan_limits' },
+        async () => {
+          // Admin plan limitlerini değiştirince anlık güncelle
+          const { data: plAll } = await supabase.from('plan_limits').select('*').order('price_monthly')
+          const allPlansNow = plAll || []
+          setAllPlans(allPlansNow)
+          const planKey = bizInfo?.plan || 'free'
+          const myPlan = allPlansNow.find(p => p.plan === planKey) || allPlansNow.find(p => p.plan === 'free')
+          if (myPlan) {
+            setPlanLimits(myPlan)
+            rtToast('⚙️ Plan limitleri güncellendi')
+          }
+        })
+      .on('postgres_changes', { event:'UPDATE', schema:'public', table:'businesses', filter:`id=eq.${bizId}` },
+        async (payload) => {
+          // Admin firma planını değiştirince (örn. onay) anlık güncelle
+          const newPlan = payload.new?.plan
+          if (newPlan && newPlan !== bizInfo?.plan) {
+            setBizInfo(p => p ? { ...p, plan: newPlan } : p)
+            const { data: plAll } = await supabase.from('plan_limits').select('*').order('price_monthly')
+            const my = (plAll||[]).find(p => p.plan === newPlan)
+            if (my) { setPlanLimits(my); rtToast('🎉 Planınız '+newPlan.toUpperCase()+' olarak güncellendi') }
+          }
+        })
       .subscribe()
     return () => { supabase.removeChannel(ch) }
-  }, [bizId])
+  }, [bizId, bizInfo?.plan])
 
   // Auth
   useEffect(() => {
