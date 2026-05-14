@@ -51,6 +51,8 @@ export default function AdminPage() {
   const [planSaving, setPlanSaving] = useState('')
   const [adPackages, setAdPackages] = useState([])
   const [adPurchases, setAdPurchases] = useState([])
+  const [planRequests, setPlanRequests] = useState([])
+  const [notifOpen, setNotifOpen] = useState(false)
   const [pkgModal, setPkgModal] = useState(false) // false | 'add' | pkg
   const [pkgForm, setPkgForm] = useState({name:'',description:'',price:0,duration_days:7,max_clicks:0,badge:'',features:'',is_popular:false,status:'active',sort_order:0})
   const [pkgSaving, setPkgSaving] = useState(false)
@@ -71,7 +73,7 @@ export default function AdminPage() {
   async function loadAll() {
     setLoading(true)
     try {
-      const [fr,pr,ar,payr,adsr2,settingsr,plr,pkgsr,purchr]=await Promise.all([
+      const [fr,pr,ar,payr,adsr2,settingsr,plr,pkgsr,purchr,plReqs]=await Promise.all([
         supabase.from('businesses').select('*').order('created_at',{ascending:false}),
         supabase.from('profiles').select('*').order('created_at',{ascending:false}),
         supabase.from('appointments').select('id,status,business_id'),
@@ -81,6 +83,7 @@ export default function AdminPage() {
         supabase.from('plan_limits').select('*').order('price_monthly'),
         supabase.from('ad_packages').select('*').order('sort_order'),
         supabase.from('ad_package_purchases').select('*, businesses(name,emoji)').order('created_at',{ascending:false}),
+        supabase.from('plan_upgrade_requests').select('*, businesses(name,emoji)').order('created_at',{ascending:false}),
       ])
       setFirms(fr.data||[])
       setProfiles(pr.data||[])
@@ -90,6 +93,7 @@ export default function AdminPage() {
       setPlanLimits(plr?.data||[])
       setAdPackages(pkgsr?.data||[])
       setAdPurchases(purchr?.data||[])
+      setPlanRequests(plReqs?.data||[])
       const paySet = settingsr?.data?.find(s=>s.key==='payment_enabled')
       if(paySet) setPaymentEnabled(paySet.value==='true')
       const commSet = settingsr?.data?.find(s=>s.key==='commission_rate')
@@ -182,6 +186,23 @@ export default function AdminPage() {
     await supabase.from('ad_package_purchases').update({status:'rejected'}).eq('id', id)
     setAdPurchases(p => p.map(x => x.id===id ? {...x, status:'rejected'} : x))
     toast3('Reddedildi')
+  }
+
+  async function approvePlanRequest(id) {
+    const req = planRequests.find(r => r.id === id)
+    if (!req) return
+    const { error: e1 } = await supabase.from('businesses').update({ plan: req.requested_plan }).eq('id', req.business_id)
+    if (e1) { toast3('❌ '+e1.message); return }
+    const { error: e2 } = await supabase.from('plan_upgrade_requests').update({ status:'approved', updated_at:new Date().toISOString() }).eq('id', id)
+    if (e2) { toast3('❌ '+e2.message); return }
+    setPlanRequests(p => p.map(x => x.id===id ? {...x, status:'approved'} : x))
+    setFirms(p => p.map(f => f.id===req.business_id ? {...f, plan: req.requested_plan} : f))
+    toast3('✅ Plan talebi onaylandı')
+  }
+  async function rejectPlanRequest(id) {
+    await supabase.from('plan_upgrade_requests').update({ status:'rejected', updated_at:new Date().toISOString() }).eq('id', id)
+    setPlanRequests(p => p.map(x => x.id===id ? {...x, status:'rejected'} : x))
+    toast3('Plan talebi reddedildi')
   }
 
   async function approveFirm(id,name){
@@ -368,14 +389,67 @@ export default function AdminPage() {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="h-12 bg-white border-b border-gray-200 flex items-center px-5 gap-3 flex-shrink-0">
+        <div className="h-12 bg-white border-b border-gray-200 flex items-center px-5 gap-3 flex-shrink-0 relative">
           <span className="text-sm font-semibold text-gray-800">{NAV.find(x=>x[0]===view)?.[2]}</span>
           <div className="ml-auto flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1 rounded-full font-semibold">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1 rounded-full font-semibold">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Supabase · Canlı
             </div>
+            {(() => {
+              const pendPlans = planRequests.filter(r=>r.status==='pending')
+              const pendAds = adPurchases.filter(p=>p.status==='pending')
+              const total = pendPlans.length + pendAds.length
+              return (
+                <button onClick={()=>setNotifOpen(p=>!p)} className="relative w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-gray-600">
+                  🔔
+                  {total>0 && <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">{total}</span>}
+                </button>
+              )
+            })()}
             <button onClick={()=>setModal(true)} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">+ Firma Ekle</button>
           </div>
+          {notifOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={()=>setNotifOpen(false)} />
+              <div className="absolute top-12 right-5 z-50 w-96 max-w-[calc(100vw-1.5rem)] bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden">
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+                  <div className="font-bold text-sm">Bildirimler</div>
+                  <button onClick={()=>setNotifOpen(false)} className="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+                </div>
+                <div className="max-h-96 overflow-y-auto divide-y divide-gray-100">
+                  {planRequests.filter(r=>r.status==='pending').length===0 && adPurchases.filter(p=>p.status==='pending').length===0 && (
+                    <div className="p-6 text-center text-sm text-gray-400">Bekleyen istek yok ✅</div>
+                  )}
+                  {planRequests.filter(r=>r.status==='pending').map(r=>(
+                    <div key={'pl-'+r.id} className="p-3 flex items-start gap-3 hover:bg-gray-50 cursor-pointer" onClick={()=>{setView('plans'); setNotifOpen(false)}}>
+                      <div className="text-xl mt-0.5">📦</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-gray-900 truncate">Üyelik planı talebi</div>
+                        <div className="text-xs text-gray-600 truncate">
+                          {r.businesses?.name||'Firma'} · <span className="uppercase">{r.current_plan}</span> → <b className="uppercase text-orange-600">{r.requested_plan}</b>
+                        </div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">{new Date(r.created_at).toLocaleString('tr-TR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+                      </div>
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full whitespace-nowrap">⏳ Onay</span>
+                    </div>
+                  ))}
+                  {adPurchases.filter(p=>p.status==='pending').map(p=>(
+                    <div key={'ad-'+p.id} className="p-3 flex items-start gap-3 hover:bg-gray-50 cursor-pointer" onClick={()=>{setView('ads'); setNotifOpen(false)}}>
+                      <div className="text-xl mt-0.5">🎁</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-gray-900 truncate">Reklam paketi talebi</div>
+                        <div className="text-xs text-gray-600 truncate">
+                          {p.businesses?.name||'Firma'} · {p.package_name} · ₺{p.price_at_purchase}
+                        </div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">{new Date(p.created_at).toLocaleString('tr-TR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+                      </div>
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full whitespace-nowrap">⏳ Onay</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto p-3 sm:p-5 pb-24 md:pb-5">
@@ -792,6 +866,27 @@ export default function AdminPage() {
                 <div>
                   <h1 className="text-xl font-bold mb-2">Plan Limitleri</h1>
                   <p className="text-sm text-gray-500 mb-5">Firma planlarının limitlerini ve fiyatlarını düzenle. Değişiklikler tüm firmalara yansır.</p>
+                  {planRequests.filter(r=>r.status==='pending').length>0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
+                      <div className="font-bold text-amber-700 text-sm mb-3">⏳ Onay Bekleyen Plan Talepleri ({planRequests.filter(r=>r.status==='pending').length})</div>
+                      <div className="space-y-2">
+                        {planRequests.filter(r=>r.status==='pending').map(r=>(
+                          <div key={r.id} className="flex items-center gap-3 bg-white border border-amber-200 rounded-xl p-3 text-sm">
+                            <div className="text-xl">{r.businesses?.emoji||'🏢'}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold truncate">{r.businesses?.name||'Firma'}</div>
+                              <div className="text-xs text-gray-500">
+                                <span className="uppercase">{r.current_plan}</span> → <b className="uppercase text-orange-600">{r.requested_plan}</b>
+                                {' · '}{new Date(r.created_at).toLocaleDateString('tr-TR')}
+                              </div>
+                            </div>
+                            <button onClick={()=>approvePlanRequest(r.id)} className="bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">✓ Onayla</button>
+                            <button onClick={()=>rejectPlanRequest(r.id)} className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">✗ Reddet</button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {planLimits.map(p=>{
                       const planLabels = {free:'Ücretsiz', pro:'Pro', enterprise:'Enterprise'}

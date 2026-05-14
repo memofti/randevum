@@ -88,9 +88,25 @@ export default function MapView({ businesses, onBook }) {
       mapInstanceRef.current = map
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(map)
       setMapReady(true)
+      // İlk render sonrası boyutu yeniden hesapla (mobilde hidden olarak başlayabilir)
+      requestAnimationFrame(() => map.invalidateSize())
+      // ResizeObserver ile container boyutu değişince (mobilde tab switch dahil) yeniden hesapla
+      if (typeof ResizeObserver !== 'undefined' && mapRef.current) {
+        const ro = new ResizeObserver(() => { try { map.invalidateSize() } catch {} })
+        ro.observe(mapRef.current)
+        map._resizeObserver = ro
+      }
     })
-    return () => { if (map) { map.remove(); mapInstanceRef.current = null } }
+    return () => { if (map) { try { map._resizeObserver?.disconnect() } catch {}; map.remove(); mapInstanceRef.current = null } }
   }, [])
+
+  // Mobilde Harita sekmesine geçince Leaflet'i tetikle (display:none → flex)
+  useEffect(() => {
+    if (!showList && mapInstanceRef.current) {
+      const id = setTimeout(() => { try { mapInstanceRef.current.invalidateSize() } catch {} }, 80)
+      return () => clearTimeout(id)
+    }
+  }, [showList])
 
   const getLocation = useCallback(() => {
     if (!navigator.geolocation) { setLocationStatus('denied'); return }

@@ -1,10 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { t as i18n } from '@/lib/i18n'
 import dynamic from 'next/dynamic'
 import AdBanner from '@/app/components/customer/AdBanner'
 import BookingModal from '@/app/components/customer/BookingModal'
 import BusinessDetailModal from '@/app/components/customer/BusinessDetailModal'
+import QRModal from '@/app/components/customer/QRModal'
 import ProfileTab from '@/app/components/customer/ProfileTab'
 import AppointmentsTab from '@/app/components/customer/AppointmentsTab'
 
@@ -16,7 +18,8 @@ const GOLD2 = '#f5e06e'
 function distKm(a,b,c,d){const R=6371,dL=(c-a)*Math.PI/180,dN=(d-b)*Math.PI/180,e=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dN/2)**2;return R*2*Math.atan2(Math.sqrt(e),Math.sqrt(1-e))}
 
 export default function LuxuryTheme(props) {
-  const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff, detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled, toast3, userLoc, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy, upcomingAppts } = props
+  const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff, detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled, toast3, userLoc, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy, upcomingAppts, uiLang='tr', saveBooking } = props
+  const T = (k) => i18n(k, uiLang)
   const [heroVisible, setHeroVisible] = useState(false)
   useEffect(() => { const t = setTimeout(()=>setHeroVisible(true), 50); return ()=>clearTimeout(t) }, [])
 
@@ -38,7 +41,7 @@ export default function LuxuryTheme(props) {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm" style={{background:`linear-gradient(135deg,${GOLD},${GOLD2})`}}>📅</div>
           <span className="font-black text-lg tracking-widest" style={{color:GOLD}}>RANDEVU</span>
         </div>
-        {[['home','Keşfet'],['map','Harita'],['appts','Randevularım'],['profile','Profilim']].map(([k,l]) => (
+        {[['home',T('discover')],['map',T('map')],['appts',T('appointments')],['profile',T('profile')]].map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)}
             className="text-sm font-semibold transition-all px-3 py-1.5 rounded-lg tracking-wider"
             style={tab===k?{color:GOLD,background:'rgba(212,175,55,0.1)'}:{color:'rgba(255,255,255,0.4)'}}>
@@ -48,7 +51,7 @@ export default function LuxuryTheme(props) {
         ))}
         <div className="ml-auto flex items-center gap-3">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold" style={{background:`linear-gradient(135deg,${GOLD},${GOLD2})`,color:'#000'}}>{user.name?.[0]||'?'}</div>
-          <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }} style={{color:'rgba(255,255,255,0.3)'}} className="text-sm">Çıkış</button>
+          <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }} style={{color:'rgba(255,255,255,0.3)'}} className="text-sm">{T('logout')}</button>
         </div>
       </nav>
 
@@ -79,7 +82,7 @@ export default function LuxuryTheme(props) {
                     value={searchQ} onChange={e => setSearchQ(e.target.value)} />
                   <button className="px-8 py-4 text-sm font-bold tracking-widest" style={{background:`linear-gradient(135deg,${GOLD},${GOLD2})`,color:'#000'}}>ARA →</button>
                 </div>
-                <div className={'flex gap-2 mt-8 flex-wrap justify-center transition-all duration-700 delay-500 '+(heroVisible?'opacity-100':'opacity-0')}>
+                <div className={'flex gap-2 mt-8 flex-wrap justify-center items-center transition-all duration-700 delay-500 '+(heroVisible?'opacity-100':'opacity-0')}>
                   {[{v:'',l:'TÜMÜ'},{v:'Güzellik',l:'GÜZELLİK'},{v:'Kuaför',l:'KUAFÖR'},{v:'Masaj',l:'MASAJ'},{v:'Fitness',l:'FİTNESS'},{v:'Sağlık',l:'SAĞLIK'}].map(({v,l})=>{
                     const active = (!v&&!catFilter)||(catFilter===v&&v!=='')
                     return (
@@ -90,13 +93,20 @@ export default function LuxuryTheme(props) {
                       </button>
                     )
                   })}
+                  <span className="text-[10px] tracking-[0.3em] hidden sm:inline" style={{color:'rgba(255,255,255,0.3)'}}>·</span>
+                  <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
+                    className="px-4 py-2 text-xs font-semibold tracking-[0.2em] rounded-full outline-none cursor-pointer transition-all"
+                    style={{background:'transparent',color:GOLD,border:`1px solid ${GOLD}66`}}>
+                    <option value="rating" style={{background:'#111',color:GOLD}}>★ EN POPÜLER</option>
+                    <option value="distance" style={{background:'#111',color:GOLD}}>📍 EN YAKIN</option>
+                  </select>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="max-w-7xl mx-auto px-6 py-14">
-            {activeAds.length > 0 && <div className="mb-10"><AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail}/></div>}
+            {activeAds.length > 0 && <div className="mb-10"><AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail} variant="luxury" uiLang={uiLang}/></div>}
 
             {/* SECTION 1 — Featured editorial */}
             {featured && (
@@ -214,8 +224,9 @@ export default function LuxuryTheme(props) {
       {tab === 'appts' && <AppointmentsTab {...props} variant="luxury" />}
       {tab === 'profile' && <ProfileTab {...props} variant="luxury" />}
 
-      <BusinessDetailModal biz={detailBiz} bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)} services={bizServices} staff={bizStaff} loading={detailLoading} onClose={()=>setDetailBiz(null)} onBook={()=>setBookModal(true)}/>
-      <BookingModal biz={bookModal&&detailBiz?detailBiz:null} services={bizServices} staff={bizStaff} onClose={()=>setBookModal(false)} onBook={async()=>{}} toast3={toast3} paymentEnabled={paymentEnabled} discount={activeAdDiscount}/>
+      <BusinessDetailModal biz={detailBiz} bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)} services={bizServices} staff={bizStaff} loading={detailLoading} onClose={()=>setDetailBiz(null)} onBook={()=>setBookModal(true)} variant="luxury" uiLang={uiLang}/>
+      <BookingModal biz={bookModal&&detailBiz?detailBiz:null} services={bizServices} staff={bizStaff} onClose={()=>setBookModal(false)} onBook={saveBooking} toast3={toast3} paymentEnabled={paymentEnabled} discount={activeAdDiscount} variant="luxury" uiLang={uiLang} userId={user?.id}/>
+      <QRModal qrModal={props.qrModal} setQrModal={props.setQrModal} />
     </div>
   )
 }

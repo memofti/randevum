@@ -1,7 +1,9 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, sendNotification, sendWhatsApp, uploadMedia, deleteMedia } from '@/lib/supabase'
+import { supabase, sendNotification, sendWhatsApp, uploadMedia, deleteMedia, notifyWaitlist } from '@/lib/supabase'
+import dynamic from 'next/dynamic'
+const QRScanner = dynamic(() => import('@/app/components/business/QRScanner'), { ssr: false })
 
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
 
@@ -111,7 +113,7 @@ function KPI({ label, value, sub, color }) {
   )
 }
 
-const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['showcase','🖼️','Vitrin'],['ads','📢','Reklamlar'],['adpkgs','🎁','Reklam Paketleri'],['plans','📦','Üyelik Paketleri'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
+const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['qrscan','📷','QR Okut'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['showcase','🖼️','Vitrin'],['ads','📢','Reklamlar'],['adpkgs','🎁','Reklam Paketleri'],['plans','📦','Üyelik Paketleri'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
 
 export default function BusinessPage() {
   const router = useRouter()
@@ -149,7 +151,9 @@ export default function BusinessPage() {
   const [allPlans, setAllPlans] = useState([])
   const [adPackages, setAdPackages] = useState([])
   const [myAdPurchases, setMyAdPurchases] = useState([])
+  const [myPlanRequests, setMyPlanRequests] = useState([])
   const [buyingPkg, setBuyingPkg] = useState('')
+  const [buyingPlan, setBuyingPlan] = useState('')
   const [apptSearch, setApptSearch] = useState('')
   const [custSearch, setCustSearch] = useState('')
   // Calendar
@@ -228,7 +232,7 @@ export default function BusinessPage() {
   const loadAll = useCallback(async (bId) => {
     setLoading(true)
     try {
-      const [ar,sr,svr,nr,rr,plAll,adsr,pkgs,myPurch] = await Promise.all([
+      const [ar,sr,svr,nr,rr,plAll,adsr,pkgs,myPurch,myPlanReq] = await Promise.all([
         supabase.from('appointments').select('id,profile_id,service_id,staff_id,appointment_date,appointment_time,status,price,profiles(full_name,email),services(name,price,duration_min),staff(name)').eq('business_id',bId).order('appointment_date',{ascending:false}),
         supabase.from('staff').select('*').eq('business_id',bId),
         supabase.from('services').select('*').eq('business_id',bId),
@@ -238,6 +242,7 @@ export default function BusinessPage() {
         supabase.from('ads').select('*').eq('business_id', bId).order('created_at', {ascending:false}),
         supabase.from('ad_packages').select('*').eq('status','active').order('sort_order'),
         supabase.from('ad_package_purchases').select('*').eq('business_id', bId).order('created_at',{ascending:false}),
+        supabase.from('plan_upgrade_requests').select('*').eq('business_id', bId).order('created_at',{ascending:false}),
       ])
       setAppts(ar.data||[])
       setStaff(sr.data||[])
@@ -251,6 +256,7 @@ export default function BusinessPage() {
       setAds(adsr?.data||[])
       setAdPackages(pkgs?.data||[])
       setMyAdPurchases(myPurch?.data||[])
+      setMyPlanRequests(myPlanReq?.data||[])
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }, [])
@@ -325,12 +331,13 @@ export default function BusinessPage() {
     }
   }
   async function cancelAppt(id) {
+    const cancelled = appts.find(a => a.id === id)
     await supabase.from('appointments').update({status:'cancelled'}).eq('id',id)
     sendNotification('cancelled', id)
     sendWhatsApp('cancelled', id)
-    sendNotification('cancelled', id)
     setAppts(p=>p.map(a=>a.id===id?{...a,status:'cancelled'}:a))
     toast3('Randevu iptal edildi')
+    if (cancelled) notifyWaitlist(cancelled.business_id || bizId, cancelled.appointment_date)
     // Email gönder
     const appt = appts.find(a=>a.id===id)
     if(appt?.profiles?.email) {
@@ -364,6 +371,10 @@ export default function BusinessPage() {
   // --- Personel CRUD ---
   async function saveStaff() {
     if (!staffForm.name.trim()) { toast3('❌ İsim zorunlu'); return }
+    if (staffModal === 'add' && planLimits && staff.length >= (planLimits.max_staff||0)) {
+      toast3('❌ Personel limitiniz dolu ('+planLimits.max_staff+'). Üyelik planınızı yükseltin.')
+      return
+    }
     setStaffSaving(true)
     try {
       const payload = {
@@ -422,6 +433,10 @@ export default function BusinessPage() {
   // --- Hizmet CRUD ---
   async function saveSvc() {
     if (!svcForm.name.trim()) { toast3('❌ İsim zorunlu'); return }
+    if (svcModal === 'add' && planLimits && services.length >= (planLimits.max_services||0)) {
+      toast3('❌ Hizmet limitiniz dolu ('+planLimits.max_services+'). Üyelik planınızı yükseltin.')
+      return
+    }
     setSvcSaving(true)
     try {
       if (svcModal === 'add') {
@@ -487,9 +502,40 @@ export default function BusinessPage() {
       }).select().maybeSingle()
       if (error) throw error
       if (data) setMyAdPurchases(p => [data, ...p])
+      await supabase.from('notifications').insert({
+        type: 'admin_ad_purchase',
+        title: 'Yeni reklam paketi satın alma talebi',
+        message: `${bizInfo?.name || 'Firma'} "${pkg.name}" paketini (₺${pkg.price}) satın almak istiyor.`,
+      })
       toast3('✅ Satın alma talebiniz alındı — admin onayı bekleniyor')
     } catch(e) { toast3('❌ '+e.message) }
     finally { setBuyingPkg('') }
+  }
+
+  async function buyPlan(p, label) {
+    if (!bizId) return
+    const currentPlan = bizInfo?.plan || 'free'
+    if (p.plan === currentPlan) { toast3('Zaten bu planı kullanıyorsunuz'); return }
+    if (!confirm(`"${label}" planına geçmek istediğinize emin misiniz?\n\nİsteğiniz admin onayına gönderilecek; onay sonrası plan aktif olur.`)) return
+    setBuyingPlan(p.plan)
+    try {
+      const { data, error } = await supabase.from('plan_upgrade_requests').insert({
+        business_id: bizId,
+        requested_plan: p.plan,
+        current_plan: currentPlan,
+        status: 'pending',
+      }).select().maybeSingle()
+      if (error) throw error
+      if (data) setMyPlanRequests(prev => [data, ...prev])
+      await supabase.from('notifications').insert({
+        type: 'admin_plan_request',
+        title: 'Yeni üyelik planı talebi',
+        message: `${bizInfo?.name || 'Firma'} ${currentPlan.toUpperCase()} → ${p.plan.toUpperCase()} planına geçmek istiyor (₺${p.price_monthly||0}/ay).`,
+      })
+      setPlanModal(false)
+      toast3('✅ Plan talebiniz alındı — admin onayı bekleniyor')
+    } catch(e) { toast3('❌ '+e.message) }
+    finally { setBuyingPlan('') }
   }
 
   async function saveAppt() {
@@ -663,19 +709,17 @@ export default function BusinessPage() {
                         </li>
                       ))}
                     </ul>
-                    {isCurrent ? (
-                      <div className="w-full py-2 text-center text-xs font-bold text-green-600 bg-green-50 rounded-xl border border-green-200">Aktif Plan</div>
-                    ) : (
-                      <button onClick={async()=>{
-                        await supabase.from('businesses').update({plan:p.plan}).eq('id',bizId)
-                        setBizInfo(prev=>({...prev,plan:p.plan}))
-                        setPlanLimits(p)
-                        setPlanModal(false)
-                        toast3('✅ Plan ' + label + ' olarak güncellendi!')
-                      }} className={`w-full py-2 rounded-xl text-xs font-bold text-white transition-colors ${p.plan==='pro'?'bg-orange-500 hover:bg-orange-600':p.plan==='enterprise'?'bg-slate-800 hover:bg-slate-700':'bg-gray-400 hover:bg-gray-500'}`}>
-                        {p.plan==='free'?'Ücretsiz Geç':'Bu Planı Seç'}
-                      </button>
-                    )}
+                    {(() => {
+                      const hasPending = myPlanRequests.some(r => r.requested_plan===p.plan && r.status==='pending')
+                      if (isCurrent) return <div className="w-full py-2 text-center text-xs font-bold text-green-600 bg-green-50 rounded-xl border border-green-200">Aktif Plan</div>
+                      if (hasPending) return <div className="w-full py-2 text-center text-xs font-bold text-amber-700 bg-amber-50 rounded-xl border border-amber-200">⏳ Onay Bekleniyor</div>
+                      return (
+                        <button onClick={()=>buyPlan(p, label)} disabled={buyingPlan===p.plan}
+                          className={`w-full py-2 rounded-xl text-xs font-bold text-white transition-colors disabled:opacity-60 ${p.plan==='pro'?'bg-orange-500 hover:bg-orange-600':p.plan==='enterprise'?'bg-slate-800 hover:bg-slate-700':'bg-gray-400 hover:bg-gray-500'}`}>
+                          {buyingPlan===p.plan ? 'İşleniyor...' : p.plan==='free' ? 'Ücretsize Geç' : 'Bu Planı Seç'}
+                        </button>
+                      )
+                    })()}
                   </div>
                 )
               })}
@@ -979,6 +1023,11 @@ export default function BusinessPage() {
         <div className="h-12 bg-white border-b border-gray-200 flex items-center px-5 gap-2 flex-shrink-0">
           <span className="text-sm font-semibold text-gray-800">{NAV.find(x=>x[0]===view)?.[2]}</span>
           <div className="ml-auto flex items-center gap-2">
+            {/* QR Okut — kalıcı kısayol */}
+            <button onClick={()=>setView('qrscan')} title="QR Kod Okut"
+              className={'flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-lg border transition-colors '+(view==='qrscan'?'bg-purple-600 text-white border-purple-600':'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100')}>
+              📷 <span className="hidden sm:inline">QR Okut</span>
+            </button>
             {/* Bildirim zili */}
             <button onClick={()=>setNotifOpen(p=>!p)} className="relative w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors text-gray-600">
               🔔
@@ -1310,12 +1359,33 @@ export default function BusinessPage() {
                 </div>
               )}
 
+              {/* QR OKUT */}
+              {view==='qrscan' && (
+                <div>
+                  <div className="mb-5">
+                    <h1 className="text-xl font-bold">QR Okut</h1>
+                    <p className="text-gray-500 text-sm">Müşterinin telefonundaki QR kodu okutun; randevu otomatik tamamlanır.</p>
+                  </div>
+                  <QRScanner bizId={bizId} />
+                </div>
+              )}
+
               {/* PERSONEL */}
               {view==='staff' && (
                 <div>
                   <div className="flex items-center justify-between mb-5">
-                    <div><h1 className="text-xl font-bold">Personel</h1><p className="text-gray-500 text-sm">{staff.length} personel</p></div>
-                    <button onClick={openStaffAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Personel Ekle</button>
+                    <div><h1 className="text-xl font-bold">Personel</h1><p className="text-gray-500 text-sm">{staff.length}/{planLimits?.max_staff||'—'} personel</p></div>
+                    {(() => {
+                      const atLimit = planLimits && staff.length >= (planLimits.max_staff||0)
+                      return (
+                        <button onClick={()=> atLimit ? toast3('❌ Personel limitiniz dolu — planınızı yükseltin') : openStaffAdd()}
+                          disabled={atLimit}
+                          className={'text-xs font-bold px-4 py-2 rounded-lg transition-colors '+(atLimit?'bg-gray-200 text-gray-500 cursor-not-allowed':'bg-orange-500 hover:bg-orange-600 text-white')}
+                          title={atLimit?'Plan limiti dolu':''}>
+                          {atLimit ? '🔒 Limit Dolu' : '+ Personel Ekle'}
+                        </button>
+                      )
+                    })()}
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-5">
                     <KPI label="Toplam" value={staff.length} color="blue" />
@@ -1400,8 +1470,17 @@ export default function BusinessPage() {
               {view==='services' && (
                 <div>
                   <div className="flex items-center justify-between mb-5">
-                    <div><h1 className="text-xl font-bold">Hizmetler</h1><p className="text-gray-500 text-sm">{services.length} hizmet</p></div>
-                    <button onClick={openSvcAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Hizmet Ekle</button>
+                    <div><h1 className="text-xl font-bold">Hizmetler</h1><p className="text-gray-500 text-sm">{services.length}/{planLimits?.max_services||'—'} hizmet</p></div>
+                    {(() => {
+                      const atLimit = planLimits && services.length >= (planLimits.max_services||0)
+                      return (
+                        <button onClick={()=> atLimit ? toast3('❌ Hizmet limitiniz dolu — planınızı yükseltin') : openSvcAdd()}
+                          disabled={atLimit}
+                          className={'text-xs font-bold px-4 py-2 rounded-lg transition-colors '+(atLimit?'bg-gray-200 text-gray-500 cursor-not-allowed':'bg-orange-500 hover:bg-orange-600 text-white')}>
+                          {atLimit ? '🔒 Limit Dolu' : '+ Hizmet Ekle'}
+                        </button>
+                      )
+                    })()}
                   </div>
                   <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                     <table className="w-full">
@@ -1720,6 +1799,13 @@ export default function BusinessPage() {
                     <div className="mt-4 flex justify-end">
                       <button onClick={async()=>{
                         if(!adForm.title) { toast3('❌ Başlık zorunlu'); return }
+                        // Aktif reklam limiti kontrolü
+                        const activeAdsCount = ads.filter(a => ['active','pending','approved'].includes(a.status) && (!a.ends_at || new Date(a.ends_at) > new Date())).length
+                        const limit = planLimits?.max_ads || 0
+                        if (activeAdsCount >= limit) {
+                          toast3('❌ Aktif reklam limitiniz dolu ('+limit+'). Planınızı yükseltin veya eski bir reklamı kapatın.')
+                          return
+                        }
                         setSavingAd(true)
                         const { data: newAd } = await supabase.from('ads').insert({
                           business_id: bizId,
@@ -1896,19 +1982,17 @@ export default function BusinessPage() {
                               </li>
                             ))}
                           </ul>
-                          {isCurrent ? (
-                            <div className="w-full py-2.5 text-center text-sm font-bold text-green-600 bg-green-50 rounded-xl border border-green-200">✓ Aktif Plan</div>
-                          ) : (
-                            <button onClick={async()=>{
-                              if (!confirm(`Planınız "${label}" olarak güncellensin mi?`)) return
-                              await supabase.from('businesses').update({plan:p.plan}).eq('id',bizId)
-                              setBizInfo(prev=>({...prev,plan:p.plan}))
-                              setPlanLimits(p)
-                              toast3('✅ Plan ' + label + ' olarak güncellendi!')
-                            }} className={'w-full py-2.5 rounded-xl text-sm font-bold text-white transition-colors '+(p.plan==='pro'?'bg-orange-500 hover:bg-orange-600':p.plan==='enterprise'?'bg-slate-800 hover:bg-slate-700':'bg-gray-400 hover:bg-gray-500')}>
-                              {p.plan==='free'?'Ücretsize Geç':'Bu Planı Seç'}
-                            </button>
-                          )}
+                          {(() => {
+                            const hasPending = myPlanRequests.some(r => r.requested_plan===p.plan && r.status==='pending')
+                            if (isCurrent) return <div className="w-full py-2.5 text-center text-sm font-bold text-green-600 bg-green-50 rounded-xl border border-green-200">✓ Aktif Plan</div>
+                            if (hasPending) return <div className="w-full py-2.5 text-center text-sm font-bold text-amber-700 bg-amber-50 rounded-xl border border-amber-200">⏳ Onay Bekleniyor</div>
+                            return (
+                              <button onClick={()=>buyPlan(p, label)} disabled={buyingPlan===p.plan}
+                                className={'w-full py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-60 '+(p.plan==='pro'?'bg-orange-500 hover:bg-orange-600':p.plan==='enterprise'?'bg-slate-800 hover:bg-slate-700':'bg-gray-400 hover:bg-gray-500')}>
+                                {buyingPlan===p.plan ? 'İşleniyor...' : p.plan==='free' ? 'Ücretsize Geç' : 'Bu Planı Seç'}
+                              </button>
+                            )
+                          })()}
                         </div>
                       )
                     })}
@@ -1919,11 +2003,23 @@ export default function BusinessPage() {
 
               {/* RAPORLAR */}
               {view==='reports' && (
-                <div>
+                <div className="relative">
                   <div className="flex items-center justify-between mb-5">
                     <h1 className="text-xl font-bold">Raporlar & Analitik</h1>
                     <div className="text-xs text-gray-400">{new Date().toLocaleDateString('tr-TR',{month:'long',year:'numeric'})}</div>
                   </div>
+                  {!planLimits?.has_analytics && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center" style={{background:'rgba(255,255,255,0.85)',backdropFilter:'blur(6px)'}}>
+                      <div className="bg-white border-2 border-orange-200 rounded-2xl p-8 shadow-xl text-center max-w-md mx-4">
+                        <div className="text-5xl mb-3">🔒</div>
+                        <div className="font-extrabold text-lg mb-2">Bu özellik <span className="text-orange-500">Pro / Enterprise</span> planında</div>
+                        <div className="text-sm text-gray-500 mb-5">Detaylı raporlar, gelir analizi ve müşteri istatistiklerini görmek için planınızı yükseltin.</div>
+                        <button onClick={()=>setView('plans')} className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-bold transition-colors">
+                          📦 Planları İncele →
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {/* Gelir Özeti */}
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
                     {[

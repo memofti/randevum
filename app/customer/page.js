@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase, notifyWaitlist } from '@/lib/supabase'
 import dynamic from 'next/dynamic'
 
 const MapView = dynamic(() => import('@/app/components/MapView'), { ssr: false })
@@ -9,6 +9,9 @@ import BusinessCard from '@/app/components/customer/BusinessCard'
 import AdBanner from '@/app/components/customer/AdBanner'
 import BusinessDetailModal from '@/app/components/customer/BusinessDetailModal'
 import BookingModal from '@/app/components/customer/BookingModal'
+import QRModal from '@/app/components/customer/QRModal'
+import ProfileTab from '@/app/components/customer/ProfileTab'
+import AppointmentsTab from '@/app/components/customer/AppointmentsTab'
 const MinimalTheme = dynamic(() => import('@/app/customer/themes/minimal'), { ssr: false })
 const LuxuryTheme = dynamic(() => import('@/app/customer/themes/luxury'), { ssr: false })
 const SoftTheme = dynamic(() => import('@/app/customer/themes/soft'), { ssr: false })
@@ -144,6 +147,23 @@ export default function CustomerPage() {
     return () => { supabase.removeChannel(ch) }
   }, [])
 
+  // Müşteriye yönelik bildirimler — yer açıldı vs.
+  useEffect(() => {
+    if (!user?.id) return
+    const ch = supabase
+      .channel('notifs-customer-'+user.id)
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'notifications', filter:`profile_id=eq.${user.id}` }, (payload) => {
+        const n = payload.new
+        if (!n) return
+        toast3((n.title || '🔔') + ' ' + (n.message || ''))
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          try { new Notification(n.title || 'Bildirim', { body: n.message || '' }) } catch {}
+        }
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [user?.id])
+
   // İşletmeler
   useEffect(() => {
     supabase.from('businesses').select('*').eq('status','active').order('rating',{ascending:false})
@@ -243,14 +263,19 @@ export default function CustomerPage() {
     setDetailBiz(biz)
     setActiveAdDiscount(discount)
     setDetailLoading(true)
-    setTakenSlots([])
-    const [{ data: svcs }, { data: stff }] = await Promise.all([
-      supabase.from('services').select('*').eq('business_id', biz.id).eq('status','active'),
-      supabase.from('staff').select('*').eq('business_id', biz.id),
-    ])
-    setBizServices(svcs||[])
-    setBizStaff(stff||[])
-    setDetailLoading(false)
+    setBookedRanges([])
+    try {
+      const [{ data: svcs }, { data: stff }] = await Promise.all([
+        supabase.from('services').select('*').eq('business_id', biz.id).eq('status','active'),
+        supabase.from('staff').select('*').eq('business_id', biz.id),
+      ])
+      setBizServices(svcs||[])
+      setBizStaff(stff||[])
+    } catch(e) {
+      toast3('❌ Detay yüklenemedi: '+(e?.message||''))
+    } finally {
+      setDetailLoading(false)
+    }
   }
 
   // Dolu aralıkları çek — süre + staff bazlı çakışma kontrolü
@@ -285,7 +310,65 @@ export default function CustomerPage() {
     return relevant.some(r => start < r.end && end > r.start)
   }
 
-  // Randevu al
+  // Tema-bağımsız randevu kaydetme — BookingModal onBook callback olarak kullanılır
+  async function saveBooking(form, payCard) {
+    if (!form.service||!form.date||!form.time){ toast3('❌ Hizmet, tarih ve saat seçin'); return }
+    setBooking(true)
+    try {
+      // İşletmenin plan limiti — aylık randevu kontrolü
+      const bizPlanKey = detailBiz.plan || 'free'
+      const { data: planRow } = await supabase.from('plan_limits').select('max_monthly_appts, loyalty_points_per_appt').eq('plan', bizPlanKey).maybeSingle()
+      if (planRow?.max_monthly_appts) {
+        const d = new Date(form.date)
+        const monthStart = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0]
+        const monthEnd = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().split('T')[0]
+        const { count: monthCount } = await supabase.from('appointments')
+          .select('id', { count:'exact', head:true })
+          .eq('business_id', detailBiz.id)
+          .gte('appointment_date', monthStart).lte('appointment_date', monthEnd)
+          .not('status','in','("cancelled")')
+        if ((monthCount||0) >= planRow.max_monthly_appts) {
+          toast3('❌ Bu firma bu ayın randevu kotasını doldurdu ('+planRow.max_monthly_appts+'). Önümüzdeki ay deneyin.')
+          setBooking(false); return
+        }
+      }
+
+      const svc = bizServices.find(s=>s.id===form.service)
+      const finalPrice = form.total ?? svc?.price ?? 0
+      const { data: newAppt } = await supabase.from('appointments').insert({
+        business_id: detailBiz.id, profile_id: user.id,
+        service_id: form.service, staff_id: form.staff||null,
+        appointment_date: form.date, appointment_time: form.time,
+        status: 'pending', price: finalPrice,
+      }).select().maybeSingle()
+      if (newAppt) {
+        await supabase.from('payments').insert({
+          appointment_id: newAppt.id, profile_id: user.id,
+          business_id: detailBiz.id, amount: finalPrice,
+          status: 'completed', method: 'card',
+          card_last4: payCard?.number ? payCard.number.replace(/\s/g,'').slice(-4) : null,
+        })
+      }
+      try {
+        const pts = planRow?.loyalty_points_per_appt ?? 10
+        await supabase.from('loyalty_transactions').insert({profile_id:user.id,business_id:detailBiz.id,points:pts,type:'earn',description:detailBiz.name+' randevusu'})
+        await supabase.from('profiles').update({loyalty_points:(user.loyalty_points||0)+pts}).eq('id',user.id)
+        setUser(p=>({...p,loyalty_points:(p.loyalty_points||0)+pts}))
+      } catch(e) {}
+      setBookModal(false); setDetailBiz(null)
+      if (newAppt) {
+        fetch(process.env.NEXT_PUBLIC_SUPABASE_URL + '/functions/v1/send-notification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY },
+          body: JSON.stringify({ type: 'new_appointment', appointment_id: newAppt.id })
+        }).catch(()=>{})
+      }
+      toast3(paymentEnabled ? '✅ Randevu talebiniz alındı! Firma onayı bekleniyor.' : '✅ Randevunuz oluşturuldu! Firma 1 saat içinde onaylamazsa otomatik onaylanacak.')
+    } catch(e) { toast3('❌ '+e.message) }
+    finally { setBooking(false) }
+  }
+
+  // Randevu al — eski default JSX için
   async function bookAppt() {
     if (!bookForm.service || !bookForm.date || !bookForm.time) { toast3('❌ Hizmet, tarih ve saat seçin'); return }
     const svcCheck = bizServices.find(s => s.id === bookForm.service)
@@ -355,7 +438,7 @@ export default function CustomerPage() {
       setBookForm({ service:'', staff:'', date:'', time:'' })
       setPayStep(false)
       setPayCard({ name:'', number:'', expire:'', cvv:'' })
-      setTakenSlots([])
+      setBookedRanges([])
       toast3('✅ Randevu talebiniz alındı! Onay bekleniyor.')
     } catch (e) {
       toast3('❌ ' + e.message)
@@ -365,9 +448,11 @@ export default function CustomerPage() {
   }
 
   async function cancelAppt(id) {
+    const appt = appointments.find(a => a.id === id)
     await supabase.from('appointments').update({ status:'cancelled' }).eq('id', id)
     setAppointments(p => p.map(a => a.id===id ? {...a,status:'cancelled'} : a))
     toast3('Randevu iptal edildi')
+    if (appt) notifyWaitlist(appt.business_id, appt.appointment_date)
   }
 
   const generateSlots = () => {
@@ -437,7 +522,7 @@ export default function CustomerPage() {
     activeAdDiscount, paymentEnabled, toast3, userLoc,
     searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
     cancelAppt, setReviewModal, setReviewForm, qrModal, setQrModal,
-    upcomingAppts, pastAppts,
+    upcomingAppts, pastAppts, saveBooking,
     // Profil tab shared component props
     profLoading, profileForm, setProfileForm, editProfile, setEditProfile,
     savingProfile, saveProfile, setProfile, requestPushPermission,
@@ -453,20 +538,7 @@ export default function CustomerPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* QR KOD MODAL */}
-      {qrModal && (
-        <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setQrModal(null)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-xs text-center shadow-2xl">
-            <div className="font-bold mb-1">{qrModal.businesses?.name}</div>
-            <div className="text-xs text-gray-500 mb-4">{new Date(qrModal.appointment_date).toLocaleDateString('tr-TR',{day:'numeric',month:'long'})} · {String(qrModal.appointment_time).slice(0,5)}</div>
-            <div className="bg-gray-50 rounded-xl p-3 mb-4 inline-block">
-              <img src={'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='+encodeURIComponent(window.location.origin+'/qr/'+(qrModal.qr_token||qrModal.id))} alt="QR" className="w-48 h-48 mx-auto"/>
-            </div>
-            <p className="text-xs text-gray-400 mb-4">Firmaya gelince bu QR kodu okutun</p>
-            <button onClick={()=>setQrModal(null)} className="w-full py-2.5 border border-gray-200 rounded-xl text-sm font-semibold">Kapat</button>
-          </div>
-        </div>
-      )}
+      <QRModal qrModal={qrModal} setQrModal={setQrModal} />
       {toast && <div className="fixed bottom-6 right-6 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-xl animate-in slide-in-from-bottom-2">{toast}</div>}
 
       {/* YORUM MODAL */}
@@ -556,11 +628,8 @@ export default function CustomerPage() {
         loading={detailLoading}
         onClose={()=>setDetailBiz(null)}
         onBook={()=>setBookModal(true)}
-        onWaitList={async()=>{
-          if(!user||!detailBiz) return
-          await supabase.from('waiting_list').insert({business_id:detailBiz.id,profile_id:user.id,status:'waiting'})
-          toast3('⏳ Bekleme listesine eklendiniz!')
-        }}
+        variant="default"
+        uiLang={uiLang}
       />
       {false && detailBiz && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -667,44 +736,11 @@ export default function CustomerPage() {
         staff={bizStaff}
         discount={activeAdDiscount}
         paymentEnabled={paymentEnabled}
-        discount={activeAdDiscount}
+        variant="default"
+        uiLang={uiLang}
+        userId={user?.id}
         onClose={()=>{setBookModal(false)}}
-        onBook={async(form, payCard)=>{
-          if (!form.service||!form.date||!form.time){toast3('❌ Hizmet, tarih ve saat seçin');return}
-          setBooking(true)
-          try {
-            const svc = bizServices.find(s=>s.id===form.service)
-            const { data: newAppt } = await supabase.from('appointments').insert({
-              business_id: detailBiz.id, profile_id: user.id,
-              service_id: form.service, staff_id: form.staff||null,
-              appointment_date: form.date, appointment_time: form.time,
-              status: 'pending', price: svc?.price||0,
-            }).select().maybeSingle()
-            if(newAppt){
-              await supabase.from('payments').insert({
-                appointment_id: newAppt.id, profile_id: user.id,
-                business_id: detailBiz.id, amount: svc?.price||0,
-                status: 'completed', method: 'card',
-                card_last4: payCard.number?payCard.number.replace(/\s/g,'').slice(-4):null,
-              })
-            }
-            try {
-              await supabase.from('loyalty_transactions').insert({profile_id:user.id,business_id:detailBiz.id,points:10,type:'earn',description:detailBiz.name+' randevusu'})
-              await supabase.from('profiles').update({loyalty_points:(user.loyalty_points||0)+10}).eq('id',user.id)
-              setUser(p=>({...p,loyalty_points:(p.loyalty_points||0)+10}))
-            } catch(e){}
-            setBookModal(false); setDetailBiz(null)
-            // Bildirimleri gönder
-      if (newAppt) {
-        fetch(process.env.NEXT_PUBLIC_SUPABASE_URL + '/functions/v1/send-notification', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY },
-          body: JSON.stringify({ type: 'new_appointment', appointment_id: newAppt.id })
-        }).catch(() => {})
-      }
-      toast3(paymentEnabled ? '✅ Randevu talebiniz alındı! Firma onayı bekleniyor.' : '✅ Randevunuz oluşturuldu! Firma 1 saat içinde onaylamazsa otomatik onaylanacak.')
-          } catch(e){ toast3('❌ '+e.message) } finally { setBooking(false) }
-        }}
+        onBook={saveBooking}
         toast3={toast3}
       />
       {false && bookModal && detailBiz && (
@@ -985,7 +1021,7 @@ export default function CustomerPage() {
               </h2>
             </div>
             {/* REKLAM BANNER'LARI */}
-            <AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail}/>
+            <AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail} variant="default" uiLang={uiLang}/>
             {false && activeAds.length > 0 && (
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -1211,140 +1247,8 @@ export default function CustomerPage() {
         </div>
       )}
 
-      {/* PROFİL */}
-      {tab === 'profile' && (
-        <div className="max-w-4xl mx-auto w-full px-3 sm:px-6 py-5 sm:py-8">
-          <h1 className="text-xl font-bold mb-6">Profilim</h1>
-          {profLoading ? (
-            <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /> Yükleniyor...</div>
-          ) : !profile ? (
-            <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /> Profil yükleniyor...</div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-4">
-                <div className="bg-white border border-gray-200 rounded-xl p-6 text-center shadow-sm">
-                  <div className="w-16 h-16 rounded-full bg-orange-500 flex items-center justify-center text-2xl font-extrabold text-white mx-auto mb-4 border-4 border-orange-100">{profile.full_name?.[0]||'?'}</div>
-                  <div className="font-bold text-lg mb-1">{profile.full_name}</div>
-                  <div className="text-gray-500 text-sm mb-3">{profile.email}</div>
-                  <div className="flex gap-2 justify-center flex-wrap mb-4">
-                    {(() => {
-                      const tier = profile.loyalty_tier || 'bronze'
-                      const tierMap = { bronze: { label: 'Bronze', emoji: '🥉', cls: 'bg-orange-50 text-orange-700 border-orange-200' }, silver: { label: 'Silver', emoji: '🥈', cls: 'bg-gray-50 text-gray-600 border-gray-300' }, gold: { label: 'Gold', emoji: '🥇', cls: 'bg-amber-50 text-amber-700 border-amber-200' }, platinum: { label: 'Platinum', emoji: '💫', cls: 'bg-purple-50 text-purple-700 border-purple-200' } }
-                      const t = tierMap[tier] || tierMap.bronze
-                      return <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${t.cls}`}>{t.emoji} {t.label}</span>
-                    })()}
-                  </div>
-                  <button onClick={() => setEditProfile(true)}
-                    className="w-full py-2 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">
-                    ✏️ Profili Düzenle
-                  </button>
-                </div>
-                <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                  {[['Telefon', profile.phone||'—'], ['Üye Tarihi', new Date(profile.created_at).toLocaleDateString('tr-TR')]].map(([l,v]) => (
-                    <div key={l} className="flex justify-between py-2.5 border-b border-gray-100 last:border-0">
-                      <span className="text-sm text-gray-500">{l}</span>
-                      <span className="text-sm font-semibold">{v}</span>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={requestPushPermission}
-                  className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 text-sm font-semibold rounded-xl transition-colors border border-blue-200">
-                  🔔 Bildirimleri Aç
-                </button>
-                {/* KVKK SMS Onayı */}
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
-                  <div className="text-xs font-bold text-gray-600">📱 SMS Bildirimleri</div>
-                  {profile?.sms_unsubscribed ? (
-                    <div className="space-y-2">
-                      <div className="text-xs text-red-500">SMS bildirimlerinden çıkış yapıldı.</div>
-                      <button onClick={async()=>{
-                        await supabase.from('profiles').update({sms_unsubscribed:false,sms_unsubscribed_at:null,sms_consent:true,sms_consent_at:new Date().toISOString()}).eq('id',user.id)
-                        setProfile(p=>({...p,sms_unsubscribed:false,sms_consent:true}))
-                        toast3('✅ SMS bildirimleri yeniden aktif edildi')
-                      }} className="w-full py-2 bg-green-50 text-green-600 border border-green-200 rounded-lg text-xs font-semibold">
-                        ✓ Yeniden Abone Ol
-                      </button>
-                    </div>
-                  ) : profile?.sms_consent ? (
-                    <div className="space-y-2">
-                      <div className="text-xs text-green-600">✅ SMS bildirimlerine onay verildi.</div>
-                      <button onClick={async()=>{
-                        if(!window.confirm('SMS bildirimlerinden çıkmak istediğinize emin misiniz?')) return
-                        await supabase.from('profiles').update({sms_unsubscribed:true,sms_unsubscribed_at:new Date().toISOString(),sms_consent:false}).eq('id',user.id)
-                        setProfile(p=>({...p,sms_unsubscribed:true,sms_consent:false}))
-                        toast3('SMS bildirimlerinden çıkış yapıldı')
-                      }} className="w-full py-2 bg-red-50 text-red-500 border border-red-200 rounded-lg text-xs font-semibold">
-                        ✗ Listeden Çık (Unsubscribe)
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="text-xs text-gray-500 leading-relaxed">
-                        Randevu hatırlatma ve kampanya SMS'leri almak istiyor musunuz?
-                      </div>
-                      <label className="flex items-start gap-2 cursor-pointer">
-                        <input type="checkbox" id="sms-consent" className="mt-0.5 accent-orange-500"/>
-                        <span className="text-xs text-gray-600 leading-relaxed">
-                          6698 sayılı KVKK kapsamında kişisel verilerimin işlenmesine ve tarafıma SMS gönderilmesine onay veriyorum. İstediğim zaman bu onayı geri alabilirim.
-                        </span>
-                      </label>
-                      <button onClick={async()=>{
-                        const cb = document.getElementById('sms-consent')
-                        if(!cb?.checked){ toast3('❌ Lütfen KVKK onayını işaretleyin'); return }
-                        await supabase.from('profiles').update({sms_consent:true,sms_consent_at:new Date().toISOString(),sms_unsubscribed:false}).eq('id',user.id)
-                        setProfile(p=>({...p,sms_consent:true,sms_unsubscribed:false}))
-                        toast3('✅ SMS bildirimleri aktif edildi')
-                      }} className="w-full py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-bold">
-                        Onaylıyorum
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  {['tr','en'].map(l=>(
-                    <button key={l} onClick={()=>{ localStorage.setItem('lang',l); setUiLang(l) }}
-                      className={'flex-1 py-2 rounded-xl text-sm font-bold border transition-colors '+(uiLang===l?'bg-orange-500 text-white border-orange-500':'bg-gray-50 text-gray-600 border-gray-200')}>
-                      {l==='tr'?'🇹🇷 Türkçe':'🇬🇧 English'}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={async () => { await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); router.push('/login') }}
-                  className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-semibold rounded-xl transition-colors">
-                  🚪 Çıkış Yap
-                </button>
-              </div>
-              <div className="md:col-span-2 space-y-4">
-                <div className="rounded-2xl p-5 text-white relative overflow-hidden shadow-md" style={{background:'linear-gradient(135deg,#ff6b35,#ff9a50)'}}>
-                  <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-white/10" />
-                  <div className="text-xs font-semibold opacity-80 uppercase tracking-wider mb-1">Toplam Puan</div>
-                  <div className="text-5xl font-extrabold leading-none mb-1">{(profile.loyalty_points||0).toLocaleString()}</div>
-                  <div className="text-sm opacity-75 mb-4">≈ ₺{Math.floor((profile.loyalty_points||0)/10)} indirim hakkı</div>
-                  <div className="flex justify-between text-xs opacity-70 mb-1.5">
-                    <span>Platinum'a {Math.max(0,3000-(profile.loyalty_points||0))} puan kaldı</span>
-                    <span>{profile.loyalty_points||0}/3.000</span>
-                  </div>
-                  <div className="h-1.5 bg-white/25 rounded-full overflow-hidden">
-                    <div className="h-full bg-white/80 rounded-full" style={{width:`${pct}%`}} />
-                  </div>
-                  {(() => {
-                    const t = profile.loyalty_tier || 'bronze'
-                    const labels = { bronze: '🥉 Bronze', silver: '🥈 Silver', gold: '🥇 Gold', platinum: '💫 Platinum' }
-                    return <div className="absolute top-4 right-4 bg-white/20 border border-white/30 text-xs font-bold px-3 py-1 rounded-full">{labels[t] || '🥉 Bronze'}</div>
-                  })()}
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {[['Toplam Randevu', appointments.length,'text-gray-800'], ['Tamamlanan', appointments.filter(a=>a.status==='completed').length,'text-green-600'], ['Bekleyen', upcomingAppts.length,'text-orange-500']].map(([l,v,c]) => (
-                    <div key={l} className="bg-white border border-gray-200 rounded-xl p-4 text-center shadow-sm">
-                      <div className={`text-2xl font-extrabold ${c} mb-1`}>{v}</div>
-                      <div className="text-xs text-gray-500">{l}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      {/* PROFİL — paylaşımlı bileşen */}
+      {tab === 'profile' && <ProfileTab {...themeProps} variant="default" />}
     </div>
   )
 }
