@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase, getActiveUser } from '@/lib/supabase'
+import { t as i18n, getLang, setLang } from '@/lib/i18n'
 
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
 function Spin() { return <div className="w-5 h-5 border-2 border-gray-200 border-t-orange-500 rounded-full animate-spin flex-shrink-0" /> }
@@ -25,7 +26,7 @@ function KPI({ label, value, sub, color }) {
     </div>
   )
 }
-const NAV=[['dashboard','⊞','Dashboard'],['firms','🏢','Firmalar'],['requests','📬','Başvurular'],['ads','📢','Reklamlar'],['adpkgs','🎁','Reklam Paketleri'],['coupons','🎟️','Kuponlar'],['plans','📦','Plan Limitleri'],['revenue','💰','Gelir'],['subscriptions','💳','Abonelikler'],['users','👥','Kullanıcılar']]
+const NAV_KEYS=[['dashboard','⊞','nav_dashboard'],['firms','🏢','nav_firms'],['requests','📬','nav_requests'],['ads','📢','nav_ads'],['adpkgs','🎁','nav_adpkgs'],['coupons','🎟️','nav_coupons'],['plans','📦','nav_plans'],['revenue','💰','nav_revenue'],['subscriptions','💳','nav_subscriptions'],['users','👥','nav_users']]
 
 export default function AdminPage() {
   const router = useRouter()
@@ -61,6 +62,10 @@ export default function AdminPage() {
   const [couponModal, setCouponModal] = useState(false) // false | 'add' | coupon
   const [couponForm, setCouponForm] = useState({code:'',description:'',discount_pct:0,discount_amount:0,min_amount:0,max_uses:'',valid_until:'',status:'active'})
   const [couponSaving, setCouponSaving] = useState(false)
+  const [uiLang, setUiLang] = useState('tr')
+  useEffect(()=>{ setUiLang(getLang()) },[])
+  const T = (k, vars) => i18n(k, uiLang, vars)
+  const NAV = NAV_KEYS.map(([k,i,key]) => [k, i, T(key)])
 
   const toast3=(m)=>{setToast(m);setTimeout(()=>setToast(''),3500)}
   const fld=(k,v)=>setForm(p=>({...p,[k]:v}))
@@ -574,7 +579,7 @@ export default function AdminPage() {
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-sm">📅</div>
-            <div><div className="text-white text-sm font-bold">RandevuApp</div><div className="text-white/30 text-xs">Admin Paneli</div></div>
+            <div><div className="text-white text-sm font-bold">RandevuApp</div><div className="text-white/30 text-xs">{T('adminPanel')}</div></div>
           </div>
         </div>
         <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
@@ -616,7 +621,15 @@ export default function AdminPage() {
                 </button>
               )
             })()}
-            <button onClick={()=>setModal(true)} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">+ Firma Ekle</button>
+            <div className="flex items-center gap-0 border border-gray-200 rounded-lg overflow-hidden text-[10px] font-bold">
+              {['tr','en'].map(l => (
+                <button key={l} onClick={()=>{ setLang(l); setUiLang(l) }}
+                  className={`px-2 py-1 ${uiLang===l?'bg-orange-500 text-white':'text-gray-500 hover:bg-gray-50'}`}>
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+            <button onClick={()=>setModal(true)} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">{T('addBusiness')}</button>
           </div>
           {notifOpen && (
             <>
@@ -1159,7 +1172,7 @@ export default function AdminPage() {
                       <h1 className="text-xl font-bold">Reklam Paketleri</h1>
                       <p className="text-sm text-gray-500">Firmalara satılacak reklam paketlerini yönet</p>
                     </div>
-                    <button onClick={openPkgAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Paket Ekle</button>
+                    <button onClick={openPkgAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">{T('addPackage')}</button>
                   </div>
 
                   {/* Pending satın almalar */}
@@ -1235,7 +1248,7 @@ export default function AdminPage() {
                       <h1 className="text-xl font-bold">Kuponlar</h1>
                       <p className="text-sm text-gray-500">Platform geneli indirim kodları — kullanım sayısıyla birlikte</p>
                     </div>
-                    <button onClick={openCouponAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Kupon Ekle</button>
+                    <button onClick={openCouponAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">{T('addCoupon')}</button>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
                     <table className="w-full">
