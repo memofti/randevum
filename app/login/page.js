@@ -19,20 +19,25 @@ export default function LoginPage() {
     setDemoLoading(user.email)
     setError('')
     try {
-      const { data, error: err } = await supabase
+      const { error: authErr } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: 'demo1234',
+      })
+      if (authErr) throw authErr
+
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      const { data: profile } = await supabase
         .from('profiles')
         .select('id, full_name, role, email')
-        .eq('email', user.email)
+        .eq('id', authUser.id)
         .maybeSingle()
-
-      if (err) throw err
-      if (!data) throw new Error('Demo kullanıcı bulunamadı')
+      if (!profile) throw new Error('Demo profili bulunamadı')
 
       localStorage.setItem('randevu_user', JSON.stringify({
-        id: data.id,
-        email: data.email,
-        name: data.full_name,
-        role: data.role,
+        id: profile.id,
+        email: profile.email,
+        name: profile.full_name,
+        role: profile.role,
       }))
       router.push(user.redirect)
     } catch (e) {
@@ -230,8 +235,8 @@ function RegisterForm({ onSuccess }) {
       if (authError) throw authError
       const userId = authData.user.id
 
-      // Profil oluştur
-      await supabase.from('profiles').insert({
+      // Profil — handle_new_user trigger zaten satırı insert eder, biz role+phone'u güncelliyoruz
+      await supabase.from('profiles').upsert({
         id: userId,
         full_name: form.name,
         email: form.email,
@@ -239,7 +244,7 @@ function RegisterForm({ onSuccess }) {
         role: role === 'business_owner' ? 'business_owner' : 'customer',
         loyalty_points: 0,
         loyalty_tier: 'bronze',
-      })
+      }, { onConflict: 'id' })
 
       // Firma sahibiyse işletme kaydı oluştur (inceleme bekletir)
       if (role === 'business_owner') {

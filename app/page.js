@@ -1,23 +1,18 @@
 'use client'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { getActiveUser } from '@/lib/supabase'
 
 export default function Home() {
   const router = useRouter()
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('randevu_user')
-      if (raw) {
-        const u = JSON.parse(raw)
-        if (u.role === 'admin') { router.push('/admin'); return }
-        if (u.role === 'business_owner') { router.push('/business'); return }
-        router.push('/customer')
-      } else {
-        router.push('/login')
-      }
-    } catch {
-      router.push('/login')
-    }
+    (async () => {
+      const u = await getActiveUser()
+      if (!u) { router.push('/login'); return }
+      if (u.role === 'admin') { router.push('/admin'); return }
+      if (u.role === 'business_owner') { router.push('/business'); return }
+      router.push('/customer')
+    })()
   }, [router])
 
   return (

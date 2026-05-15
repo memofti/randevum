@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, sendNotification, sendWhatsApp, uploadMedia, deleteMedia, notifyWaitlist } from '@/lib/supabase'
+import { supabase, sendNotification, sendWhatsApp, uploadMedia, deleteMedia, notifyWaitlist, getActiveUser } from '@/lib/supabase'
 import dynamic from 'next/dynamic'
 const QRScanner = dynamic(() => import('@/app/components/business/QRScanner'), { ssr: false })
 
@@ -246,11 +246,11 @@ export default function BusinessPage() {
 
   // Auth
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('randevu_user')
-      if (!raw) { router.push('/login'); return }
-      setUser(JSON.parse(raw))
-    } catch { router.push('/login') }
+    (async () => {
+      const u = await getActiveUser()
+      if (!u) { router.push('/login'); return }
+      setUser(u)
+    })()
   }, [router])
 
   const loadAll = useCallback(async (bId, bizPlanKey='free') => {

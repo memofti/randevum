@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase, notifyWaitlist } from '@/lib/supabase'
+import { supabase, notifyWaitlist, getActiveUser } from '@/lib/supabase'
 import dynamic from 'next/dynamic'
 
 const MapView = dynamic(() => import('@/app/components/MapView'), { ssr: false })
@@ -85,11 +85,11 @@ export default function CustomerPage() {
 
   // Auth
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('randevu_user')
-      if (!raw) { router.push('/login'); return }
-      setUser(JSON.parse(raw))
-    } catch { router.push('/login') }
+    (async () => {
+      const u = await getActiveUser()
+      if (!u) { router.push('/login'); return }
+      setUser(u)
+    })()
   }, [router])
 
   // Konum — sayfa açılınca iste

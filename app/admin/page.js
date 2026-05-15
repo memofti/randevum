@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase, getActiveUser } from '@/lib/supabase'
 
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
 function Spin() { return <div className="w-5 h-5 border-2 border-gray-200 border-t-orange-500 rounded-full animate-spin flex-shrink-0" /> }
@@ -62,13 +62,12 @@ export default function AdminPage() {
   const fld=(k,v)=>setForm(p=>({...p,[k]:v}))
 
   useEffect(()=>{
-    try {
-      const raw=localStorage.getItem('randevu_user')
-      if(!raw){router.push('/login');return}
-      const u=JSON.parse(raw)
+    (async()=>{
+      const u = await getActiveUser()
+      if(!u){router.push('/login');return}
       if(u.role!=='admin'){router.push('/');return}
       setUser(u)
-    } catch{router.push('/login')}
+    })()
   },[router])
 
   async function loadAll() {
