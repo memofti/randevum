@@ -19,7 +19,7 @@ export default function StaffLoginPage() {
     if (!phone.trim() || !password.trim()) { setError('Telefon ve şifre zorunlu'); return }
     setLoading(true)
     try {
-      // RPC: tüm staff tablosunu çekmeden server-side eşleştirme yapar
+      // RPC: bcrypt verify + session token döner
       const { data, error } = await supabase.rpc('staff_login', {
         p_phone: phone,
         p_password: password,
@@ -27,8 +27,8 @@ export default function StaffLoginPage() {
       if (error) throw error
       const match = Array.isArray(data) ? data[0] : data
       if (!match) { setError('Telefon veya şifre hatalı'); setLoading(false); return }
-      // Şifre, randevu update RPC'leri için sessionStorage'da tutulur
-      sessionStorage.setItem('randevu_staff_pw', password)
+      // Plain şifre artık client'ta tutulmuyor — sadece 14 günlük session token
+      localStorage.setItem('randevu_staff_token', match.token)
       localStorage.setItem('randevu_staff', JSON.stringify({
         id: match.id,
         name: match.name,

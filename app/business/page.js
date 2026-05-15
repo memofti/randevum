@@ -434,6 +434,7 @@ export default function BusinessPage() {
     }
     setStaffSaving(true)
     try {
+      // Şifre payload'a yazılmıyor; bcrypt için ayrı RPC çağrısı
       const payload = {
         name: staffForm.name,
         speciality: staffForm.speciality || null,
@@ -441,19 +442,28 @@ export default function BusinessPage() {
         status: staffForm.status,
         avatar_url: staffForm.avatar_url || null,
       }
-      if (staffForm.password && staffForm.password.length >= 4) {
-        payload.password_hash = staffForm.password
-      }
+      let savedId
       if (staffModal === 'add') {
         const { data, error } = await supabase.from('staff').insert({ ...payload, business_id: bizId, appointment_count: 0 }).select().maybeSingle()
         if (error) throw error
+        savedId = data.id
         setStaff(p => [...p, data])
-        toast3('✅ Personel eklendi')
       } else {
         const { error } = await supabase.from('staff').update(payload).eq('id', staffModal.id)
         if (error) throw error
+        savedId = staffModal.id
         setStaff(p => p.map(s => s.id === staffModal.id ? { ...s, ...payload } : s))
-        toast3('✅ Personel güncellendi')
+      }
+      // Şifre güncellemesi varsa bcrypt'le sakla
+      if (staffForm.password && staffForm.password.length >= 4 && savedId) {
+        const { error: pwErr } = await supabase.rpc('set_staff_password', {
+          p_staff_id: savedId,
+          p_password: staffForm.password,
+        })
+        if (pwErr) { toast3('❌ Şifre kaydedilemedi: '+pwErr.message); }
+        else { toast3(staffModal === 'add' ? '✅ Personel eklendi (şifre ayarlandı)' : '✅ Güncellendi (şifre değişti)') }
+      } else {
+        toast3(staffModal === 'add' ? '✅ Personel eklendi' : '✅ Güncellendi')
       }
       setStaffModal(false)
       setStaffForm({ name:'', speciality:'', phone:'', password:'', avatar_url:'', status:'available' })

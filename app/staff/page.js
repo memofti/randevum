@@ -35,15 +35,15 @@ export default function StaffDashboard() {
     } catch { router.push('/staff/login') }
   }, [router])
 
-  const load = useCallback(async (staffId) => {
+  const load = useCallback(async () => {
     setLoading(true)
-    const pw = typeof window !== 'undefined' ? sessionStorage.getItem('randevu_staff_pw') : null
-    if (!pw) { router.push('/staff/login'); return }
-    const { data, error } = await supabase.rpc('staff_appointments', {
-      p_staff_id: staffId,
-      p_password: pw,
-    })
-    if (error) { console.error(error); setAppts([]); setLoading(false); return }
+    const token = typeof window !== 'undefined' ? localStorage.getItem('randevu_staff_token') : null
+    if (!token) { router.push('/staff/login'); return }
+    const { data, error } = await supabase.rpc('staff_appointments', { p_token: token })
+    if (error) {
+      if (error.message?.includes('invalid_session')) { logout(); return }
+      console.error(error); setAppts([]); setLoading(false); return
+    }
     // RPC dönüşünü mevcut komponentin beklediği şekle çevir
     const rows = (data || []).map(r => ({
       id: r.id,
@@ -62,23 +62,25 @@ export default function StaffDashboard() {
 
   useEffect(() => {
     if (!me?.id) return
-    load(me.id)
+    load()
     // RLS staff için auth.uid() olmadığından realtime postgres_changes
     // sessizce 0 satır gönderecek; manuel 30 sn'de bir poll
-    const t = setInterval(() => load(me.id), 30000)
+    const t = setInterval(() => load(), 30000)
     return () => clearInterval(t)
   }, [me, load])
 
   async function staffAction(id, status) {
-    const pw = typeof window !== 'undefined' ? sessionStorage.getItem('randevu_staff_pw') : null
-    if (!me?.id || !pw) { toast3('❌ Oturum süresi doldu — yeniden giriş yapın'); router.push('/staff/login'); return false }
+    const token = typeof window !== 'undefined' ? localStorage.getItem('randevu_staff_token') : null
+    if (!token) { toast3('❌ Oturum süresi doldu — yeniden giriş yapın'); logout(); return false }
     const { data, error } = await supabase.rpc('staff_update_appointment_status', {
-      p_staff_id: me.id,
-      p_password: pw,
+      p_token: token,
       p_appointment_id: id,
       p_status: status,
     })
-    if (error) { toast3('❌ '+error.message); return false }
+    if (error) {
+      if (error.message?.includes('invalid_session')) { toast3('❌ Oturum sonlandı'); logout(); return false }
+      toast3('❌ '+error.message); return false
+    }
     if (!data) { toast3('❌ Güncellenemedi — yetkiniz olmayabilir'); return false }
     return true
   }
@@ -92,9 +94,11 @@ export default function StaffDashboard() {
     if (!confirm('Bu randevu iptal edilsin mi?')) return
     if (await staffAction(id, 'cancelled')) { setAppts(p=>p.map(a=>a.id===id?{...a,status:'cancelled'}:a)); toast3('Randevu iptal edildi') }
   }
-  function logout() {
+  async function logout() {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('randevu_staff_token') : null
+    if (token) { try { await supabase.rpc('staff_logout', { p_token: token }) } catch {} }
     localStorage.removeItem('randevu_staff')
-    sessionStorage.removeItem('randevu_staff_pw')
+    localStorage.removeItem('randevu_staff_token')
     router.push('/staff/login')
   }
 
