@@ -604,9 +604,9 @@ export default function AdminPage() {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="h-12 bg-white border-b border-gray-200 flex items-center px-5 gap-3 flex-shrink-0 relative">
-          <span className="text-sm font-semibold text-gray-800">{NAV.find(x=>x[0]===view)?.[2]}</span>
-          <div className="ml-auto flex items-center gap-2">
+        <div className="h-12 bg-white border-b border-gray-200 flex items-center px-3 sm:px-5 gap-2 sm:gap-3 flex-shrink-0 relative">
+          <span className="text-sm font-semibold text-gray-800 truncate">{NAV.find(x=>x[0]===view)?.[2]}</span>
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
             <div className="hidden sm:flex items-center gap-1.5 text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1 rounded-full font-semibold">
               <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Supabase · Canlı
             </div>
@@ -629,7 +629,7 @@ export default function AdminPage() {
                 </button>
               ))}
             </div>
-            <button onClick={()=>setModal(true)} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg">{T('addBusiness')}</button>
+            <button onClick={()=>setModal(true)} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-2 sm:px-3 py-1.5 rounded-lg whitespace-nowrap"><span className="sm:hidden">+ Firma</span><span className="hidden sm:inline">{T('addBusiness')}</span></button>
           </div>
           {notifOpen && (
             <>
@@ -704,17 +704,17 @@ export default function AdminPage() {
                   </div>
                   <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-4">
                     <div className="font-bold text-sm mb-3">Tema Secici</div>
-                    <div className="flex gap-3">
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
                       {[["default","Varsayilan","#f97316"],["minimal","Minimal","#111"],["luxury","Luxury","#d4af37"],["soft","Soft","#ff8fab"],["bold","Bold","#764ba2"]].map(([k,n,c])=>(
                         <button key={k} onClick={async()=>{
                           const { error } = await supabase.from("platform_settings").upsert({key:"theme",value:k,updated_at:new Date().toISOString()})
                           if (error) { toast3("❌ Tema kaydedilemedi: "+error.message); return }
                           setActiveTheme(k)
                           toast3("✅ "+n+" temasi kaydedildi")
-                        }} className={"flex flex-col items-center gap-1 p-3 rounded-xl border-2 "+(activeTheme===k?"border-orange-500 bg-orange-50":"border-gray-200 hover:border-gray-300")}>
-                          <div className="w-8 h-8 rounded-full" style={{background:c}}/>
-                          <span className="text-xs font-semibold">{n}</span>
-                          {activeTheme===k&&<span className="text-xs text-green-600 font-bold">Aktif</span>}
+                        }} className={"flex flex-col items-center gap-1 p-2 sm:p-3 rounded-xl border-2 "+(activeTheme===k?"border-orange-500 bg-orange-50":"border-gray-200 hover:border-gray-300")}>
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full" style={{background:c}}/>
+                          <span className="text-[11px] sm:text-xs font-semibold text-center leading-tight">{n}</span>
+                          {activeTheme===k&&<span className="text-[10px] sm:text-xs text-green-600 font-bold">Aktif</span>}
                         </button>
                       ))}
                     </div>
@@ -776,7 +776,8 @@ export default function AdminPage() {
                         <span className="font-bold text-sm">Son Firmalar</span>
                         <button onClick={()=>setView('firms')} className="text-xs text-orange-500 hover:underline">Tümü →</button>
                       </div>
-                      <table className="w-full">
+                      <div className="overflow-x-auto">
+                      <table className="w-full min-w-[520px]">
                         <thead className="bg-gray-50"><tr>{['Firma','Kategori','Plan','Durum'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
                         <tbody>
                           {firms.slice(0,6).map((f,i)=>(
@@ -792,6 +793,7 @@ export default function AdminPage() {
                           ))}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                     <div className="space-y-4">
                       <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
@@ -892,8 +894,8 @@ export default function AdminPage() {
                   {reviewFirms.length===0?(
                     <div className="bg-white border border-gray-200 rounded-xl p-16 text-center"><div className="text-5xl mb-4">✅</div><div className="font-bold mb-1">Bekleyen başvuru yok</div></div>
                   ):(
-                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                      <table className="w-full">
+                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
+                      <table className="w-full min-w-[720px]">
                         <thead className="bg-gray-50"><tr>{['Firma','Sahip','Kategori','Şehir','Tarih','İşlemler'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
                         <tbody>
                           {reviewFirms.map((f,i)=>(
@@ -1250,8 +1252,8 @@ export default function AdminPage() {
                     </div>
                     <button onClick={openCouponAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">{T('addCoupon')}</button>
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                    <table className="w-full">
+                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
+                    <table className="w-full min-w-[720px]">
                       <thead className="bg-gray-50"><tr>{['Kod','İndirim','Kullanım','Geçerlilik','Durum','İşlem'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
                       <tbody>
                         {coupons.map(c=>(
@@ -1294,13 +1296,13 @@ export default function AdminPage() {
               {view==='subscriptions'&&(
                 <div>
                   <h1 className="text-xl font-bold mb-5">Abonelikler</h1>
-                  <div className="grid grid-cols-3 gap-4 mb-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
                     <KPI label="Pro Plan" value={planCounts.pro||0} sub={`₺${(planCounts.pro||0)*300}/ay`} color="orange" />
                     <KPI label="Enterprise" value={planCounts.enterprise||0} sub={`₺${(planCounts.enterprise||0)*750}/ay`} color="blue" />
                     <KPI label="Ücretsiz" value={planCounts.free||0} sub="Deneme" color="gray" />
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                    <table className="w-full">
+                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
+                    <table className="w-full min-w-[560px]">
                       <thead className="bg-gray-50"><tr>{['Firma','Plan','Durum','İşlem'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
                       <tbody>
                         {firms.map(f=>(

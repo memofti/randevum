@@ -60,7 +60,8 @@ export default function FaturaPage() {
         </div>
 
         {/* Tablo */}
-        <table className="w-full mb-8">
+        <div className="overflow-x-auto mb-8">
+        <table className="w-full min-w-[520px]">
           <thead>
             <tr className="bg-gray-50">
               <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Hizmet</th>
@@ -84,6 +85,7 @@ export default function FaturaPage() {
             </tr>
           </tfoot>
         </table>
+        </div>
 
         {/* Durum */}
         <div className="flex items-center justify-between mb-8">

@@ -1267,7 +1267,8 @@ export default function BusinessPage() {
                         <span className="font-bold text-sm">Son Randevular</span>
                         <button onClick={()=>setView('appointments')} className="text-xs text-orange-500 hover:underline">Tümü →</button>
                       </div>
-                      <table className="w-full">
+                      <div className="overflow-x-auto">
+                      <table className="w-full min-w-[640px]">
                         <thead className="bg-gray-50"><tr>
                           {['Müşteri','Hizmet','Tarih','Saat','Durum',''].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}
                         </tr></thead>
@@ -1287,6 +1288,7 @@ export default function BusinessPage() {
                           {appts.length===0 && <tr><td colSpan="6" className="px-4 py-8 text-center text-gray-400 text-sm">Henüz randevu yok</td></tr>}
                         </tbody>
                       </table>
+                      </div>
                     </div>
                     <div className="space-y-4">
                       <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
@@ -1660,8 +1662,8 @@ export default function BusinessPage() {
                       )
                     })()}
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                    <table className="w-full">
+                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
+                    <table className="w-full min-w-[760px]">
                       <thead className="bg-gray-50"><tr>
                         {['Hizmet','Açıklama','Süre','Fiyat','Randevu','Durum',''].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}
                       </tr></thead>
@@ -1705,7 +1707,8 @@ export default function BusinessPage() {
                       <input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400"
                         placeholder="İsim veya e-posta ara..." value={custSearch} onChange={e=>setCustSearch(e.target.value)} />
                     </div>
-                    <table className="w-full">
+                    <div className="overflow-x-auto">
+                    <table className="w-full min-w-[640px]">
                       <thead className="bg-gray-50"><tr>
                         {['Müşteri','E-posta','Randevu','Harcama','Son Ziyaret'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}
                       </tr></thead>
@@ -1730,6 +1733,7 @@ export default function BusinessPage() {
                         {filteredCusts.length===0&&<tr><td colSpan="5" className="px-4 py-10 text-center text-gray-400">{custSearch?'Sonuç bulunamadı':'Müşteri yok'}</td></tr>}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1746,15 +1750,15 @@ export default function BusinessPage() {
                   </div>
                   {/* Özet */}
                   {reviews.length>0&&(
-                    <div className="grid grid-cols-5 gap-3 mb-5">
+                    <div className="grid grid-cols-5 gap-1.5 sm:gap-3 mb-5">
                       {[5,4,3,2,1].map(star=>{
                         const cnt=reviews.filter(r=>Math.round(+r.rating)===star).length
                         const pct=reviews.length?Math.round(cnt/reviews.length*100):0
                         return (
-                          <div key={star} className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm text-center">
-                            <div className="text-amber-400 text-lg font-bold">{'★'.repeat(star)}</div>
-                            <div className="text-xl font-extrabold text-gray-800 mt-1">{cnt}</div>
-                            <div className="text-xs text-gray-400">%{pct}</div>
+                          <div key={star} className="bg-white border border-gray-200 rounded-xl p-2 sm:p-3 shadow-sm text-center">
+                            <div className="text-amber-400 text-xs sm:text-lg font-bold leading-none whitespace-nowrap">{'★'.repeat(star)}</div>
+                            <div className="text-base sm:text-xl font-extrabold text-gray-800 mt-1">{cnt}</div>
+                            <div className="text-[10px] sm:text-xs text-gray-400">%{pct}</div>
                           </div>
                         )
                       })}
@@ -2131,8 +2135,8 @@ export default function BusinessPage() {
                     </div>
                     <button onClick={openCouponAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Kupon Ekle</button>
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                    <table className="w-full">
+                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
+                    <table className="w-full min-w-[680px]">
                       <thead className="bg-gray-50"><tr>{['Kod','İndirim','Kullanım','Geçerlilik','Durum','İşlem'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
                       <tbody>
                         {coupons.map(c=>(
