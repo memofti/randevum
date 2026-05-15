@@ -9,6 +9,10 @@ const DEMO_USERS = [
   { email: 'admin@randevuapp.com',label: 'Admin',        sub: 'Süper Admin',          redirect: '/admin',    color: '#8b5cf6', icon: '⚙️' },
 ]
 
+// Demo butonlar varsayılan olarak kapalı. .env.local veya hosting ortamında
+// NEXT_PUBLIC_DEMO_ENABLED=true ile aç (sadece dev/staging için).
+const DEMO_ENABLED = process.env.NEXT_PUBLIC_DEMO_ENABLED === 'true'
+
 export default function LoginPage() {
   const router = useRouter()
   const [demoLoading, setDemoLoading] = useState(null)
@@ -59,40 +63,42 @@ export default function LoginPage() {
           <p className="text-white/40 text-sm">Randevu yönetim platformu</p>
         </div>
 
-        {/* Demo Giriş */}
-        <div className="mb-4">
-          <div className="text-white/30 text-xs font-semibold uppercase tracking-wider mb-3 text-center">Demo Hesaplar</div>
-          <div className="space-y-2">
-            {DEMO_USERS.map(u => (
-              <button key={u.email} onClick={() => loginAsDemo(u)} disabled={!!demoLoading}
-                className="w-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] hover:border-white/[0.2] rounded-2xl p-4 text-left transition-all group disabled:opacity-60">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style={{ background: u.color + '33', border: `1px solid ${u.color}44` }}>
-                    {demoLoading === u.email ? (
-                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                    ) : u.icon}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-white font-bold text-sm">{u.label}</div>
-                    <div className="text-white/35 text-xs mt-0.5">{u.sub} · {u.email}</div>
-                  </div>
-                  <div className="text-white/25 group-hover:text-white/50 transition-colors">→</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Demo Giriş — sadece DEMO_ENABLED true ise */}
+        {DEMO_ENABLED && (
+          <>
+            <div className="mb-4">
+              <div className="text-white/30 text-xs font-semibold uppercase tracking-wider mb-3 text-center">Demo Hesaplar</div>
+              <div className="space-y-2">
+                {DEMO_USERS.map(u => (
+                  <button key={u.email} onClick={() => loginAsDemo(u)} disabled={!!demoLoading}
+                    className="w-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] hover:border-white/[0.2] rounded-2xl p-4 text-left transition-all group disabled:opacity-60">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0" style={{ background: u.color + '33', border: `1px solid ${u.color}44` }}>
+                        {demoLoading === u.email ? (
+                          <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        ) : u.icon}
+                      </div>
+                      <div className="flex-1">
+                        <div className="text-white font-bold text-sm">{u.label}</div>
+                        <div className="text-white/35 text-xs mt-0.5">{u.sub} · {u.email}</div>
+                      </div>
+                      <div className="text-white/25 group-hover:text-white/50 transition-colors">→</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-1 h-px bg-white/10" />
+              <span className="text-white/25 text-xs font-semibold">VEYA</span>
+              <div className="flex-1 h-px bg-white/10" />
+            </div>
+          </>
+        )}
 
         {error && (
           <div className="bg-red-500/20 border border-red-500/40 text-red-300 text-sm px-4 py-3 rounded-xl mb-4 text-center">{error}</div>
         )}
-
-        {/* Ayırıcı */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex-1 h-px bg-white/10" />
-          <span className="text-white/25 text-xs font-semibold">VEYA</span>
-          <div className="flex-1 h-px bg-white/10" />
-        </div>
 
         {/* Tab Seçici */}
         <div className="bg-white/[0.06] border border-white/[0.1] rounded-2xl p-1 flex mb-4">

@@ -113,7 +113,7 @@ function KPI({ label, value, sub, color }) {
   )
 }
 
-const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['qrscan','📷','QR Okut'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['showcase','🖼️','Vitrin'],['ads','📢','Reklamlar'],['adpkgs','🎁','Reklam Paketleri'],['plans','📦','Üyelik Paketleri'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
+const NAV = [['dashboard','⊞','Dashboard'],['calendar','📅','Takvim'],['appointments','📋','Randevular'],['qrscan','📷','QR Okut'],['staff','👥','Personel'],['services','✨','Hizmetler'],['customers','🤝','Müşteriler'],['reviews','⭐','Yorumlar'],['showcase','🖼️','Vitrin'],['ads','📢','Reklamlar'],['adpkgs','🎁','Reklam Paketleri'],['coupons','🎟️','Kuponlar'],['plans','📦','Üyelik Paketleri'],['reports','📊','Raporlar'],['settings','⚙️','Ayarlar']]
 
 export default function BusinessPage() {
   const router = useRouter()
@@ -181,6 +181,11 @@ export default function BusinessPage() {
   
   const [workingHours, setWorkingHours] = useState({})
   const [whSaving, setWhSaving] = useState(false)
+  // Coupons
+  const [coupons, setCoupons] = useState([])
+  const [couponModal, setCouponModal] = useState(false) // false | 'add' | couponObj
+  const [couponForm, setCouponForm] = useState({code:'',description:'',discount_pct:0,discount_amount:0,min_amount:0,max_uses:'',valid_until:'',status:'active'})
+  const [couponSaving, setCouponSaving] = useState(false)
 
   const toast3 = (m) => { setToast(m); setTimeout(()=>setToast(''),3500) }
   const rtToast = (m) => { setRealtimeToast(m); setTimeout(()=>setRealtimeToast(''),6000) }
@@ -256,7 +261,7 @@ export default function BusinessPage() {
   const loadAll = useCallback(async (bId, bizPlanKey='free') => {
     setLoading(true)
     try {
-      const [ar,sr,svr,nr,rr,plAll,adsr,pkgs,myPurch,myPlanReq] = await Promise.all([
+      const [ar,sr,svr,nr,rr,plAll,adsr,pkgs,myPurch,myPlanReq,cpr] = await Promise.all([
         supabase.from('appointments').select('id,profile_id,service_id,staff_id,appointment_date,appointment_time,status,price,profiles(full_name,email),services(name,price,duration_min),staff(name)').eq('business_id',bId).order('appointment_date',{ascending:false}),
         supabase.from('staff').select('*').eq('business_id',bId),
         supabase.from('services').select('*').eq('business_id',bId),
@@ -267,6 +272,7 @@ export default function BusinessPage() {
         supabase.from('ad_packages').select('*').eq('status','active').order('sort_order'),
         supabase.from('ad_package_purchases').select('*').eq('business_id', bId).order('created_at',{ascending:false}),
         supabase.from('plan_upgrade_requests').select('*').eq('business_id', bId).order('created_at',{ascending:false}),
+        supabase.from('coupons').select('*').eq('business_id', bId).order('created_at',{ascending:false}),
       ])
       setAppts(ar.data||[])
       setStaff(sr.data||[])
@@ -281,6 +287,7 @@ export default function BusinessPage() {
       setAdPackages(pkgs?.data||[])
       setMyAdPurchases(myPurch?.data||[])
       setMyPlanRequests(myPlanReq?.data||[])
+      setCoupons(cpr?.data||[])
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
   }, [])
@@ -485,6 +492,63 @@ export default function BusinessPage() {
     setSvcs(p => p.filter(s => s.id !== id))
     setSvcModal(false)
     toast3('🗑️ Hizmet silindi')
+  }
+
+  // Coupons CRUD
+  function openCouponAdd() {
+    setCouponForm({code:'',description:'',discount_pct:0,discount_amount:0,min_amount:0,max_uses:'',valid_until:'',status:'active'})
+    setCouponModal('add')
+  }
+  function openCouponEdit(c) {
+    setCouponForm({
+      code: c.code, description: c.description||'',
+      discount_pct: c.discount_pct||0, discount_amount: c.discount_amount||0,
+      min_amount: c.min_amount||0,
+      max_uses: c.max_uses ?? '',
+      valid_until: c.valid_until ? c.valid_until.slice(0,10) : '',
+      status: c.status||'active',
+    })
+    setCouponModal(c)
+  }
+  async function saveCoupon() {
+    const code = couponForm.code.trim().toUpperCase()
+    if (!code) { toast3('❌ Kod zorunlu'); return }
+    if (!couponForm.discount_pct && !couponForm.discount_amount) { toast3('❌ İndirim oranı veya tutarı girin'); return }
+    if (!bizId) { toast3('❌ İşletme yüklenmedi'); return }
+    setCouponSaving(true)
+    try {
+      const payload = {
+        code,
+        business_id: bizId,
+        description: couponForm.description.trim() || null,
+        discount_pct: +couponForm.discount_pct || 0,
+        discount_amount: +couponForm.discount_amount || 0,
+        min_amount: +couponForm.min_amount || 0,
+        max_uses: couponForm.max_uses === '' ? null : +couponForm.max_uses,
+        valid_until: couponForm.valid_until ? new Date(couponForm.valid_until).toISOString() : null,
+        status: couponForm.status,
+      }
+      if (couponModal === 'add') {
+        const { data, error } = await supabase.from('coupons').insert(payload).select().maybeSingle()
+        if (error) throw error
+        setCoupons(p => [data, ...p])
+        toast3('✅ Kupon eklendi')
+      } else {
+        const { data, error } = await supabase.from('coupons').update(payload).eq('id', couponModal.id).select().maybeSingle()
+        if (error) throw error
+        setCoupons(p => p.map(c => c.id===couponModal.id ? {...c, ...data} : c))
+        toast3('✅ Kupon güncellendi')
+      }
+      setCouponModal(false)
+    } catch(e) { toast3('❌ '+e.message) }
+    finally { setCouponSaving(false) }
+  }
+  async function deleteCoupon(id, code) {
+    if (!confirm(`${code} kuponu silinsin mi?`)) return
+    await supabase.from('coupons').delete().eq('id', id)
+    setCoupons(p => p.filter(c => c.id !== id))
+    setCouponModal(false)
+    toast3('🗑️ Kupon silindi')
   }
   function openSvcAdd() {
     setSvcForm({ name: '', duration_min: 60, price: 0, status: 'active', description: '' })
@@ -839,6 +903,54 @@ export default function BusinessPage() {
       )}
 
       {/* HİZMET MODAL */}
+      {couponModal && (
+        <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setCouponModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white">
+              <div className="font-bold">{couponModal==='add'?'Kupon Ekle':'Kupon Düzenle'}</div>
+              <button onClick={()=>setCouponModal(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div><label className="text-xs font-bold block mb-1">Kod * (otomatik büyük harf)</label>
+                <input value={couponForm.code} onChange={e=>setCouponForm(p=>({...p,code:e.target.value.toUpperCase()}))} placeholder="ÖRN: BAHAR20" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 uppercase font-mono tracking-wider"/></div>
+              <div><label className="text-xs font-bold block mb-1">Açıklama</label>
+                <input value={couponForm.description} onChange={e=>setCouponForm(p=>({...p,description:e.target.value}))} placeholder="Kısa açıklama" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className="text-xs font-bold block mb-1">İndirim (%)</label>
+                  <input type="number" min="0" max="100" value={couponForm.discount_pct} onChange={e=>setCouponForm(p=>({...p,discount_pct:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
+                <div><label className="text-xs font-bold block mb-1">İndirim (₺)</label>
+                  <input type="number" min="0" value={couponForm.discount_amount} onChange={e=>setCouponForm(p=>({...p,discount_amount:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className="text-xs font-bold block mb-1">Min. Tutar (₺)</label>
+                  <input type="number" min="0" value={couponForm.min_amount} onChange={e=>setCouponForm(p=>({...p,min_amount:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
+                <div><label className="text-xs font-bold block mb-1">Max Kullanım</label>
+                  <input type="number" min="1" value={couponForm.max_uses} onChange={e=>setCouponForm(p=>({...p,max_uses:e.target.value}))} placeholder="Sınırsız" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className="text-xs font-bold block mb-1">Bitiş Tarihi</label>
+                  <input type="date" value={couponForm.valid_until} onChange={e=>setCouponForm(p=>({...p,valid_until:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
+                <div><label className="text-xs font-bold block mb-1">Durum</label>
+                  <select value={couponForm.status} onChange={e=>setCouponForm(p=>({...p,status:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
+                    <option value="active">Aktif</option>
+                    <option value="inactive">Pasif</option>
+                  </select></div>
+              </div>
+              {couponModal!=='add' && (
+                <div className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-2.5">
+                  Kullanım: <b>{couponModal.used_count}</b>{couponModal.max_uses?' / '+couponModal.max_uses:''}
+                </div>
+              )}
+            </div>
+            <div className="px-5 pb-5 flex gap-2 sticky bottom-0 bg-white pt-2 border-t border-gray-100">
+              {couponModal!=='add' && <button onClick={()=>deleteCoupon(couponModal.id, couponModal.code)} className="px-3 py-2.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-xl text-xs font-bold">🗑️ Sil</button>}
+              <button onClick={()=>setCouponModal(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
+              <button onClick={saveCoupon} disabled={couponSaving} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{couponSaving?'Kaydediliyor...':couponModal==='add'?'Ekle':'Güncelle'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {svcModal&&(
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setSvcModal(false)}>
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
@@ -1963,6 +2075,52 @@ export default function BusinessPage() {
                       )
                     })}
                     {adPackages.length===0 && <div className="col-span-3 text-center py-16 text-gray-400">Aktif paket bulunmuyor — Admin paket eklediğinde burada görünecek</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* KUPONLARIM */}
+              {view==='coupons' && (
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h1 className="text-xl font-bold">Kuponlarım</h1>
+                      <p className="text-sm text-gray-500">İşletmene özel indirim kodları — müşteriler randevu alırken kullanır</p>
+                    </div>
+                    <button onClick={openCouponAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Kupon Ekle</button>
+                  </div>
+                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                    <table className="w-full">
+                      <thead className="bg-gray-50"><tr>{['Kod','İndirim','Kullanım','Geçerlilik','Durum','İşlem'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
+                      <tbody>
+                        {coupons.map(c=>(
+                          <tr key={c.id} className="border-t border-gray-100 hover:bg-gray-50">
+                            <td className="px-4 py-3 text-sm">
+                              <div className="font-mono font-bold uppercase">{c.code}</div>
+                              {c.description && <div className="text-xs text-gray-500">{c.description}</div>}
+                            </td>
+                            <td className="px-4 py-3 text-sm">
+                              {c.discount_pct>0 && <span className="bg-orange-50 text-orange-700 font-bold px-2 py-0.5 rounded mr-1">%{c.discount_pct}</span>}
+                              {c.discount_amount>0 && <span className="bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded">₺{c.discount_amount}</span>}
+                              {c.min_amount>0 && <div className="text-[10px] text-gray-400 mt-0.5">min ₺{c.min_amount}</div>}
+                            </td>
+                            <td className="px-4 py-3 text-sm"><b>{c.used_count}</b>{c.max_uses?' / '+c.max_uses:''}</td>
+                            <td className="px-4 py-3 text-xs text-gray-500">{c.valid_until ? new Date(c.valid_until).toLocaleDateString('tr-TR') : 'Sınırsız'}</td>
+                            <td className="px-4 py-3">
+                              <span className={'text-xs font-bold px-2 py-0.5 rounded-full border '+
+                                (c.status==='active'?'bg-green-50 text-green-700 border-green-200':c.status==='inactive'?'bg-gray-100 text-gray-600 border-gray-200':'bg-red-50 text-red-600 border-red-200')}>
+                                {c.status==='active'?'Aktif':c.status==='inactive'?'Pasif':'Süresi Doldu'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <button onClick={()=>openCouponEdit(c)} className="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2.5 py-1 rounded-lg font-semibold mr-1">✏️</button>
+                              <button onClick={()=>deleteCoupon(c.id, c.code)} className="text-xs bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg font-semibold">🗑️</button>
+                            </td>
+                          </tr>
+                        ))}
+                        {coupons.length===0 && <tr><td colSpan="6" className="px-4 py-12 text-center text-gray-400">Henüz kuponun yok — <button onClick={openCouponAdd} className="text-orange-500 hover:underline">ilkini ekle</button></td></tr>}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
