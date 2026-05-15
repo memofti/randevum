@@ -243,17 +243,8 @@ export default function CustomerPage() {
         rating: reviewForm.rating,
         comment: reviewForm.comment,
       })
-      if (!error) {
-        const { data: allReviews } = await supabase
-          .from('reviews').select('rating').eq('business_id', reviewModal.business_id)
-        if (allReviews?.length) {
-          const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length
-          await supabase.from('businesses').update({
-            rating: Math.round(avg * 10) / 10,
-            review_count: allReviews.length
-          }).eq('id', reviewModal.business_id)
-        }
-      }
+      if (error) throw error
+      // Rating + review_count DB trigger ile güncelleniyor (update_business_rating)
       setReviewModal(null)
       setReviewForm({ rating: 5, comment: '' })
       toast3('✅ Yorumunuz gönderildi, teşekkürler!')
@@ -406,7 +397,7 @@ export default function CustomerPage() {
     setBooking(true)
     try {
       const svc = bizServices.find(s => s.id === bookForm.service)
-      const { data: newAppt } = await supabase.from('appointments').insert({
+      const { data: newAppt, error: apptErr } = await supabase.from('appointments').insert({
         business_id: detailBiz.id,
         profile_id: user.id,
         service_id: bookForm.service,
@@ -416,6 +407,10 @@ export default function CustomerPage() {
         status: 'pending',
         price: svc?.price || 0,
       }).select().maybeSingle()
+      if (apptErr) {
+        if (apptErr.code === '23505') { toast3('❌ Bu saat az önce dolduruldu — başka saat seçin'); setBooking(false); return }
+        throw apptErr
+      }
 
       // Ödeme kaydı oluştur
       if (newAppt) {

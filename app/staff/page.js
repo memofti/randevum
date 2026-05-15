@@ -37,46 +37,64 @@ export default function StaffDashboard() {
 
   const load = useCallback(async (staffId) => {
     setLoading(true)
-    const { data } = await supabase
-      .from('appointments')
-      .select('id, appointment_date, appointment_time, status, price, notes, profiles(full_name,email,phone), services(name,price,duration_min)')
-      .eq('staff_id', staffId)
-      .order('appointment_date', { ascending: true })
-      .order('appointment_time', { ascending: true })
-    setAppts(data || [])
+    const pw = typeof window !== 'undefined' ? sessionStorage.getItem('randevu_staff_pw') : null
+    if (!pw) { router.push('/staff/login'); return }
+    const { data, error } = await supabase.rpc('staff_appointments', {
+      p_staff_id: staffId,
+      p_password: pw,
+    })
+    if (error) { console.error(error); setAppts([]); setLoading(false); return }
+    // RPC dönüşünü mevcut komponentin beklediği şekle çevir
+    const rows = (data || []).map(r => ({
+      id: r.id,
+      appointment_date: r.appointment_date,
+      appointment_time: r.appointment_time,
+      status: r.status,
+      price: r.price,
+      notes: r.notes,
+      qr_token: r.qr_token,
+      profiles: { full_name: r.customer_name, email: r.customer_email, phone: r.customer_phone },
+      services: { name: r.service_name, price: r.service_price, duration_min: r.service_duration },
+    }))
+    setAppts(rows)
     setLoading(false)
-  }, [])
+  }, [router])
 
   useEffect(() => {
     if (!me?.id) return
     load(me.id)
-    // realtime — kendi randevuların geldiğinde güncelle
-    const ch = supabase
-      .channel('staff-rt-'+me.id)
-      .on('postgres_changes', { event:'*', schema:'public', table:'appointments', filter:`staff_id=eq.${me.id}` },
-        () => load(me.id))
-      .subscribe()
-    return () => { supabase.removeChannel(ch) }
+    // RLS staff için auth.uid() olmadığından realtime postgres_changes
+    // sessizce 0 satır gönderecek; manuel 30 sn'de bir poll
+    const t = setInterval(() => load(me.id), 30000)
+    return () => clearInterval(t)
   }, [me, load])
 
+  async function staffAction(id, status) {
+    const pw = typeof window !== 'undefined' ? sessionStorage.getItem('randevu_staff_pw') : null
+    if (!me?.id || !pw) { toast3('❌ Oturum süresi doldu — yeniden giriş yapın'); router.push('/staff/login'); return false }
+    const { data, error } = await supabase.rpc('staff_update_appointment_status', {
+      p_staff_id: me.id,
+      p_password: pw,
+      p_appointment_id: id,
+      p_status: status,
+    })
+    if (error) { toast3('❌ '+error.message); return false }
+    if (!data) { toast3('❌ Güncellenemedi — yetkiniz olmayabilir'); return false }
+    return true
+  }
   async function confirmAppt(id) {
-    await supabase.from('appointments').update({status:'confirmed'}).eq('id',id)
-    setAppts(p=>p.map(a=>a.id===id?{...a,status:'confirmed'}:a))
-    toast3('✅ Randevu onaylandı')
+    if (await staffAction(id, 'confirmed')) { setAppts(p=>p.map(a=>a.id===id?{...a,status:'confirmed'}:a)); toast3('✅ Randevu onaylandı') }
   }
   async function completeAppt(id) {
-    await supabase.from('appointments').update({status:'completed'}).eq('id',id)
-    setAppts(p=>p.map(a=>a.id===id?{...a,status:'completed'}:a))
-    toast3('✅ Tamamlandı')
+    if (await staffAction(id, 'completed')) { setAppts(p=>p.map(a=>a.id===id?{...a,status:'completed'}:a)); toast3('✅ Tamamlandı') }
   }
   async function cancelAppt(id) {
     if (!confirm('Bu randevu iptal edilsin mi?')) return
-    await supabase.from('appointments').update({status:'cancelled'}).eq('id',id)
-    setAppts(p=>p.map(a=>a.id===id?{...a,status:'cancelled'}:a))
-    toast3('Randevu iptal edildi')
+    if (await staffAction(id, 'cancelled')) { setAppts(p=>p.map(a=>a.id===id?{...a,status:'cancelled'}:a)); toast3('Randevu iptal edildi') }
   }
   function logout() {
     localStorage.removeItem('randevu_staff')
+    sessionStorage.removeItem('randevu_staff_pw')
     router.push('/staff/login')
   }
 

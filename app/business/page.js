@@ -679,17 +679,23 @@ export default function BusinessPage() {
       if (conflict) { toast3('❌ Bu saatte ' + (targetStaff ? 'personelin' : 'firmanın') + ' başka randevusu var'); setSaving(false); return }
       let profileId = null
       if(form.cemail){
-        const {data:ex}=await supabase.from('profiles').select('id').eq('email',form.cemail).maybeSingle()
-        if(ex) profileId=ex.id
-        else {
-          const {data:np}=await supabase.from('profiles').insert({full_name:form.cname,email:form.cemail,role:'customer'}).select('id').maybeSingle()
-          profileId=np?.id
-        }
+        // Walk-in müşteri profili — RLS sıkı, RPC SECURITY DEFINER ile yaratıyoruz
+        const { data: pid, error: pErr } = await supabase.rpc('create_walkin_customer', {
+          p_full_name: form.cname,
+          p_email: form.cemail,
+          p_business_id: bizId,
+        })
+        if (pErr) { toast3('❌ Müşteri eklenemedi: '+pErr.message); setSaving(false); return }
+        profileId = pid
       }
-      const {data:newAppt}=await supabase.from('appointments').insert({
+      const {data:newAppt, error: apptErr}=await supabase.from('appointments').insert({
         business_id:bizId,profile_id:profileId,service_id:form.service||null,staff_id:form.staff||null,
         appointment_date:form.date,appointment_time:form.time,status:'pending',price:svc?.price||0
       }).select().maybeSingle()
+      if (apptErr) {
+        if (apptErr.code === '23505') { toast3('❌ Bu saat aynı anda başkası tarafından alındı — başka saat seçin'); setSaving(false); return }
+        throw apptErr
+      }
       // Bildirim oluştur
       if(newAppt){
         await supabase.from('notifications').insert({

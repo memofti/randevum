@@ -19,12 +19,16 @@ export default function StaffLoginPage() {
     if (!phone.trim() || !password.trim()) { setError('Telefon ve şifre zorunlu'); return }
     setLoading(true)
     try {
-      const norm = normalizePhone(phone)
-      const { data } = await supabase
-        .from('staff')
-        .select('id, name, phone, password_hash, business_id, avatar_url, speciality, businesses(name,emoji)')
-      const match = (data || []).find(s => normalizePhone(s.phone) === norm && s.password_hash === password)
+      // RPC: tüm staff tablosunu çekmeden server-side eşleştirme yapar
+      const { data, error } = await supabase.rpc('staff_login', {
+        p_phone: phone,
+        p_password: password,
+      })
+      if (error) throw error
+      const match = Array.isArray(data) ? data[0] : data
       if (!match) { setError('Telefon veya şifre hatalı'); setLoading(false); return }
+      // Şifre, randevu update RPC'leri için sessionStorage'da tutulur
+      sessionStorage.setItem('randevu_staff_pw', password)
       localStorage.setItem('randevu_staff', JSON.stringify({
         id: match.id,
         name: match.name,
@@ -32,8 +36,8 @@ export default function StaffLoginPage() {
         business_id: match.business_id,
         avatar_url: match.avatar_url,
         speciality: match.speciality,
-        business_name: match.businesses?.name,
-        business_emoji: match.businesses?.emoji,
+        business_name: match.business_name,
+        business_emoji: match.business_emoji,
       }))
       router.push('/staff')
     } catch (e) {
