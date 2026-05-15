@@ -457,7 +457,15 @@ export default function CustomerPage() {
     await supabase.from('appointments').update({ status:'cancelled' }).eq('id', id)
     setAppointments(p => p.map(a => a.id===id ? {...a,status:'cancelled'} : a))
     toast3('Randevu iptal edildi')
-    if (appt) notifyWaitlist(appt.business_id, appt.appointment_date)
+    if (appt) {
+      // Firma sahibine ve müşteriye notification — edge function
+      fetch(process.env.NEXT_PUBLIC_SUPABASE_URL + '/functions/v1/send-notification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY },
+        body: JSON.stringify({ type: 'cancelled', appointment_id: id })
+      }).catch(()=>{})
+      notifyWaitlist(appt.business_id, appt.appointment_date)
+    }
   }
 
   const generateSlots = () => {

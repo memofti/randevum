@@ -2359,6 +2359,26 @@ export default function BusinessPage() {
               {view==='settings' && (
                 <div>
                   <h1 className="text-xl font-bold mb-5">Ayarlar</h1>
+
+                  {/* Bildirim İzni */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mb-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="font-bold text-sm">🔔 Tarayıcı Bildirimleri</div>
+                        <div className="text-xs text-gray-500 mt-0.5">Yeni randevu geldiğinde anında bildirim alın</div>
+                      </div>
+                      <button onClick={async()=>{
+                        const { requestNotificationPermission, subscribePush } = await import('@/lib/push')
+                        const perm = await requestNotificationPermission()
+                        if (perm !== 'granted') { toast3('🔕 Bildirim izni reddedildi'); return }
+                        const sub = await subscribePush(user?.id)
+                        toast3(sub ? '🔔 Bildirimler aktif!' : '🔔 Yerel bildirimler aktif (push key yok)')
+                      }} className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold whitespace-nowrap">
+                        Bildirimleri Aç
+                      </button>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
                     {/* Firma Bilgileri */}
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
