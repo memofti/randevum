@@ -80,6 +80,11 @@ export default function CustomerPage() {
   const [qrModal, setQrModal] = useState(null)
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' })
   const [submittingReview, setSubmittingReview] = useState(false)
+  // Reschedule
+  const [rescheduleModal, setRescheduleModal] = useState(null) // appt obj
+  const [rescheduleForm, setRescheduleForm] = useState({ date: '', time: '' })
+  const [rescheduleTaken, setRescheduleTaken] = useState([])
+  const [rescheduling, setRescheduling] = useState(false)
 
   const toast3 = (m) => { setToast(m); setTimeout(() => setToast(''), 3500) }
 
@@ -336,12 +341,16 @@ export default function CustomerPage() {
 
       const svc = bizServices.find(s=>s.id===form.service)
       const finalPrice = form.total ?? svc?.price ?? 0
-      const { data: newAppt } = await supabase.from('appointments').insert({
+      const { data: newAppt, error: apptErr } = await supabase.from('appointments').insert({
         business_id: detailBiz.id, profile_id: user.id,
         service_id: form.service, staff_id: form.staff||null,
         appointment_date: form.date, appointment_time: form.time,
         status: 'pending', price: finalPrice,
       }).select().maybeSingle()
+      if (apptErr) {
+        if (apptErr.code === '23505') { toast3('❌ Bu saat az önce dolduruldu — başka saat seçin'); setBooking(false); return }
+        throw apptErr
+      }
       if (newAppt) {
         await supabase.from('payments').insert({
           appointment_id: newAppt.id, profile_id: user.id,
@@ -351,10 +360,16 @@ export default function CustomerPage() {
         })
       }
       try {
-        const pts = planRow?.loyalty_points_per_appt ?? 10
-        await supabase.from('loyalty_transactions').insert({profile_id:user.id,business_id:detailBiz.id,points:pts,type:'earn',description:detailBiz.name+' randevusu'})
-        await supabase.from('profiles').update({loyalty_points:(user.loyalty_points||0)+pts}).eq('id',user.id)
-        setUser(p=>({...p,loyalty_points:(p.loyalty_points||0)+pts}))
+        // Önce kullanılan puanları düş
+        const redeemed = form.pointsUsed || 0
+        const earned = planRow?.loyalty_points_per_appt ?? 10
+        if (redeemed > 0) {
+          await supabase.from('loyalty_transactions').insert({profile_id:user.id,business_id:detailBiz.id,points:-redeemed,type:'redeem',description:'Randevu indirimi'})
+        }
+        await supabase.from('loyalty_transactions').insert({profile_id:user.id,business_id:detailBiz.id,points:earned,type:'earn',description:detailBiz.name+' randevusu'})
+        const newBalance = Math.max(0, (user.loyalty_points||0) - redeemed + earned)
+        await supabase.from('profiles').update({loyalty_points:newBalance}).eq('id',user.id)
+        setUser(p=>({...p,loyalty_points:newBalance}))
       } catch(e) {}
       // Kupon tüketimi — booking başarılıysa redeem
       if (form.couponId) {
@@ -452,6 +467,43 @@ export default function CustomerPage() {
     }
   }
 
+  async function openReschedule(appt) {
+    setRescheduleForm({ date: '', time: '' })
+    setRescheduleTaken([])
+    setRescheduleModal(appt)
+  }
+  async function loadRescheduleSlots(date) {
+    if (!date || !rescheduleModal) return
+    const { data } = await supabase.from('appointments').select('appointment_time')
+      .eq('business_id', rescheduleModal.business_id)
+      .eq('appointment_date', date)
+      .in('status',['pending','confirmed'])
+      .neq('id', rescheduleModal.id)
+    setRescheduleTaken((data||[]).map(a => String(a.appointment_time).slice(0,5)))
+  }
+  async function confirmReschedule() {
+    if (!rescheduleModal || !rescheduleForm.date || !rescheduleForm.time) return
+    setRescheduling(true)
+    try {
+      const { error } = await supabase.from('appointments')
+        .update({ appointment_date: rescheduleForm.date, appointment_time: rescheduleForm.time, status: 'pending' })
+        .eq('id', rescheduleModal.id)
+      if (error) {
+        if (error.code === '23505') { toast3('❌ Bu saat dolu — başka saat seçin'); setRescheduling(false); return }
+        throw error
+      }
+      const oldDate = rescheduleModal.appointment_date
+      setAppointments(p => p.map(a => a.id===rescheduleModal.id
+        ? {...a, appointment_date: rescheduleForm.date, appointment_time: rescheduleForm.time, status: 'pending'}
+        : a))
+      // Eski tarihte bekleyenlere haber ver
+      notifyWaitlist(rescheduleModal.business_id, oldDate)
+      setRescheduleModal(null)
+      toast3('✅ Randevu taşındı')
+    } catch(e) { toast3('❌ '+e.message) }
+    finally { setRescheduling(false) }
+  }
+
   async function cancelAppt(id) {
     const appt = appointments.find(a => a.id === id)
     await supabase.from('appointments').update({ status:'cancelled' }).eq('id', id)
@@ -534,7 +586,7 @@ export default function CustomerPage() {
     detailLoading, bookModal, setBookModal, setDetailBiz,
     activeAdDiscount, paymentEnabled, toast3, userLoc,
     searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
-    cancelAppt, setReviewModal, setReviewForm, qrModal, setQrModal,
+    cancelAppt, rescheduleAppt: openReschedule, setReviewModal, setReviewForm, qrModal, setQrModal,
     upcomingAppts, pastAppts, saveBooking,
     // Profil tab shared component props
     profLoading, profileForm, setProfileForm, editProfile, setEditProfile,
@@ -544,13 +596,55 @@ export default function CustomerPage() {
 
   if (!user) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white/20 border-t-orange-500 rounded-full animate-spin" /></div>
 
-  if (themeKey === 'minimal') return <MinimalTheme {...themeProps} />
-  if (themeKey === 'luxury') return <LuxuryTheme {...themeProps} />
-  if (themeKey === 'soft') return <SoftTheme {...themeProps} />
-  if (themeKey === 'bold') return <BoldTheme {...themeProps} />
+  const RescheduleOverlay = rescheduleModal && (
+    <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setRescheduleModal(null)}>
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
+        <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+          <div className="min-w-0">
+            <div className="font-bold text-base">📆 Randevu Taşı</div>
+            <div className="text-xs text-gray-500 truncate">{rescheduleModal.businesses?.name||'İşletme'} — {rescheduleModal.services?.name||''}</div>
+          </div>
+          <button onClick={()=>setRescheduleModal(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 text-lg">✕</button>
+        </div>
+        <div className="p-5 space-y-3">
+          <div className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-2.5">
+            Mevcut: <b>{new Date(rescheduleModal.appointment_date).toLocaleDateString('tr-TR')}</b> {String(rescheduleModal.appointment_time).slice(0,5)}
+          </div>
+          <div><label className="text-xs font-bold block mb-1">Yeni Tarih *</label>
+            <input type="date" min={new Date().toISOString().split('T')[0]}
+              value={rescheduleForm.date}
+              onChange={e=>{ setRescheduleForm(p=>({...p,date:e.target.value,time:''})); loadRescheduleSlots(e.target.value) }}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
+          <div><label className="text-xs font-bold block mb-1">Yeni Saat *</label>
+            <input type="time" value={rescheduleForm.time}
+              onChange={e=>setRescheduleForm(p=>({...p,time:e.target.value}))}
+              disabled={!rescheduleForm.date}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 disabled:bg-gray-50"/>
+            {rescheduleForm.time && rescheduleTaken.includes(rescheduleForm.time) && (
+              <div className="text-xs text-red-600 mt-1">⚠️ Bu saat dolu</div>
+            )}
+          </div>
+        </div>
+        <div className="px-5 pb-5 flex gap-2">
+          <button onClick={()=>setRescheduleModal(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
+          <button onClick={confirmReschedule}
+            disabled={rescheduling || !rescheduleForm.date || !rescheduleForm.time || rescheduleTaken.includes(rescheduleForm.time)}
+            className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold">
+            {rescheduling?'Taşınıyor...':'✓ Taşı'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  if (themeKey === 'minimal') return <>{RescheduleOverlay}<MinimalTheme {...themeProps} /></>
+  if (themeKey === 'luxury') return <>{RescheduleOverlay}<LuxuryTheme {...themeProps} /></>
+  if (themeKey === 'soft') return <>{RescheduleOverlay}<SoftTheme {...themeProps} /></>
+  if (themeKey === 'bold') return <>{RescheduleOverlay}<BoldTheme {...themeProps} /></>
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
+      {RescheduleOverlay}
       <QRModal qrModal={qrModal} setQrModal={setQrModal} />
       {toast && <div className="fixed bottom-6 right-6 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-xl animate-in slide-in-from-bottom-2">{toast}</div>}
 
@@ -752,6 +846,7 @@ export default function CustomerPage() {
         variant="default"
         uiLang={uiLang}
         userId={user?.id}
+        userPoints={user?.loyalty_points||0}
         onClose={()=>{setBookModal(false)}}
         onBook={saveBooking}
         toast3={toast3}

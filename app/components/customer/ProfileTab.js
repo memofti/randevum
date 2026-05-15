@@ -91,6 +91,27 @@ export default function ProfileTab({
             className={'w-full py-2.5 rounded-xl text-sm font-semibold transition-colors '+(isDark?'bg-white/5 hover:bg-white/10 text-white/70 border border-white/10':'bg-gray-100 hover:bg-gray-200 text-gray-600')}>
             🚪 {T('logout')}
           </button>
+
+          {/* KVKK — Hesabı sil */}
+          <button onClick={async()=>{
+            const c1 = window.confirm(uiLang==='en'
+              ? 'This will PERMANENTLY delete your account and ALL data (appointments, reviews, points). Continue?'
+              : 'Hesabınız ve TÜM verileriniz (randevular, yorumlar, puanlar) kalıcı olarak silinecek. Devam etmek istiyor musunuz?')
+            if (!c1) return
+            const c2 = window.prompt(uiLang==='en' ? 'Type DELETE to confirm:' : 'Onaylamak için SİL yazın:')
+            if (c2 !== (uiLang==='en' ? 'DELETE' : 'SİL')) return
+            try {
+              const { error } = await supabase.rpc('delete_my_account')
+              if (error) throw error
+              await supabase.auth.signOut()
+              localStorage.removeItem('randevu_user')
+              window.location.href = '/login'
+            } catch(e) {
+              toast3?.('❌ '+e.message)
+            }
+          }} className={'w-full mt-2 py-2.5 rounded-xl text-xs font-semibold transition-colors '+(isDark?'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30':'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200')}>
+            🗑️ {uiLang==='en' ? 'Delete my account' : 'Hesabımı sil (KVKK)'}
+          </button>
         </div>
 
         {/* SAĞ — sadakat hero + ayarlar */}

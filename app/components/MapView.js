@@ -73,9 +73,13 @@ export default function MapView({ businesses, onBook }) {
   }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined' || mapInstanceRef.current) return
-    let map
-    import('leaflet').then(mod => {
+    if (typeof window === 'undefined') return
+    if (mapInstanceRef.current) return
+    let cancelled = false
+
+    ;(async () => {
+      const mod = await import('leaflet')
+      if (cancelled || !mapRef.current || mapInstanceRef.current) return
       const L = mod.default || mod
       delete L.Icon.Default.prototype._getIconUrl
       L.Icon.Default.mergeOptions({
@@ -83,21 +87,30 @@ export default function MapView({ businesses, onBook }) {
         iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
         shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
       })
-      if (!mapRef.current || mapInstanceRef.current) return
-      map = L.map(mapRef.current, { zoomControl: true }).setView([41.015, 28.979], 12)
+      // Önceki broken mount'tan kalan claim varsa temizle (strict mode double-mount)
+      if (mapRef.current._leaflet_id) {
+        try { delete mapRef.current._leaflet_id } catch {}
+      }
+      const map = L.map(mapRef.current, { zoomControl: true }).setView([41.015, 28.979], 12)
       mapInstanceRef.current = map
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(map)
       setMapReady(true)
-      // İlk render sonrası boyutu yeniden hesapla (mobilde hidden olarak başlayabilir)
-      requestAnimationFrame(() => map.invalidateSize())
-      // ResizeObserver ile container boyutu değişince (mobilde tab switch dahil) yeniden hesapla
+      requestAnimationFrame(() => { try { map.invalidateSize() } catch {} })
       if (typeof ResizeObserver !== 'undefined' && mapRef.current) {
         const ro = new ResizeObserver(() => { try { map.invalidateSize() } catch {} })
         ro.observe(mapRef.current)
         map._resizeObserver = ro
       }
-    })
-    return () => { if (map) { try { map._resizeObserver?.disconnect() } catch {}; map.remove(); mapInstanceRef.current = null } }
+    })()
+
+    return () => {
+      cancelled = true
+      if (mapInstanceRef.current) {
+        try { mapInstanceRef.current._resizeObserver?.disconnect() } catch {}
+        try { mapInstanceRef.current.remove() } catch {}
+        mapInstanceRef.current = null
+      }
+    }
   }, [])
 
   // Mobilde Harita sekmesine geçince Leaflet'i tetikle (display:none → flex)

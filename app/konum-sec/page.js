@@ -10,20 +10,23 @@ export default function KonumSec() {
 
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return
+    let cancelled = false
 
     const link = document.createElement('link')
     link.rel = 'stylesheet'
     link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
     document.head.appendChild(link)
 
-    setTimeout(async () => {
+    const t = setTimeout(async () => {
       const L = (await import('leaflet')).default
+      if (cancelled || !mapRef.current || mapInstance.current) return
       delete L.Icon.Default.prototype._getIconUrl
       L.Icon.Default.mergeOptions({
         iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
         shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
       })
+      if (mapRef.current._leaflet_id) { try { delete mapRef.current._leaflet_id } catch {} }
 
       const map = L.map(mapRef.current).setView([41.015, 28.979], 11)
       mapInstance.current = map
@@ -48,6 +51,13 @@ export default function KonumSec() {
 
       setReady(true)
     }, 100)
+
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+      if (mapInstance.current) { try { mapInstance.current.remove() } catch {}; mapInstance.current = null }
+      markerRef.current = null
+    }
   }, [])
 
   const handleConfirm = () => {

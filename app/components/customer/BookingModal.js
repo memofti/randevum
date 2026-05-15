@@ -11,7 +11,10 @@ const VARIANTS = {
   bold:    { bg:'#fff', ink:'#0a0a12', muted:'#5a5d6a', accent:'#1736ff', border:'#0a0a12', inputBg:'#fff', summary:'#fff', summaryBorder:'#0a0a12' },
 }
 
-export default function BookingModal({ biz, services, staff, onClose, onBook, toast3, discount=0, paymentEnabled=false, variant='default', uiLang='tr', userId=null }) {
+// 100 puan = ₺10 indirim (10x oran)
+const POINTS_PER_TL = 10
+
+export default function BookingModal({ biz, services, staff, onClose, onBook, toast3, discount=0, paymentEnabled=false, variant='default', uiLang='tr', userId=null, userPoints=0 }) {
   const [form, setForm] = useState({ service:'', staff:'', date:'', time:'' })
   const [payStep, setPayStep] = useState(false)
   const [payCard, setPayCard] = useState({ name:'', number:'', expire:'', cvv:'' })
@@ -21,6 +24,7 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
   const [couponInput, setCouponInput] = useState('')
   const [couponApplied, setCouponApplied] = useState(null) // {id, code, pct?, amount?}
   const [couponChecking, setCouponChecking] = useState(false)
+  const [usePoints, setUsePoints] = useState(false)
   const [alarmSet, setAlarmSet] = useState(false)
   const [settingAlarm, setSettingAlarm] = useState(false)
 
@@ -31,6 +35,8 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
 
   const generateSlots = () => {
     if (!form.date) return []
+    // Tatil/kapalı gün kontrolü
+    if (Array.isArray(biz.closed_dates) && biz.closed_dates.includes(form.date)) return null
     const day = new Date(form.date).getDay()
     const defaultWH = {"1":{str:"09:00",end:"18:00",off:false},"2":{str:"09:00",end:"18:00",off:false},"3":{str:"09:00",end:"18:00",off:false},"4":{str:"09:00",end:"18:00",off:false},"5":{str:"09:00",end:"18:00",off:false},"6":{str:"10:00",end:"15:00",off:false},"0":{str:"09:00",end:"18:00",off:true}}
     const wh = (biz.working_hours||defaultWH)[day]
@@ -59,7 +65,13 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
   const basePrice = svc?.price || 0
   const campaignDiscount = discount > 0 ? Math.round(basePrice * discount / 100) : 0
   const couponDiscount = couponApplied?.computed_discount ?? 0
-  const total = Math.max(0, basePrice - campaignDiscount - couponDiscount)
+  // Sadakat puanı indirimi: önce kupon/kampanya sonrası kalan tutarın en fazla %50'si puanla ödenebilir
+  const afterDisc = Math.max(0, basePrice - campaignDiscount - couponDiscount)
+  const maxRedeemableTL = Math.floor(afterDisc * 0.5)
+  const availablePointsTL = Math.floor((userPoints || 0) / POINTS_PER_TL)
+  const pointsDiscount = usePoints ? Math.min(maxRedeemableTL, availablePointsTL) : 0
+  const pointsUsed = pointsDiscount * POINTS_PER_TL
+  const total = Math.max(0, afterDisc - pointsDiscount)
 
   // Gün tamamen dolu mu? (slot listesi var, hepsi taken)
   const dayIsFull = !!form.date && !slotsLoading && availableSlots !== null && availableSlots.length > 0
@@ -130,7 +142,7 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
     if (!form.service||!form.date||!form.time) { toast3(T('selectRequired')); return }
     if (takenSlots.includes(form.time)) { toast3(T('slotTaken')); return }
     setBooking(true)
-    await onBook({ ...form, total, campaignDiscount, couponDiscount, couponCode: couponApplied?.code, couponId: couponApplied?.id }, payCard)
+    await onBook({ ...form, total, campaignDiscount, couponDiscount, couponCode: couponApplied?.code, couponId: couponApplied?.id, pointsUsed, pointsDiscount }, payCard)
     setBooking(false)
   }
 
@@ -261,12 +273,28 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
                 )}
               </div>
 
+              {/* Sadakat puanı — kullanılabilir puan varsa göster */}
+              {userPoints > 0 && svc && maxRedeemableTL > 0 && (
+                <label className="flex items-center gap-2.5 rounded-xl p-3 cursor-pointer" style={{background:V.accent+'10',border:'1px solid '+V.accent+'33'}}>
+                  <input type="checkbox" checked={usePoints} onChange={e=>setUsePoints(e.target.checked)} className="w-4 h-4 accent-current" style={{accentColor:V.accent}}/>
+                  <div className="flex-1 text-xs">
+                    <div className="font-bold" style={{color:V.accent}}>⭐ {userPoints} puanım var</div>
+                    <div style={{color:V.muted}}>
+                      {usePoints
+                        ? <>−₺{pointsDiscount} indirim · {pointsUsed} puan harcanacak</>
+                        : <>En fazla ₺{Math.min(maxRedeemableTL, availablePointsTL)} indirim kullanabilirsin (toplam ₺{POINTS_PER_TL} = 1 puan)</>}
+                    </div>
+                  </div>
+                </label>
+              )}
+
               {/* Mini summary — only if service selected */}
               {svc && (
                 <div className="rounded-xl p-3 space-y-1 text-sm" style={{background:V.summary,border:'1px solid '+V.summaryBorder}}>
                   <div className="flex justify-between" style={{color:V.muted}}><span>{T('subtotal')}</span><span>₺{basePrice}</span></div>
                   {campaignDiscount > 0 && <div className="flex justify-between" style={{color:V.accent}}><span>{T('campaignDiscount')}</span><span>−₺{campaignDiscount}</span></div>}
                   {couponDiscount > 0 && <div className="flex justify-between" style={{color:V.accent}}><span>{T('couponDiscount')}</span><span>−₺{couponDiscount}</span></div>}
+                  {pointsDiscount > 0 && <div className="flex justify-between" style={{color:V.accent}}><span>⭐ Puan indirimi</span><span>−₺{pointsDiscount}</span></div>}
                   <div className="flex justify-between pt-1.5 font-bold" style={{borderTop:'1px solid '+V.border,color:V.ink}}>
                     <span>{T('total')}</span>
                     <span style={{color:V.accent,fontSize:'18px'}}>₺{total}</span>

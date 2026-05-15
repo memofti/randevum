@@ -40,11 +40,14 @@ function LocPickerInline({ lat, lng, onSelect }) {
   const markerRef = useRef(null)
   useEffect(() => {
     if (!ref.current || mapRef.current) return
+    let cancelled = false
     const link = document.createElement('link')
     link.rel = 'stylesheet'
     link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
     document.head.appendChild(link)
-    import('leaflet').then(mod => {
+    ;(async () => {
+      const mod = await import('leaflet')
+      if (cancelled || !ref.current || mapRef.current) return
       const L = mod.default
       delete L.Icon.Default.prototype._getIconUrl
       L.Icon.Default.mergeOptions({
@@ -52,6 +55,7 @@ function LocPickerInline({ lat, lng, onSelect }) {
         iconRetinaUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
         shadowUrl:'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
       })
+      if (ref.current._leaflet_id) { try { delete ref.current._leaflet_id } catch {} }
       const initLat = lat ? parseFloat(lat) : 41.015
       const initLng = lng ? parseFloat(lng) : 28.979
       const map = L.map(ref.current).setView([initLat, initLng], lat ? 14 : 10)
@@ -72,8 +76,12 @@ function LocPickerInline({ lat, lng, onSelect }) {
         }
         onSelect(la,lo)
       })
-    })
-    return () => { if(mapRef.current){mapRef.current.remove();mapRef.current=null} }
+    })()
+    return () => {
+      cancelled = true
+      if (mapRef.current) { try { mapRef.current.remove() } catch {}; mapRef.current = null }
+      markerRef.current = null
+    }
   }, [])
   return (
     <div className="space-y-2">
@@ -339,6 +347,24 @@ export default function BusinessPage() {
       toast3('✅ Çalışma saatleri güncellendi')
     } catch(e) { toast3('❌ ' + e.message) }
     finally { setWhSaving(false) }
+  }
+
+  async function addClosedDate(d) {
+    if (!d || !bizId) return
+    const cur = bizInfo?.closed_dates || []
+    if (cur.includes(d)) { toast3('Bu tarih zaten kapalı'); return }
+    const next = [...cur, d].sort()
+    const { error } = await supabase.from('businesses').update({ closed_dates: next }).eq('id', bizId)
+    if (error) { toast3('❌ '+error.message); return }
+    setBizInfo(p => ({ ...p, closed_dates: next }))
+    toast3('✅ Tarih kapalıya eklendi')
+  }
+  async function removeClosedDate(d) {
+    const cur = bizInfo?.closed_dates || []
+    const next = cur.filter(x => x !== d)
+    const { error } = await supabase.from('businesses').update({ closed_dates: next }).eq('id', bizId)
+    if (error) { toast3('❌ '+error.message); return }
+    setBizInfo(p => ({ ...p, closed_dates: next }))
   }
 
   async function confirmAppt(id) {
@@ -2455,6 +2481,33 @@ export default function BusinessPage() {
                       </div>
                       <div className="pt-2">
                         <button onClick={saveWorkingHours} disabled={whSaving} className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{whSaving?'Kaydediliyor...':'Çalışma Saatlerini Kaydet'}</button>
+                      </div>
+
+                      {/* Tatil/Kapalı Günler */}
+                      <div className="border-t border-gray-100 pt-4 mt-4">
+                        <div className="font-bold text-sm mb-2">🌴 Tatil / Kapalı Günler</div>
+                        <div className="text-xs text-gray-500 mb-3">Bayram veya özel kapatma günleri — müşteriler bu tarihlerde randevu alamaz</div>
+                        <div className="flex gap-2 mb-3">
+                          <input type="date" id="closed-date-input"
+                            min={new Date().toISOString().split('T')[0]}
+                            className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" />
+                          <button onClick={()=>{
+                            const el = document.getElementById('closed-date-input')
+                            if (el?.value) { addClosedDate(el.value); el.value = '' }
+                          }} className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl">+ Ekle</button>
+                        </div>
+                        {(bizInfo?.closed_dates||[]).length === 0 ? (
+                          <div className="text-xs text-gray-400 text-center py-3">Henüz tatil günü eklenmedi</div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {(bizInfo?.closed_dates||[]).map(d => (
+                              <div key={d} className="flex items-center gap-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                                <span className="text-sm font-semibold flex-1">{new Date(d).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric',weekday:'long'})}</span>
+                                <button onClick={()=>removeClosedDate(d)} className="text-xs text-red-600 hover:bg-red-50 px-2 py-1 rounded">✕</button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

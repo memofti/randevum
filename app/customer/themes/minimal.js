@@ -177,7 +177,7 @@ export default function MinimalTheme(props) {
       {tab === 'profile' && <ProfileTab {...props} variant="minimal" />}
 
       <BusinessDetailModal biz={detailBiz} bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)} services={bizServices} staff={bizStaff} loading={detailLoading} onClose={()=>setDetailBiz(null)} onBook={()=>setBookModal(true)} variant="minimal" uiLang={uiLang}/>
-      <BookingModal biz={bookModal&&detailBiz?detailBiz:null} services={bizServices} staff={bizStaff} onClose={()=>setBookModal(false)} onBook={saveBooking} toast3={toast3} paymentEnabled={paymentEnabled} discount={activeAdDiscount} variant="minimal" uiLang={uiLang} userId={user?.id}/>
+      <BookingModal biz={bookModal&&detailBiz?detailBiz:null} services={bizServices} staff={bizStaff} onClose={()=>setBookModal(false)} onBook={saveBooking} toast3={toast3} paymentEnabled={paymentEnabled} discount={activeAdDiscount} variant="minimal" uiLang={uiLang} userId={user?.id} userPoints={user?.loyalty_points||0}/>
       <QRModal qrModal={qrModal} setQrModal={setQrModal} />
     </div>
   )
