@@ -355,6 +355,10 @@ export default function CustomerPage() {
         await supabase.from('profiles').update({loyalty_points:(user.loyalty_points||0)+pts}).eq('id',user.id)
         setUser(p=>({...p,loyalty_points:(p.loyalty_points||0)+pts}))
       } catch(e) {}
+      // Kupon tüketimi — booking başarılıysa redeem
+      if (form.couponId) {
+        try { await supabase.rpc('redeem_coupon', { p_coupon_id: form.couponId }) } catch(e) {}
+      }
       setBookModal(false); setDetailBiz(null)
       if (newAppt) {
         fetch(process.env.NEXT_PUBLIC_SUPABASE_URL + '/functions/v1/send-notification', {

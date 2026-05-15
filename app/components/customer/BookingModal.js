@@ -3,13 +3,6 @@ import { useState } from 'react'
 import { t as i18n } from '@/lib/i18n'
 import { supabase } from '@/lib/supabase'
 
-// Demo kupon kodları — gerçek doğrulama backend'e taşınacak
-const DEMO_COUPONS = {
-  HOSGELDIN: { pct: 15, label: 'Hoşgeldin' },
-  YAZ50: { amount: 50, label: 'Yaz' },
-  VIP10: { pct: 10, label: 'VIP' },
-}
-
 const VARIANTS = {
   default: { bg:'#fff', ink:'#0a0a0a', muted:'#6b7280', accent:'#f97316', border:'#e5e7eb', inputBg:'#fff', summary:'#fff7ed', summaryBorder:'#fed7aa' },
   minimal: { bg:'#fbfaf6', ink:'#111111', muted:'#8a8580', accent:'#b04a3a', border:'#e5e0d8', inputBg:'#fff', summary:'#fbfaf6', summaryBorder:'#b04a3a33' },
@@ -26,7 +19,8 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [booking, setBooking] = useState(false)
   const [couponInput, setCouponInput] = useState('')
-  const [couponApplied, setCouponApplied] = useState(null) // {code, pct?, amount?}
+  const [couponApplied, setCouponApplied] = useState(null) // {id, code, pct?, amount?}
+  const [couponChecking, setCouponChecking] = useState(false)
   const [alarmSet, setAlarmSet] = useState(false)
   const [settingAlarm, setSettingAlarm] = useState(false)
 
@@ -64,9 +58,7 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
   const svc = services.find(s=>s.id===form.service)
   const basePrice = svc?.price || 0
   const campaignDiscount = discount > 0 ? Math.round(basePrice * discount / 100) : 0
-  const couponDiscount = couponApplied
-    ? (couponApplied.pct ? Math.round(basePrice * couponApplied.pct / 100) : (couponApplied.amount || 0))
-    : 0
+  const couponDiscount = couponApplied?.computed_discount ?? 0
   const total = Math.max(0, basePrice - campaignDiscount - couponDiscount)
 
   // Gün tamamen dolu mu? (slot listesi var, hepsi taken)
@@ -103,15 +95,34 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
     }
   }
 
-  const applyCoupon = () => {
+  const applyCoupon = async () => {
     const code = couponInput.trim().toUpperCase()
-    if (!code) return
-    const c = DEMO_COUPONS[code]
-    if (c) {
-      setCouponApplied({ code, ...c })
-      toast3?.(T('couponApplied') + ': ' + code)
-    } else {
+    if (!code || !biz?.id) return
+    setCouponChecking(true)
+    try {
+      const amt = basePrice - campaignDiscount
+      const { data, error } = await supabase.rpc('validate_coupon', {
+        p_code: code,
+        p_business_id: biz.id,
+        p_amount: amt,
+      })
+      const row = Array.isArray(data) ? data[0] : data
+      if (error || !row?.valid) {
+        toast3?.(T('couponInvalid'))
+        return
+      }
+      setCouponApplied({
+        id: row.coupon_id,
+        code: row.code,
+        pct: row.discount_pct,
+        amount: row.discount_amount,
+        computed_discount: Number(row.computed_discount) || 0,
+      })
+      toast3?.(T('couponApplied') + ': ' + row.code)
+    } catch {
       toast3?.(T('couponInvalid'))
+    } finally {
+      setCouponChecking(false)
     }
   }
 
@@ -119,7 +130,7 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
     if (!form.service||!form.date||!form.time) { toast3(T('selectRequired')); return }
     if (takenSlots.includes(form.time)) { toast3(T('slotTaken')); return }
     setBooking(true)
-    await onBook({ ...form, total, campaignDiscount, couponDiscount, couponCode: couponApplied?.code }, payCard)
+    await onBook({ ...form, total, campaignDiscount, couponDiscount, couponCode: couponApplied?.code, couponId: couponApplied?.id }, payCard)
     setBooking(false)
   }
 
@@ -243,9 +254,9 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
                     <input value={couponInput} onChange={e=>setCouponInput(e.target.value.toUpperCase())}
                       onKeyDown={e=>e.key==='Enter'&&applyCoupon()}
                       placeholder="HOSGELDIN" className={inputCls+' uppercase tracking-wider font-mono'} style={inputStyle}/>
-                    <button onClick={applyCoupon}
-                      className="px-4 rounded-xl text-xs font-bold whitespace-nowrap transition-opacity hover:opacity-90"
-                      style={{background:V.accent,color:isDark?'#000':'#fff'}}>{T('apply')}</button>
+                    <button onClick={applyCoupon} disabled={couponChecking}
+                      className="px-4 rounded-xl text-xs font-bold whitespace-nowrap transition-opacity hover:opacity-90 disabled:opacity-60"
+                      style={{background:V.accent,color:isDark?'#000':'#fff'}}>{couponChecking ? '...' : T('apply')}</button>
                   </div>
                 )}
               </div>
