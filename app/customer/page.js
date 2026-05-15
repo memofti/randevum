@@ -109,11 +109,12 @@ export default function CustomerPage() {
   const requestPushPermission = async () => {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return
     try {
-      const perm = await Notification.requestPermission()
-      if (perm === 'granted') {
-        toast3('🔔 Bildirimler aktif!')
-      }
-    } catch(e) {}
+      const { requestNotificationPermission, subscribePush } = await import('@/lib/push')
+      const perm = await requestNotificationPermission()
+      if (perm !== 'granted') { toast3('🔕 Bildirim izni reddedildi'); return }
+      const sub = await subscribePush(user?.id)
+      toast3(sub ? '🔔 Bildirimler aktif!' : '🔔 Yerel bildirimler aktif (push key yok)')
+    } catch(e) { toast3('❌ '+e.message) }
   }
 
   const requestLocation = (autoSort=true) => {
