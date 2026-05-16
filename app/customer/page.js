@@ -652,61 +652,63 @@ export default function CustomerPage() {
     </div>
   )
 
-  if (themeKey === 'minimal') return <>{RescheduleOverlay}<MinimalTheme {...themeProps} /></>
-  if (themeKey === 'luxury') return <>{RescheduleOverlay}<LuxuryTheme {...themeProps} /></>
-  if (themeKey === 'soft') return <>{RescheduleOverlay}<SoftTheme {...themeProps} /></>
-  if (themeKey === 'bold') return <>{RescheduleOverlay}<BoldTheme {...themeProps} /></>
-  if (themeKey === 'pulse') return <>{RescheduleOverlay}<PulseTheme {...themeProps} /></>
-  if (themeKey === 'spot') return <>{RescheduleOverlay}<SpotTheme {...themeProps} /></>
-  if (themeKey === 'atlas') return <>{RescheduleOverlay}<AtlasTheme {...themeProps} /></>
+  const ReviewOverlay = reviewModal && (
+    <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4" onClick={e => e.target===e.currentTarget && setReviewModal(null)}>
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+        <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+          <div>
+            <div className="font-bold">Değerlendirme Yaz</div>
+            <div className="text-xs text-gray-500">{reviewModal.businesses?.name}</div>
+          </div>
+          <button onClick={() => setReviewModal(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="text-xs font-bold block mb-2">Puan</label>
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map(star => (
+                <button key={star} onClick={() => setReviewForm(p => ({ ...p, rating: star }))}
+                  className={`text-3xl transition-transform hover:scale-110 ${star <= reviewForm.rating ? 'text-amber-400' : 'text-gray-200'}`}>
+                  ★
+                </button>
+              ))}
+              <span className="ml-2 text-sm font-bold text-gray-600 self-center">{reviewForm.rating}/5</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-bold block mb-2">Yorumunuz (opsiyonel)</label>
+            <textarea rows={3} placeholder="Deneyiminizi paylaşın..." value={reviewForm.comment}
+              onChange={e => setReviewForm(p => ({ ...p, comment: e.target.value }))}
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 resize-none" />
+          </div>
+        </div>
+        <div className="px-5 pb-5 flex gap-2">
+          <button onClick={() => setReviewModal(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
+          <button onClick={submitReview} disabled={submittingReview}
+            className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">
+            {submittingReview ? 'Gönderiliyor...' : '⭐ Gönder'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const ThemeOverlays = <>{RescheduleOverlay}{ReviewOverlay}<QRModal qrModal={qrModal} setQrModal={setQrModal} /></>
+
+  if (themeKey === 'minimal') return <>{ThemeOverlays}<MinimalTheme {...themeProps} /></>
+  if (themeKey === 'luxury') return <>{ThemeOverlays}<LuxuryTheme {...themeProps} /></>
+  if (themeKey === 'soft') return <>{ThemeOverlays}<SoftTheme {...themeProps} /></>
+  if (themeKey === 'bold') return <>{ThemeOverlays}<BoldTheme {...themeProps} /></>
+  if (themeKey === 'pulse') return <>{ThemeOverlays}<PulseTheme {...themeProps} /></>
+  if (themeKey === 'spot') return <>{ThemeOverlays}<SpotTheme {...themeProps} /></>
+  if (themeKey === 'atlas') return <>{ThemeOverlays}<AtlasTheme {...themeProps} /></>
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {RescheduleOverlay}
+      {ReviewOverlay}
       <QRModal qrModal={qrModal} setQrModal={setQrModal} />
       {toast && <div className="fixed bottom-6 right-6 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-xl animate-in slide-in-from-bottom-2">{toast}</div>}
-
-      {/* YORUM MODAL */}
-      {reviewModal && (
-        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4" onClick={e => e.target===e.currentTarget && setReviewModal(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
-            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
-              <div>
-                <div className="font-bold">Değerlendirme Yaz</div>
-                <div className="text-xs text-gray-500">{reviewModal.businesses?.name}</div>
-              </div>
-              <button onClick={() => setReviewModal(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div>
-                <label className="text-xs font-bold block mb-2">Puan</label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map(star => (
-                    <button key={star} onClick={() => setReviewForm(p => ({ ...p, rating: star }))}
-                      className={`text-3xl transition-transform hover:scale-110 ${star <= reviewForm.rating ? 'text-amber-400' : 'text-gray-200'}`}>
-                      ★
-                    </button>
-                  ))}
-                  <span className="ml-2 text-sm font-bold text-gray-600 self-center">{reviewForm.rating}/5</span>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs font-bold block mb-2">Yorumunuz (opsiyonel)</label>
-                <textarea rows={3} placeholder="Deneyiminizi paylaşın..." value={reviewForm.comment}
-                  onChange={e => setReviewForm(p => ({ ...p, comment: e.target.value }))}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400 resize-none" />
-              </div>
-            </div>
-            <div className="px-5 pb-5 flex gap-2">
-              <button onClick={() => setReviewModal(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
-              <button onClick={submitReview} disabled={submittingReview}
-                className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">
-                {submittingReview ? 'Gönderiliyor...' : '⭐ Gönder'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* PROFİL DÜZENLEME MODAL */}
       {editProfile && profile && (

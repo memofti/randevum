@@ -152,6 +152,10 @@ export default function MapView({ businesses, onBook }) {
 
   useEffect(() => {
     if (!mapReady || !businesses.length) return
+    const visibleBiz = businesses.filter(b =>
+      (!filterCat || b.category === filterCat) &&
+      (!searchQ || b.name.toLowerCase().includes(searchQ.toLowerCase()) || (b.city||'').toLowerCase().includes(searchQ.toLowerCase()))
+    )
     import('leaflet').then(async mod => {
       const L = mod.default || mod
       if (!mapInstanceRef.current) return
@@ -159,7 +163,7 @@ export default function MapView({ businesses, onBook }) {
       markersRef.current = []
       setGeocoding(true)
       const coords = {}
-      for (const biz of businesses) {
+      for (const biz of visibleBiz) {
         if (biz.lat && biz.lng) { coords[biz.id] = { lat: biz.lat, lng: biz.lng } }
         else {
           const addr = [biz.address, biz.city, 'Türkiye'].filter(Boolean).join(', ')
@@ -177,7 +181,7 @@ export default function MapView({ businesses, onBook }) {
       setBizCoords(coords)
       setGeocoding(false)
     })
-  }, [mapReady, businesses])
+  }, [mapReady, businesses, filterCat, searchQ])
 
   useEffect(() => {
     if (!userLocation || !Object.keys(bizCoords).length) return
@@ -398,11 +402,8 @@ export default function MapView({ businesses, onBook }) {
             <button onClick={() => { getLocation(); setShowList(false) }} className="bg-white border-2 border-orange-500 text-orange-500 text-xs font-bold px-3 py-2 rounded-xl shadow-lg flex items-center gap-1.5">📍 Konumumu Bul</button>
           </div>
         )}
-        <div className="md:hidden absolute top-3 left-3 z-[1000]">
-          <button onClick={() => setShowList(true)} className="bg-white border border-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl shadow-lg">📋 Liste</button>
-        </div>
-        {/* Mobile harita üstü kategori filtre bar */}
-        <div className="md:hidden absolute top-14 left-3 right-3 z-[1000] flex items-center gap-2 overflow-x-auto scrollbar-hide bg-white/95 backdrop-blur rounded-xl px-2 py-1.5 shadow-md">
+        {/* Mobile harita üstü kategori filtre bar — en üstte */}
+        <div className="md:hidden absolute top-3 left-3 right-3 z-[1000] flex items-center gap-2 overflow-x-auto scrollbar-hide bg-white/95 backdrop-blur rounded-xl px-2 py-1.5 shadow-md">
           <input type="search" placeholder="Mekân ara..." value={searchQ} onChange={e=>setSearchQ(e.target.value)}
             className="flex-shrink-0 text-xs px-2 py-1 outline-none border-b border-gray-200 w-20 focus:w-32 transition-all"/>
           <button onClick={()=>setFilterCat('')} className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap"
@@ -411,6 +412,10 @@ export default function MapView({ businesses, onBook }) {
             <button key={c} onClick={()=>setFilterCat(c===filterCat?'':c)} className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap"
               style={filterCat===c?{background:'#f97316',color:'#fff'}:{background:'#f3f4f6',color:'#0a0a0a'}}>{c}</button>
           ))}
+        </div>
+        {/* Liste butonu — kategori barının altında */}
+        <div className="md:hidden absolute top-14 left-3 z-[1000]">
+          <button onClick={() => setShowList(true)} className="bg-white border border-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl shadow-lg">📋 Liste</button>
         </div>
         <div className="absolute bottom-4 right-3 z-[1000] bg-white rounded-xl px-3 py-2 shadow-md flex items-center gap-2 text-xs text-gray-500">
           <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" /> Sen
