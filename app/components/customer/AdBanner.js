@@ -86,13 +86,13 @@ export default function AdBanner({ ads, userLoc, businesses, onBizDetail, varian
               {/* İçerik — orta */}
               <div className="flex-1 min-w-0 px-3 sm:px-4 flex flex-col justify-center">
                 <div className="flex items-center gap-2 mb-0.5 min-w-0">
-                  <span className="text-[10px] font-black tracking-[0.2em] flex-shrink-0" style={{color:P.accent}}>
+                  <span className="hidden sm:inline text-[10px] font-black tracking-[0.2em] flex-shrink-0" style={{color:P.accent}}>
                     {T('offer')} N°{String(i+1).padStart(2,'0')}
                   </span>
                   {ad.type==='regional' && (
                     <span className="text-[10px] font-bold flex-shrink-0" style={{color:P.muted}}>📍 {T('nearby')}</span>
                   )}
-                  <span className="text-[10px] font-bold flex-shrink-0 truncate" style={{color:P.muted}}>· {ad.businesses?.name}</span>
+                  <span className="text-[10px] font-bold truncate min-w-0" style={{color:P.muted}}>{ad.businesses?.name}</span>
                 </div>
                 <div className="font-black text-sm sm:text-base truncate" style={{color:P.ink,letterSpacing:'-0.01em'}}>
                   {ad.title}
@@ -103,31 +103,31 @@ export default function AdBanner({ ads, userLoc, businesses, onBizDetail, varian
               </div>
 
               {/* İndirim/Kupon rozeti + CTA — sağ */}
-              <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 flex-shrink-0"
+              <div className="flex items-center gap-2 sm:gap-3 px-2.5 sm:px-4 flex-shrink-0"
                 style={{borderLeft: variant==='bold' ? '2px solid '+P.ink : '1px solid '+P.ink+'10'}}>
                 {/* İndirim numarası (yüzde) veya kupon rozeti */}
                 {ad.discount_pct > 0 ? (
                   <div className="text-right">
                     <div className="font-black leading-none" style={{
-                      fontSize:'clamp(1.5rem,2.5vw,2rem)',
+                      fontSize:'clamp(1.125rem,4vw,2rem)',
                       color: P.accent,
                       letterSpacing:'-0.04em',
                       fontStyle: variant==='bold'?'italic':'normal',
                     }}>
                       %{ad.discount_pct}
                     </div>
-                    <div className="text-[9px] font-black tracking-[0.2em]" style={{color:P.muted}}>{T('discount')}</div>
+                    <div className="text-[9px] font-black tracking-[0.2em] hidden sm:block" style={{color:P.muted}}>{T('discount')}</div>
                   </div>
                 ) : isCoupon ? (
                   <div className="text-right">
                     <div className="font-black leading-none" style={{
-                      fontSize:'clamp(1.25rem,2vw,1.75rem)',
+                      fontSize:'clamp(1rem,3.5vw,1.75rem)',
                       color: P.accent,
                       letterSpacing:'-0.03em',
                     }}>
                       ₺{Math.round(ad.discount_amount)}
                     </div>
-                    <div className="text-[9px] font-black tracking-[0.2em] flex items-center gap-1 justify-end" style={{color:P.muted}}>
+                    <div className="text-[9px] font-black tracking-[0.2em] flex items-center gap-1 justify-end hidden sm:flex" style={{color:P.muted}}>
                       🎟️ KUPON
                     </div>
                   </div>
