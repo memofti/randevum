@@ -704,8 +704,8 @@ export default function AdminPage() {
                   </div>
                   <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-4">
                     <div className="font-bold text-sm mb-3">Tema Secici</div>
-                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3">
-                      {[["default","Varsayilan","#f97316"],["minimal","Minimal","#111"],["luxury","Luxury","#d4af37"],["soft","Soft","#ff8fab"],["bold","Bold","#764ba2"]].map(([k,n,c])=>(
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 sm:gap-3">
+                      {[["default","Varsayilan","#f97316"],["minimal","Minimal","#111"],["luxury","Luxury","#d4af37"],["soft","Soft","#ff8fab"],["bold","Bold","#764ba2"],["pulse","Pulse","#00f0a8"],["spot","Spot","#ff2d75"],["atlas","Atlas","#a04268"]].map(([k,n,c])=>(
                         <button key={k} onClick={async()=>{
                           const { error } = await supabase.from("platform_settings").upsert({key:"theme",value:k,updated_at:new Date().toISOString()})
                           if (error) { toast3("❌ Tema kaydedilemedi: "+error.message); return }
