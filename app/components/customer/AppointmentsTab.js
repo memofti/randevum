@@ -34,7 +34,7 @@ function groupByBusiness(items, isPast) {
 
 export default function AppointmentsTab({
   upcomingAppts, pastAppts, cancelAppt, rescheduleAppt,
-  setReviewModal, setReviewForm, setQrModal, setTab,
+  setReviewModal, setReviewForm, setQrModal, setTab, openDetail, businesses,
   uiLang='tr',
   variant = 'default',
 }) {
@@ -135,14 +135,26 @@ export default function AppointmentsTab({
               <div key={g.business_id} className={cardCls} style={cardStyle}>
                 {/* Firma başlığı */}
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{background:isDark?'#1a1a1a':'#f3f4f6'}}>{biz?.emoji||'🏢'}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-base truncate" style={{color:ink}}>{biz?.name||'—'}</div>
-                    <div className="text-xs truncate" style={{color:muted}}>
-                      {[biz?.address, biz?.city].filter(Boolean).join(' · ') || '—'}
-                      {g.appts.length>1 && <span style={{color:accent}}> · {g.appts.length} randevu</span>}
+                  <button
+                    onClick={()=>{
+                      if (!openDetail) return
+                      const full = (businesses||[]).find(x => x.id === g.business_id)
+                      openDetail(full || { id: g.business_id, ...biz })
+                    }}
+                    disabled={!openDetail}
+                    className="flex items-center gap-3 flex-1 min-w-0 text-left -m-1 p-1 rounded-lg transition-colors hover:bg-black/[0.04] disabled:hover:bg-transparent">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{background:isDark?'#1a1a1a':'#f3f4f6'}}>{biz?.emoji||'🏢'}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-base truncate flex items-center gap-1.5" style={{color:ink}}>
+                        {biz?.name||'—'}
+                        {openDetail && biz && <span className="text-xs font-semibold" style={{color:accent}}>›</span>}
+                      </div>
+                      <div className="text-xs truncate" style={{color:muted}}>
+                        {[biz?.address, biz?.city].filter(Boolean).join(' · ') || '—'}
+                        {g.appts.length>1 && <span style={{color:accent}}> · {g.appts.length} randevu</span>}
+                      </div>
                     </div>
-                  </div>
+                  </button>
                   {biz && (biz.lat || biz.address || biz.name) && (
                     <a href={dirUrl} target="_blank" rel="noopener noreferrer" title={T('directions')}
                       className={'text-xs px-2 py-1 rounded-md font-bold flex-shrink-0 '+(isDark?'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30':'bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200')}>
