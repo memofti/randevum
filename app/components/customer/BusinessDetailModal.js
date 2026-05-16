@@ -27,7 +27,21 @@ export default function BusinessDetailModal({ biz, bizIdx, services, staff, revi
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{background:'rgba(0,0,0,0.55)'}}
       onClick={e => e.target===e.currentTarget && onClose()}>
-      <div className="w-full sm:max-w-2xl max-h-[85vh] sm:max-h-[88vh] overflow-y-auto shadow-2xl"
+      <div className="relative w-full sm:max-w-2xl">
+        {/* Kapat — scroll dışında, her zaman görünür */}
+        <button onClick={onClose}
+          className="absolute top-3 right-3 z-30 flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-all hover:scale-105"
+          style={{
+            background: 'rgba(255,255,255,0.95)',
+            color: '#0a0a0a',
+            borderRadius: isBrutalist ? '0' : '9999px',
+            backdropFilter:'blur(8px)',
+            boxShadow:'0 4px 12px rgba(0,0,0,0.35)',
+          }}>
+          <span aria-hidden="true">✕</span> {T('close')}
+        </button>
+
+      <div className="w-full max-h-[85vh] sm:max-h-[88vh] overflow-y-auto shadow-2xl"
         style={{
           background: V.bg,
           color: V.ink,
@@ -45,16 +59,6 @@ export default function BusinessDetailModal({ biz, bizIdx, services, staff, revi
             : <div className="absolute inset-0 flex items-center justify-center text-8xl opacity-80">{biz.emoji||'🏢'}</div>
           }
           <div className="absolute inset-0" style={{background: biz.cover_url ? 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 50%)' : 'none'}}/>
-
-          {/* close */}
-          <button onClick={onClose}
-            className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center text-base font-bold transition-all hover:scale-110 z-10"
-            style={{
-              background: 'rgba(255,255,255,0.95)',
-              color: '#0a0a0a',
-              borderRadius: variant==='bold' || variant==='minimal' ? '0' : '9999px',
-              backdropFilter:'blur(8px)',
-            }}>✕</button>
 
           {/* Müsait rozeti */}
           <div className="absolute top-4 left-4 z-10">
@@ -298,6 +302,7 @@ export default function BusinessDetailModal({ biz, bizIdx, services, staff, revi
             📅 {T('bookAppt')}
           </button>
         </div>
+      </div>
       </div>
 
       {/* Galeri lightbox */}
