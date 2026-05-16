@@ -21,20 +21,21 @@ export default function ProfileTab({
   const accent = ({
     default:'#f97316', minimal:'#b04a3a', luxury:'#d4af37', soft:'#e85d8a', bold:'#1736ff',
   })[variant] || '#f97316'
+  const ink = isDark ? '#fff' : '#0a0a0a'
 
   const cardCls = isDark
     ? 'rounded-2xl p-6 border'
     : 'bg-white border border-gray-200 rounded-2xl p-6 shadow-sm'
-  const cardStyle = isDark ? { background:'#111', borderColor:'#222', color:'#fff' } : {}
+  const cardStyle = isDark ? { background:'#111', borderColor:'#222', color:'#fff' } : { color:'#0a0a0a' }
   const subCardCls = isDark
     ? 'rounded-2xl p-4 border'
     : 'bg-white border border-gray-200 rounded-2xl p-4 shadow-sm'
-  const subCardStyle = isDark ? { background:'#111', borderColor:'#222' } : {}
+  const subCardStyle = isDark ? { background:'#111', borderColor:'#222' } : { color:'#0a0a0a' }
   const labelMuted = isDark ? 'rgba(255,255,255,0.5)' : '#6b7280'
 
   if (profLoading || !profile) {
     return (
-      <div className={'max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 '+(isDark?'text-white':'')}>
+      <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8" style={{color:ink}}>
         <div className="flex items-center justify-center gap-3 py-16" style={{color:labelMuted}}>
           <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{borderColor:'rgba(150,150,150,0.3)',borderTopColor:accent}}/>
           {T('loading')}
@@ -54,8 +55,8 @@ export default function ProfileTab({
     : 'text-2xl font-extrabold'
 
   return (
-    <div className={'max-w-5xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-10 '+(isDark?'text-white':'')}>
-      <h1 className={'mb-6 '+headingCls} style={isDark?{color:accent}:{}}>
+    <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-10" style={{color:ink}}>
+      <h1 className={'mb-6 '+headingCls} style={isDark?{color:accent}:{color:ink}}>
         {variant==='luxury'?T('myProfile').toUpperCase():T('myProfile')}
       </h1>
 
@@ -229,7 +230,7 @@ export default function ProfileTab({
       {/* Edit modal */}
       {editProfile && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setEditProfile(false)}>
-          <div className={'rounded-2xl w-full max-w-sm shadow-2xl '+(isDark?'border':'bg-white')} style={isDark?{background:'#111',borderColor:'#222'}:{}}>
+          <div className={'rounded-2xl w-full max-w-sm shadow-2xl '+(isDark?'border':'bg-white')} style={isDark?{background:'#111',borderColor:'#222'}:{color:'#0a0a0a'}}>
             <div className={'p-5 border-b flex justify-between items-center '+(isDark?'border-white/10':'border-gray-100')}>
               <div className={'font-bold '+(isDark?'text-white':'')}>{T('editProfile')}</div>
               <button onClick={()=>setEditProfile(false)} className={'w-7 h-7 flex items-center justify-center rounded-lg '+(isDark?'hover:bg-white/10 text-white/40':'hover:bg-gray-100 text-gray-400')}>✕</button>
