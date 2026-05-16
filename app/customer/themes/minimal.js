@@ -59,7 +59,7 @@ export default function MinimalTheme(props) {
       </header>
 
       {tab === 'home' && (
-        <main className="max-w-[1200px] mx-auto px-6 sm:px-10">
+        <main className="max-w-[1200px] mx-auto px-6 sm:px-10 pb-32 sm:pb-12">
           {/* HERO — minimal, tek odak */}
           <section className={'py-16 sm:py-24 transition-all duration-700 '+(mounted?'opacity-100 translate-y-0':'opacity-0 translate-y-3')}>
             <h1 className="font-bold mb-7 tracking-tight" style={{fontSize:'clamp(2.75rem,7.5vw,5.5rem)',lineHeight:1.0,letterSpacing:'-0.045em',color:INK}}>

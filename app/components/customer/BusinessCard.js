@@ -1,10 +1,10 @@
 'use client'
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
 
-export default function BusinessCard({ b, i, onDetail, onMap, highlighted }) {
+export default function BusinessCard({ b, i, onDetail, onMap }) {
   return (
     <div onClick={() => onDetail(b)}
-      className={`bg-white border rounded-xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group ${highlighted ? 'border-orange-400 ring-2 ring-orange-300 ring-offset-2' : 'border-gray-200'}`}>
+      className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group">
       <div className="h-28 flex items-center justify-center text-5xl relative overflow-hidden" style={{ background:`${COLORS[i%COLORS.length]}15` }}>
         {b.cover_url
           ? <img src={b.cover_url} alt={b.name} className="w-full h-full object-cover"/>

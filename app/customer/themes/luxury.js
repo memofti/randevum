@@ -64,7 +64,7 @@ export default function LuxuryTheme(props) {
             <div className="absolute top-40 -right-32 w-[28rem] h-[28rem] rounded-full pointer-events-none" style={{background:'radial-gradient(circle, rgba(245,224,110,0.08), transparent 70%)'}}/>
             <div className="absolute inset-0 pointer-events-none opacity-30" style={{backgroundImage:'radial-gradient(circle at 1px 1px, rgba(212,175,55,0.3) 1px, transparent 0)',backgroundSize:'40px 40px'}}/>
 
-            <div className="py-24 px-6 text-center relative z-10">
+            <div className="py-14 sm:py-24 px-6 text-center relative z-10">
               <div className="max-w-3xl mx-auto">
                 <div className={'text-xs tracking-[0.4em] mb-6 transition-all duration-700 '+(heroVisible?'opacity-100 translate-y-0':'opacity-0 -translate-y-4')} style={{color:GOLD}}>—— PREMIUM RANDEVU KOLEKSİYONU ——</div>
                 <h1 className={'font-black mb-6 tracking-tight transition-all duration-700 delay-100 '+(heroVisible?'opacity-100 translate-y-0':'opacity-0 translate-y-4')}
@@ -105,7 +105,7 @@ export default function LuxuryTheme(props) {
             </div>
           </div>
 
-          <div className="max-w-7xl mx-auto px-6 py-14">
+          <div className="max-w-7xl mx-auto px-6 pt-10 sm:pt-14 pb-32 sm:pb-14">
             {activeAds.length > 0 && <div className="mb-10"><AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail} variant="luxury" uiLang={uiLang}/></div>}
 
             {/* SECTION 1 — Featured editorial */}

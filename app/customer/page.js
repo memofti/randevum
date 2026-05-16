@@ -32,7 +32,6 @@ export default function CustomerPage() {
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [tab, setTab] = useState('home')
-  const [highlightedBizId, setHighlightedBizId] = useState(null)
   const [businesses, setBusinesses] = useState([])
   const [catFilter, setCatFilter] = useState('')
   const [searchQ, setSearchQ] = useState('')
@@ -260,8 +259,6 @@ export default function CustomerPage() {
   // İşletme detay aç
   async function openDetail(biz, discount=0) {
     setDetailBiz(biz)
-    setHighlightedBizId(biz.id)
-    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
     setActiveAdDiscount(discount)
     setDetailLoading(true)
     setBookedRanges([])
@@ -575,12 +572,6 @@ export default function CustomerPage() {
       if (sortBy === 'price_desc') return (b.price_from||0) - (a.price_from||0)
       if (sortBy === 'reviews') return (b.review_count||0) - (a.review_count||0)
       return (b.rating||0) - (a.rating||0)
-    })
-    .sort((a, b) => {
-      // Haritadan/detaydan açılan firmayı listenin başına al
-      if (a.id === highlightedBizId) return -1
-      if (b.id === highlightedBizId) return 1
-      return 0
     })
   const cats = [...new Set(businesses.map(b => b.category))]
   const upcomingAppts = appointments.filter(a => ['pending','confirmed'].includes(a.status))
@@ -1190,7 +1181,7 @@ export default function CustomerPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredBiz.map((b,i) => (
-                  <BusinessCard key={b.id} b={b} i={i} onDetail={openDetail} onMap={()=>setTab('map')} highlighted={b.id===highlightedBizId}/>
+                  <BusinessCard key={b.id} b={b} i={i} onDetail={openDetail} onMap={()=>setTab('map')}/>
                 ))}
                 {false && filteredBiz.map((b,i) => (
                   <div key={b.id} onClick={() => openDetail(b)}

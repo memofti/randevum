@@ -97,7 +97,7 @@ export default function SoftTheme(props) {
       </nav>
 
       {tab === 'home' && (
-        <main className="relative max-w-7xl mx-auto px-4 sm:px-8 py-10 sm:py-14">
+        <main className="relative max-w-7xl mx-auto px-4 sm:px-8 pt-10 sm:pt-14 pb-32 sm:pb-14">
           {/* HERO — Bento intro */}
           <section className={'grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 mb-10 transition-all duration-700 '+(mounted?'opacity-100 translate-y-0':'opacity-0 translate-y-4')}>
             <div className="md:col-span-2 rounded-[2rem] p-7 sm:p-10 relative overflow-hidden" style={{background:'rgba(255,255,255,0.55)',backdropFilter:'blur(24px) saturate(180%)',WebkitBackdropFilter:'blur(24px) saturate(180%)',border:'1px solid rgba(255,255,255,0.7)',boxShadow:'0 20px 60px -20px rgba(122,92,209,0.2)'}}>
@@ -161,7 +161,7 @@ export default function SoftTheme(props) {
           {activeAds.length > 0 && <div className="mb-8"><AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail} variant="soft" uiLang={uiLang}/></div>}
 
           {/* BENTO GRID — varying tile sizes */}
-          <div className="grid grid-cols-1 md:grid-cols-4 auto-rows-[200px] gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-4 auto-rows-auto md:auto-rows-[200px] gap-4 sm:gap-5">
             {filteredBiz.map((b,i) => {
               const pattern = BENTO_PATTERNS[i % BENTO_PATTERNS.length]
               const color = TILE_COLORS[i % TILE_COLORS.length]

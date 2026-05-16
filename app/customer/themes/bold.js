@@ -63,7 +63,7 @@ export default function BoldTheme(props) {
       </header>
 
       {tab === 'home' && (
-        <main className="max-w-[1280px] mx-auto px-5 sm:px-8">
+        <main className="max-w-[1280px] mx-auto px-5 sm:px-8 pb-32 sm:pb-14">
           {/* HERO — büyük italik display */}
           <section className={'pt-12 sm:pt-20 pb-12 sm:pb-16 transition-all duration-700 '+(mounted?'opacity-100 translate-y-0':'opacity-0 translate-y-3')}>
             <div className="grid grid-cols-12 gap-6 sm:gap-10 items-end">
