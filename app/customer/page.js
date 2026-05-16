@@ -604,7 +604,7 @@ export default function CustomerPage() {
     canReview: !!appointments.find(a => a.business_id===detailBiz?.id && a.status==='completed'),
     onReview: () => {
       const a = appointments.find(a => a.business_id===detailBiz?.id && a.status==='completed')
-      if (a) { setReviewModal(a); setReviewForm({ rating: 5, comment: '' }) }
+      if (a) { setReviewModal(a); setReviewForm({ rating: 5, comment: '' }); setDetailBiz(null) }
     },
     loading: detailLoading,
     onClose: () => setDetailBiz(null),
