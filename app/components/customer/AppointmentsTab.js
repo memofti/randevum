@@ -217,10 +217,15 @@ export default function AppointmentsTab({
       return (
         <div className="mb-7">
           <button onClick={()=>setPastOpen(o=>!o)}
-            className={'w-full flex items-center justify-between py-2 px-1 mb-2 rounded-lg transition-colors '+(isDark?'hover:bg-white/5':'hover:bg-gray-50')}
+            className={'w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all '+(pastOpen?'mb-3':'mb-0')+' '+(isDark?'hover:border-white/20':'hover:border-gray-300 hover:shadow-sm')}
+            style={isDark?{background:'#0c0c0c',borderColor:'#1f1f1f'}:{background:'#f3f4f6',borderColor:'#e5e7eb'}}
             aria-expanded={pastOpen}>
-            <span className="text-xs font-bold uppercase tracking-wider" style={{color:muted}}>
-              {title} · {items.length}
+            <span className="flex items-center gap-2">
+              <span className="text-base">🗂</span>
+              <span className="text-sm font-bold uppercase tracking-wider" style={{color:isDark?'rgba(255,255,255,0.7)':'#374151'}}>
+                {title}
+              </span>
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{background:isDark?'rgba(255,255,255,0.08)':'#e5e7eb',color:isDark?'rgba(255,255,255,0.7)':'#4b5563'}}>{items.length}</span>
             </span>
             <span className="text-xs font-bold transition-transform inline-block" style={{color:muted, transform:pastOpen?'rotate(180deg)':'rotate(0deg)'}}>▼</span>
           </button>
