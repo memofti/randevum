@@ -205,10 +205,10 @@ export default function CustomerPage() {
       })
   }, [])
 
-  // Randevular
+  // Randevular — kullanıcı yüklenince çek (canReview, badge count, vs. için keşfette de gerekli)
   useEffect(() => {
-    if (tab !== 'appts' || !user) return
-    setLoading(true)
+    if (!user) return
+    if (tab === 'appts') setLoading(true)
     supabase.from('appointments')
       .select('id, business_id, appointment_date, appointment_time, status, price, qr_token, businesses(name,emoji,address,city,lat,lng), services(name,duration_min), staff(name)')
       .eq('profile_id', user.id)
