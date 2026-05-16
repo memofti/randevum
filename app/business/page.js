@@ -855,7 +855,7 @@ export default function BusinessPage() {
               })}
               {allPlans.length===0 && <div className="col-span-3 text-center py-8 text-gray-400">Plan listesi yükleniyor...</div>}
             </div>
-            <div className="px-5 pb-5 text-xs text-gray-400 text-center">Gerçek ödeme entegrasyonu yakında · Şu an demo amaçlı</div>
+            <div className="px-5 pb-5 text-xs text-gray-400 text-center">Plan talebiniz admin onayına gönderilir · Onay sonrası plan aktifleşir</div>
           </div>
         </div>
       )}

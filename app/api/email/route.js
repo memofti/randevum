@@ -112,8 +112,13 @@ export async function POST(req) {
 
     const RESEND_API_KEY = process.env.RESEND_API_KEY
 
-    // API key yoksa mock mod — app çalışmaya devam eder
     if (!RESEND_API_KEY) {
+      // Prod'da config eksiği sessiz geçmemeli — hata döndür, log'a düş
+      if (process.env.NODE_ENV === 'production') {
+        console.error('[Email] RESEND_API_KEY eksik — mail gönderilemedi', { type, to })
+        return NextResponse.json({ error: 'Email servisi yapılandırılmamış (RESEND_API_KEY eksik)' }, { status: 503 })
+      }
+      // Dev/test'te mock kalsın
       console.log(`[Email MOCK] ${type} → ${to}`, data)
       return NextResponse.json({ success: true, mock: true })
     }

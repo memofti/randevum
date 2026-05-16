@@ -4,17 +4,18 @@ export const metadata = {
   title: 'RandevuApp',
   description: 'Randevu yönetim platformu',
   manifest: '/manifest.json',
-  themeColor: '#ff6b35',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'RandevuApp',
   },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-  },
+}
+
+export const viewport = {
+  themeColor: '#ff6b35',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 }
 
 export default function RootLayout({ children }) {
