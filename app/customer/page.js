@@ -1102,9 +1102,24 @@ export default function CustomerPage() {
                     {c}
                   </button>
                 ))}
+              </div>
+              {/* SORT — kategori altında belirgin */}
+              <div className="flex gap-2 mt-3 flex-wrap items-center">
+                <button onClick={() => { if(!userLoc) { requestLocation(); return } setSortBy('distance') }}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold border-2 transition-all flex items-center gap-1.5 ${sortBy==='distance'?'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/30':'bg-white/10 border-orange-400 text-orange-400 hover:bg-orange-500/10'}`}>
+                  📍 Bana en yakın {locStatus==='loading'&&'…'}
+                </button>
+                <button onClick={()=>setSortBy('rating')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${sortBy==='rating'?'bg-white text-slate-900 border-white':'bg-white/10 border-white/15 text-white/75 hover:bg-white/20'}`}>
+                  ⭐ En İyiler
+                </button>
+                <button onClick={()=>setSortBy('price_asc')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${sortBy==='price_asc'?'bg-white text-slate-900 border-white':'bg-white/10 border-white/15 text-white/75 hover:bg-white/20'}`}>
+                  ₺ Ucuzdan
+                </button>
                 <button onClick={() => setShowFilters(p=>!p)}
                   className={`ml-auto px-3 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 ${showFilters?'bg-white text-orange-600 border-white':'bg-white/10 border-white/15 text-white/75 hover:bg-white/20'}`}>
-                  ⚙️ Filtrele {(minRating>0||maxPrice<9999||sortBy!=='rating')?<span className="w-1.5 h-1.5 rounded-full bg-orange-500" />:null}
+                  ⚙️ Tümü {(minRating>0||maxPrice<9999)?<span className="w-1.5 h-1.5 rounded-full bg-orange-500" />:null}
                 </button>
               </div>
               {showFilters && (

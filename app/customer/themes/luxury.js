@@ -18,7 +18,7 @@ const GOLD2 = '#f5e06e'
 function distKm(a,b,c,d){const R=6371,dL=(c-a)*Math.PI/180,dN=(d-b)*Math.PI/180,e=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dN/2)**2;return R*2*Math.atan2(Math.sqrt(e),Math.sqrt(1-e))}
 
 export default function LuxuryTheme(props) {
-  const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff, detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled, toast3, userLoc, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy, upcomingAppts, uiLang='tr', saveBooking } = props
+  const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff, detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled, toast3, userLoc, locStatus, requestLocation, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy, upcomingAppts, uiLang='tr', saveBooking } = props
   const T = (k) => i18n(k, uiLang)
   const [heroVisible, setHeroVisible] = useState(false)
   useEffect(() => { const t = setTimeout(()=>setHeroVisible(true), 50); return ()=>clearTimeout(t) }, [])
@@ -93,12 +93,19 @@ export default function LuxuryTheme(props) {
                       </button>
                     )
                   })}
-                  <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold tracking-[0.15em] sm:tracking-[0.2em] rounded-full outline-none cursor-pointer transition-all"
-                    style={{background:'transparent',color:GOLD,border:`1px solid ${GOLD}66`}}>
-                    <option value="rating" style={{background:'#111',color:GOLD}}>★ EN POPÜLER</option>
-                    <option value="distance" style={{background:'#111',color:GOLD}}>📍 EN YAKIN</option>
-                  </select>
+                </div>
+                {/* SORT — kategori altında ayrı satır, belirgin */}
+                <div className={'flex gap-1.5 sm:gap-2 mt-3 flex-wrap justify-center items-center transition-all duration-700 delay-700 '+(heroVisible?'opacity-100':'opacity-0')}>
+                  <button onClick={()=>{ if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } }}
+                    className="px-4 sm:px-5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold tracking-[0.15em] sm:tracking-[0.2em] rounded-full transition-all flex items-center gap-1.5"
+                    style={sortBy==='distance'?{background:`linear-gradient(135deg,${GOLD},${GOLD2})`,color:'#000',boxShadow:'0 0 20px '+GOLD+'66'}:{background:'transparent',color:GOLD,border:`1.5px solid ${GOLD}`}}>
+                    📍 BANA EN YAKIN {locStatus==='loading'&&'…'}
+                  </button>
+                  <button onClick={()=>setSortBy('rating')}
+                    className="px-4 sm:px-5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold tracking-[0.15em] sm:tracking-[0.2em] rounded-full transition-all"
+                    style={sortBy==='rating'?{background:GOLD,color:'#000'}:{background:'transparent',color:'rgba(255,255,255,0.5)',border:'1px solid rgba(255,255,255,0.12)'}}>
+                    ★ EN POPÜLER
+                  </button>
                 </div>
               </div>
             </div>

@@ -23,7 +23,7 @@ const TERRA = '#b04a3a'   // primary accent — warm terracotta
 const SANS = "-apple-system, 'SF Pro Display', 'Inter', 'Helvetica Neue', system-ui, sans-serif"
 
 export default function MinimalTheme(props) {
-  const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff, detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled, toast3, userLoc, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy, qrModal, setQrModal, upcomingAppts, uiLang='tr', saveBooking } = props
+  const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff, detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled, toast3, userLoc, locStatus, requestLocation, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy, qrModal, setQrModal, upcomingAppts, uiLang='tr', saveBooking } = props
   const T = (k) => i18n(k, uiLang)
   const [mounted, setMounted] = useState(false)
   useEffect(() => { const t = setTimeout(()=>setMounted(true), 30); return ()=>clearTimeout(t) }, [])
@@ -76,7 +76,7 @@ export default function MinimalTheme(props) {
           </section>
 
           {/* CATEGORY — sade pill row */}
-          <div className="flex items-center gap-1.5 mb-12 overflow-x-auto pb-1 -mx-1 px-1">
+          <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
             {[{v:'',l:'Tümü'},{v:'Güzellik',l:'Güzellik'},{v:'Kuaför',l:'Kuaför'},{v:'Masaj',l:'Masaj'},{v:'Fitness',l:'Fitness'},{v:'Sağlık',l:'Sağlık'}].map(({v,l})=>{
               const active = (!v&&!catFilter)||(catFilter===v&&v!=='')
               return (
@@ -87,12 +87,19 @@ export default function MinimalTheme(props) {
                 </button>
               )
             })}
-            <div className="ml-auto flex items-center gap-2 text-sm" style={{color:MUTED}}>
-              <select value={sortBy} onChange={e=>setSortBy(e.target.value)} className="bg-transparent text-sm font-medium outline-none" style={{color:INK}}>
-                <option value="rating">En yüksek puan</option>
-                <option value="distance">Bana en yakın</option>
-              </select>
-            </div>
+          </div>
+          {/* SORT — kategori altında, belirgin */}
+          <div className="flex items-center gap-2 mb-12">
+            <button onClick={()=>{ if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } }}
+              className="text-sm font-bold whitespace-nowrap px-4 py-2 rounded-full transition-all flex items-center gap-1.5"
+              style={sortBy==='distance'?{background:TERRA,color:'#fff',boxShadow:'0 4px 14px -4px '+TERRA+'80'}:{color:TERRA,border:'1.5px solid '+TERRA}}>
+              📍 Bana en yakın {locStatus==='loading'&&'…'}
+            </button>
+            <button onClick={()=>setSortBy('rating')}
+              className="text-sm font-medium whitespace-nowrap px-4 py-2 rounded-full transition-all"
+              style={sortBy==='rating'?{background:INK,color:PAPER}:{color:MUTED,border:'1px solid '+INK+'1a'}}>
+              ⭐ En iyiler
+            </button>
           </div>
 
           {activeAds.length > 0 && <div className="mb-16"><AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail} variant="minimal" uiLang={uiLang}/></div>}

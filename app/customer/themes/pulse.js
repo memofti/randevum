@@ -139,8 +139,8 @@ export default function PulseTheme(props) {
             </section>
           )}
 
-          {/* KATEGORİ + SORT CHIPS */}
-          <div className="mb-6 flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 sm:-mx-6 px-4 sm:px-6">
+          {/* KATEGORİ CHIPS */}
+          <div className="mb-3 flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 sm:-mx-6 px-4 sm:px-6">
             <button onClick={()=>setCatFilter('')} className="flex-shrink-0 text-xs font-bold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap" style={!catFilter?{background:MINT, color:'#000'}:{background:PANEL, color:INK, border:'1px solid '+PANEL2}}>
               Tümü
             </button>
@@ -151,15 +151,16 @@ export default function PulseTheme(props) {
                 {cat}
               </button>
             ))}
-            {/* Yakındakiler / sort */}
-            <div className="flex-shrink-0 ml-2 w-px h-5" style={{background:PANEL2}}/>
-            <button onClick={()=>{ if(sortBy==='distance'){setSortBy('rating')} else { if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } } }}
-              className="flex-shrink-0 text-xs font-bold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap flex items-center gap-1"
-              style={sortBy==='distance'?{background:PINK, color:'#fff'}:{background:PANEL, color:INK, border:'1px solid '+PANEL2}}>
-              📍 Yakındakiler {locStatus==='loading' && '...'}
+          </div>
+          {/* SORT — kategori altında belirgin */}
+          <div className="mb-6 flex items-center gap-2 flex-wrap">
+            <button onClick={()=>{ if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } }}
+              className="text-xs font-bold px-4 py-1.5 rounded-full transition-all whitespace-nowrap flex items-center gap-1.5"
+              style={sortBy==='distance'?{background:`linear-gradient(135deg,${MINT},${PINK})`, color:'#000', boxShadow:'0 4px 14px -4px '+MINT+'aa'}:{background:'transparent', color:MINT, border:'1.5px solid '+MINT}}>
+              📍 Bana en yakın {locStatus==='loading' && '...'}
             </button>
             <button onClick={()=>setSortBy('rating')}
-              className="flex-shrink-0 text-xs font-bold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap"
+              className="text-xs font-bold px-4 py-1.5 rounded-full transition-all whitespace-nowrap"
               style={sortBy==='rating'?{background:PINK, color:'#fff'}:{background:PANEL, color:INK, border:'1px solid '+PANEL2}}>
               ⭐ En İyiler
             </button>

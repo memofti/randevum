@@ -99,7 +99,7 @@ export default function AtlasTheme(props) {
       {/* STICKY KATEGORİ BAR */}
       {tab === 'home' && (
         <div className="sticky top-0 z-30" style={{background:PAPER, borderBottom:'1px solid '+RULE}}>
-          <div className="max-w-[1280px] mx-auto px-5 sm:px-10 py-3 flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
+          <div className="max-w-[1280px] mx-auto px-5 sm:px-10 pt-3 pb-1 flex items-center gap-1 sm:gap-2 overflow-x-auto scrollbar-hide">
             <button onClick={()=>setCatFilter('')}
               className="text-xs font-bold tracking-[0.15em] whitespace-nowrap px-2.5 py-1.5 transition-all uppercase"
               style={!catFilter?{color:INK, borderBottom:'2px solid '+INK}:{color:MUTED}}>
@@ -112,20 +112,35 @@ export default function AtlasTheme(props) {
                 {c}
               </button>
             ))}
-            <div className="ml-auto flex items-center gap-2 flex-shrink-0">
+            <div className="ml-auto flex-shrink-0">
               <input type="search" placeholder="Ara..."
                 value={searchQ} onChange={e=>setSearchQ(e.target.value)}
                 className="text-xs px-2 py-1 outline-none bg-transparent border-b"
                 style={{borderColor:RULE, color:INK, width:'5.5rem'}}/>
-              <select value={sortBy} onChange={e=>{ if(e.target.value==='distance' && !userLoc && requestLocation){ requestLocation(true) } else { setSortBy(e.target.value) } }}
-                className="text-[10px] font-bold tracking-[0.15em] uppercase outline-none cursor-pointer px-1.5 py-1"
-                style={{background:'transparent', color:INK, border:'1px solid '+RULE}}>
-                <option value="rating">⭐ Puan</option>
-                <option value="distance">📍 Yakın</option>
-                <option value="price_asc">₺ Ucuz</option>
-                <option value="reviews">💬 Yorum</option>
-              </select>
             </div>
+          </div>
+          {/* SORT — kategori altında belirgin */}
+          <div className="max-w-[1280px] mx-auto px-5 sm:px-10 pb-2.5 flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
+            <button onClick={()=>{ if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } }}
+              className="text-[11px] font-black tracking-[0.2em] uppercase whitespace-nowrap px-3 py-1.5 transition-all flex items-center gap-1.5"
+              style={sortBy==='distance'?{background:accent, color:PAPER}:{color:accent, border:'1.5px solid '+accent}}>
+              📍 Bana en yakın {locStatus==='loading' && '…'}
+            </button>
+            <button onClick={()=>setSortBy('rating')}
+              className="text-[11px] font-black tracking-[0.2em] uppercase whitespace-nowrap px-3 py-1.5 transition-all"
+              style={sortBy==='rating'?{background:INK, color:PAPER}:{color:MUTED, border:'1px solid '+RULE}}>
+              ⭐ Puan
+            </button>
+            <button onClick={()=>setSortBy('price_asc')}
+              className="text-[11px] font-black tracking-[0.2em] uppercase whitespace-nowrap px-3 py-1.5 transition-all"
+              style={sortBy==='price_asc'?{background:INK, color:PAPER}:{color:MUTED, border:'1px solid '+RULE}}>
+              ₺ Ucuzdan
+            </button>
+            <button onClick={()=>setSortBy('reviews')}
+              className="text-[11px] font-black tracking-[0.2em] uppercase whitespace-nowrap px-3 py-1.5 transition-all"
+              style={sortBy==='reviews'?{background:INK, color:PAPER}:{color:MUTED, border:'1px solid '+RULE}}>
+              💬 Yorum
+            </button>
           </div>
         </div>
       )}

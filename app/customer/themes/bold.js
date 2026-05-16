@@ -24,7 +24,7 @@ const RULE = '#0a0a1214'
 const SANS = "-apple-system, 'SF Pro Display', 'Inter', 'Helvetica Neue', system-ui, sans-serif"
 
 export default function BoldTheme(props) {
-  const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff, detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled, toast3, userLoc, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy, qrModal, setQrModal, upcomingAppts, uiLang='tr', saveBooking } = props
+  const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff, detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled, toast3, userLoc, locStatus, requestLocation, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy, qrModal, setQrModal, upcomingAppts, uiLang='tr', saveBooking } = props
   const T = (k) => i18n(k, uiLang)
   const [mounted, setMounted] = useState(false)
   useEffect(() => { const t = setTimeout(()=>setMounted(true), 30); return ()=>clearTimeout(t) }, [])
@@ -105,7 +105,7 @@ export default function BoldTheme(props) {
           </section>
 
           {/* CATEGORY — kalın chip'ler */}
-          <div className="flex items-center gap-2 mb-10 overflow-x-auto pb-2" style={{borderTop:'2px solid '+INK,paddingTop:'1.25rem'}}>
+          <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-2" style={{borderTop:'2px solid '+INK,paddingTop:'1.25rem'}}>
             {[{v:'',l:'TÜMÜ'},{v:'Güzellik',l:'GÜZELLİK'},{v:'Kuaför',l:'KUAFÖR'},{v:'Masaj',l:'MASAJ'},{v:'Fitness',l:'FİTNESS'},{v:'Sağlık',l:'SAĞLIK'}].map(({v,l})=>{
               const active = (!v&&!catFilter)||(catFilter===v&&v!=='')
               return (
@@ -118,10 +118,19 @@ export default function BoldTheme(props) {
                 </button>
               )
             })}
-            <select value={sortBy} onChange={e=>setSortBy(e.target.value)} className="ml-auto text-xs font-black tracking-[0.15em] px-3 py-2.5 outline-none cursor-pointer" style={{background:PAPER,color:INK,border:'2px solid '+INK}}>
-              <option value="rating">EN POPÜLER</option>
-              <option value="distance">EN YAKIN</option>
-            </select>
+          </div>
+          {/* SORT — kategori altında belirgin */}
+          <div className="flex items-center gap-2 mb-10 flex-wrap">
+            <button onClick={()=>{ if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } }}
+              className="text-xs font-black tracking-[0.15em] whitespace-nowrap px-4 py-2.5 transition-all flex items-center gap-1.5"
+              style={sortBy==='distance'?{background:COBALT,color:'#fff',boxShadow:'4px 4px 0 0 '+INK}:{color:COBALT,border:'2px solid '+COBALT,background:PAPER}}>
+              📍 EN YAKIN {locStatus==='loading'&&'…'}
+            </button>
+            <button onClick={()=>setSortBy('rating')}
+              className="text-xs font-black tracking-[0.15em] whitespace-nowrap px-4 py-2.5 transition-all"
+              style={sortBy==='rating'?{background:INK,color:PAPER}:{color:INK,border:'2px solid '+INK,background:PAPER}}>
+              ⭐ EN POPÜLER
+            </button>
           </div>
 
           {activeAds.length > 0 && <div className="mb-14"><AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail} variant="bold" uiLang={uiLang}/></div>}

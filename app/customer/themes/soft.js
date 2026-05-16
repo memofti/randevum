@@ -43,7 +43,7 @@ const TILE_COLORS = [
 ]
 
 export default function SoftTheme(props) {
-  const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff, detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled, toast3, userLoc, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy, qrModal, setQrModal, upcomingAppts, uiLang='tr', saveBooking } = props
+  const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff, detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled, toast3, userLoc, locStatus, requestLocation, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy, qrModal, setQrModal, upcomingAppts, uiLang='tr', saveBooking } = props
   const T = (k) => i18n(k, uiLang)
   const [mounted, setMounted] = useState(false)
   useEffect(() => { const t = setTimeout(()=>setMounted(true), 50); return ()=>clearTimeout(t) }, [])
@@ -141,7 +141,7 @@ export default function SoftTheme(props) {
           </section>
 
           {/* CATEGORY PILLS — soft glass */}
-          <div className="flex gap-2 mb-8 flex-wrap">
+          <div className="flex gap-2 mb-3 flex-wrap">
             {[{v:'',l:'🌈 Tümü'},{v:'Güzellik',l:'💅 Güzellik'},{v:'Kuaför',l:'✂️ Kuaför'},{v:'Masaj',l:'🧘 Masaj'},{v:'Fitness',l:'🏋️ Fitness'},{v:'Sağlık',l:'💊 Sağlık'}].map(({v,l})=>{
               const active = (!v&&!catFilter)||(catFilter===v&&v!=='')
               return (
@@ -152,10 +152,19 @@ export default function SoftTheme(props) {
                 </button>
               )
             })}
-            <select value={sortBy} onChange={e=>setSortBy(e.target.value)} className="ml-auto px-4 py-2.5 rounded-full text-sm font-bold outline-none" style={{background:'rgba(255,255,255,0.55)',color:MUTED,backdropFilter:'blur(12px)',border:'1px solid rgba(255,255,255,0.7)'}}>
-              <option value="rating">⭐ Puan</option>
-              <option value="distance">📍 Mesafe</option>
-            </select>
+          </div>
+          {/* SORT — kategori altında belirgin */}
+          <div className="flex items-center gap-2 mb-8 flex-wrap">
+            <button onClick={()=>{ if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } }}
+              className="px-5 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-1.5"
+              style={sortBy==='distance'?{background:'linear-gradient(135deg,#e85d8a,#9b5cb8)',color:'#fff',boxShadow:'0 6px 18px -6px rgba(232,93,138,0.5)'}:{background:'rgba(255,255,255,0.8)',color:'#e85d8a',border:'1.5px solid #e85d8a'}}>
+              📍 Bana en yakın {locStatus==='loading'&&'…'}
+            </button>
+            <button onClick={()=>setSortBy('rating')}
+              className="px-5 py-2.5 rounded-full text-sm font-bold transition-all"
+              style={sortBy==='rating'?{background:'rgba(58,42,74,0.95)',color:'#fff'}:{background:'rgba(255,255,255,0.55)',color:MUTED,border:'1px solid rgba(255,255,255,0.7)'}}>
+              ⭐ En iyiler
+            </button>
           </div>
 
           {activeAds.length > 0 && <div className="mb-8"><AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail} variant="soft" uiLang={uiLang}/></div>}
