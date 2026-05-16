@@ -102,8 +102,31 @@ function getTemplate(type, data) {
   return templates[type] || null
 }
 
+// IP başına 60 saniyede 10 email isteğine izin ver (basic abuse koruması)
+const ipBuckets = new Map()
+function checkRate(ip) {
+  const now = Date.now()
+  const win = 60 * 1000
+  const limit = 10
+  const entry = ipBuckets.get(ip) || []
+  const recent = entry.filter(t => now - t < win)
+  if (recent.length >= limit) return false
+  recent.push(now)
+  ipBuckets.set(ip, recent)
+  // basit cleanup
+  if (ipBuckets.size > 5000) ipBuckets.clear()
+  return true
+}
+
 export async function POST(req) {
   try {
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    if (!checkRate(ip)) return NextResponse.json({ error: 'Çok fazla istek — biraz sonra dene' }, { status: 429 })
+
+    // Authorization gate — Supabase anon key + bearer ya da apikey header
+    const authHeader = req.headers.get('authorization') || req.headers.get('apikey')
+    if (!authHeader) return NextResponse.json({ error: 'Yetkisiz' }, { status: 401 })
+
     const { type, to, data } = await req.json()
     if (!to || !type) return NextResponse.json({ error: 'type ve to gerekli' }, { status: 400 })
 

@@ -1,4 +1,5 @@
 'use client'
+import Image from 'next/image'
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
 
 export default function BusinessCard({ b, i, onDetail, onMap }) {
@@ -7,7 +8,7 @@ export default function BusinessCard({ b, i, onDetail, onMap }) {
       className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group">
       <div className="h-28 flex items-center justify-center text-5xl relative overflow-hidden" style={{ background:`${COLORS[i%COLORS.length]}15` }}>
         {b.cover_url
-          ? <img src={b.cover_url} alt={b.name} className="w-full h-full object-cover"/>
+          ? <Image src={b.cover_url} alt={b.name} fill sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" className="object-cover" loading={i < 3 ? 'eager' : 'lazy'}/>
           : <span>{b.emoji||'🏢'}</span>
         }
         {b.cover_url && <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent"/>}
