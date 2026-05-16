@@ -159,7 +159,7 @@ export default function SpotTheme(props) {
       {tab === 'appts' && <div style={{background:BG, minHeight:'100vh', paddingTop:'56px'}}><AppointmentsTab {...props} variant="luxury" /></div>}
       {tab === 'profile' && <div style={{background:BG, minHeight:'100vh', paddingTop:'56px'}}><ProfileTab {...props} variant="luxury" /></div>}
 
-      <BusinessDetailModal biz={detailBiz} bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)} services={bizServices} staff={bizStaff} loading={detailLoading} onClose={()=>setDetailBiz(null)} onBook={()=>setBookModal(true)} variant="luxury" uiLang={uiLang}/>
+      <BusinessDetailModal {...props.detailModalProps} variant="luxury"/>
       <BookingModal biz={bookModal&&detailBiz?detailBiz:null} services={bizServices} staff={bizStaff} onClose={()=>setBookModal(false)} onBook={saveBooking} toast3={toast3} paymentEnabled={paymentEnabled} loyaltyEnabled={props.loyaltyEnabled} discount={activeAdDiscount} variant="luxury" uiLang={uiLang} userId={user?.id} userPoints={user?.loyalty_points||0}/>
       <QRModal qrModal={qrModal} setQrModal={setQrModal} />
     </div>

@@ -256,7 +256,7 @@ export default function BoldTheme(props) {
       {tab === 'appts' && <AppointmentsTab {...props} variant="bold" />}
       {tab === 'profile' && <ProfileTab {...props} variant="bold" />}
 
-      <BusinessDetailModal biz={detailBiz} bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)} services={bizServices} staff={bizStaff} loading={detailLoading} onClose={()=>setDetailBiz(null)} onBook={()=>setBookModal(true)} variant="bold" uiLang={uiLang}/>
+      <BusinessDetailModal {...props.detailModalProps} variant="bold"/>
       <BookingModal biz={bookModal&&detailBiz?detailBiz:null} services={bizServices} staff={bizStaff} onClose={()=>setBookModal(false)} onBook={saveBooking} toast3={toast3} paymentEnabled={paymentEnabled} loyaltyEnabled={props.loyaltyEnabled} discount={activeAdDiscount} variant="bold" uiLang={uiLang} userId={user?.id} userPoints={user?.loyalty_points||0}/>
       <QRModal qrModal={qrModal} setQrModal={setQrModal} />
     </div>

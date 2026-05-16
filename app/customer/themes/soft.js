@@ -231,7 +231,7 @@ export default function SoftTheme(props) {
       {tab === 'appts' && <AppointmentsTab {...props} variant="soft" />}
       {tab === 'profile' && <ProfileTab {...props} variant="soft" />}
 
-      <BusinessDetailModal biz={detailBiz} bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)} services={bizServices} staff={bizStaff} loading={detailLoading} onClose={()=>setDetailBiz(null)} onBook={()=>setBookModal(true)} variant="soft" uiLang={uiLang}/>
+      <BusinessDetailModal {...props.detailModalProps} variant="soft"/>
       <BookingModal biz={bookModal&&detailBiz?detailBiz:null} services={bizServices} staff={bizStaff} onClose={()=>setBookModal(false)} onBook={saveBooking} toast3={toast3} paymentEnabled={paymentEnabled} loyaltyEnabled={props.loyaltyEnabled} discount={activeAdDiscount} variant="soft" uiLang={uiLang} userId={user?.id} userPoints={user?.loyalty_points||0}/>
       <QRModal qrModal={qrModal} setQrModal={setQrModal} />
     </div>

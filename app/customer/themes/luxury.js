@@ -230,7 +230,7 @@ export default function LuxuryTheme(props) {
       {tab === 'appts' && <AppointmentsTab {...props} variant="luxury" />}
       {tab === 'profile' && <ProfileTab {...props} variant="luxury" />}
 
-      <BusinessDetailModal biz={detailBiz} bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)} services={bizServices} staff={bizStaff} loading={detailLoading} onClose={()=>setDetailBiz(null)} onBook={()=>setBookModal(true)} variant="luxury" uiLang={uiLang}/>
+      <BusinessDetailModal {...props.detailModalProps} variant="luxury"/>
       <BookingModal biz={bookModal&&detailBiz?detailBiz:null} services={bizServices} staff={bizStaff} onClose={()=>setBookModal(false)} onBook={saveBooking} toast3={toast3} paymentEnabled={paymentEnabled} loyaltyEnabled={props.loyaltyEnabled} discount={activeAdDiscount} variant="luxury" uiLang={uiLang} userId={user?.id} userPoints={user?.loyalty_points||0}/>
       <QRModal qrModal={props.qrModal} setQrModal={props.setQrModal} />
     </div>

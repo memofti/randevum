@@ -595,6 +595,22 @@ export default function CustomerPage() {
   const pct = profile ? Math.min(100, Math.round((profile.loyalty_points||0)/3000*100)) : 0
 
   const themeKey = theme?.name || 'default'
+  const detailModalProps = {
+    biz: detailBiz,
+    bizIdx: businesses.findIndex(b=>b.id===detailBiz?.id),
+    services: bizServices,
+    staff: bizStaff,
+    reviews: bizReviews,
+    canReview: !!appointments.find(a => a.business_id===detailBiz?.id && a.status==='completed'),
+    onReview: () => {
+      const a = appointments.find(a => a.business_id===detailBiz?.id && a.status==='completed')
+      if (a) { setReviewModal(a); setReviewForm({ rating: 5, comment: '' }) }
+    },
+    loading: detailLoading,
+    onClose: () => setDetailBiz(null),
+    onBook: () => setBookModal(true),
+    uiLang,
+  }
   const themeProps = {
     user, businesses, appointments, activeAds, profile,
     tab, setTab, openDetail, detailBiz, bizServices, bizStaff,
@@ -603,6 +619,7 @@ export default function CustomerPage() {
     searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
     cancelAppt, rescheduleAppt: openReschedule, setReviewModal, setReviewForm, qrModal, setQrModal,
     upcomingAppts, pastAppts, saveBooking,
+    bizReviews, detailModalProps,
     // Profil tab shared component props
     profLoading, profileForm, setProfileForm, editProfile, setEditProfile,
     savingProfile, saveProfile, setProfile, requestPushPermission,
@@ -747,23 +764,7 @@ export default function CustomerPage() {
       )}
 
       {/* İşletme Detay Modal */}
-      <BusinessDetailModal
-        biz={detailBiz}
-        bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)}
-        services={bizServices}
-        staff={bizStaff}
-        reviews={bizReviews}
-        canReview={!!appointments.find(a => a.business_id===detailBiz?.id && a.status==='completed')}
-        onReview={() => {
-          const a = appointments.find(a => a.business_id===detailBiz?.id && a.status==='completed')
-          if (a) { setReviewModal(a); setReviewForm({ rating: 5, comment: '' }) }
-        }}
-        loading={detailLoading}
-        onClose={()=>setDetailBiz(null)}
-        onBook={()=>setBookModal(true)}
-        variant="default"
-        uiLang={uiLang}
-      />
+      <BusinessDetailModal {...detailModalProps} variant="default" />
       {false && detailBiz && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
           onClick={e => e.target===e.currentTarget && setDetailBiz(null)}>

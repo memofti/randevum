@@ -183,7 +183,7 @@ export default function MinimalTheme(props) {
       {tab === 'appts' && <AppointmentsTab {...props} variant="minimal" />}
       {tab === 'profile' && <ProfileTab {...props} variant="minimal" />}
 
-      <BusinessDetailModal biz={detailBiz} bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)} services={bizServices} staff={bizStaff} loading={detailLoading} onClose={()=>setDetailBiz(null)} onBook={()=>setBookModal(true)} variant="minimal" uiLang={uiLang}/>
+      <BusinessDetailModal {...props.detailModalProps} variant="minimal"/>
       <BookingModal biz={bookModal&&detailBiz?detailBiz:null} services={bizServices} staff={bizStaff} onClose={()=>setBookModal(false)} onBook={saveBooking} toast3={toast3} paymentEnabled={paymentEnabled} loyaltyEnabled={props.loyaltyEnabled} discount={activeAdDiscount} variant="minimal" uiLang={uiLang} userId={user?.id} userPoints={user?.loyalty_points||0}/>
       <QRModal qrModal={qrModal} setQrModal={setQrModal} />
     </div>
