@@ -22,7 +22,11 @@ function distKm(lat1,lng1,lat2,lng2){const R=6371,dL=(lat2-lat1)*Math.PI/180,dN=
 const COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
 
 function Spin() { return <div className="w-5 h-5 border-2 border-gray-200 border-t-orange-500 rounded-full animate-spin flex-shrink-0" /> }
-function Bdg({ s }) {
+function Bdg({ s, pastDue }) {
+  // Tarihi geçmiş ama firma 'completed' işaretlememiş — "tamamlandı" gibi davranma
+  if (pastDue && (s === 'confirmed' || s === 'pending')) {
+    return <span className="inline-flex items-center text-xs font-bold px-2.5 py-0.5 rounded-full border bg-slate-50 text-slate-600 border-slate-200">⏳ Tamamlandı bekleniyor</span>
+  }
   const m = { confirmed:['bg-green-50 text-green-700 border-green-200','✓ Onaylı'], pending:['bg-amber-50 text-amber-700 border-amber-200','⏳ Bekliyor'], completed:['bg-gray-100 text-gray-600 border-gray-200','Tamamlandı'], cancelled:['bg-red-50 text-red-600 border-red-200','İptal'] }
   const [c,l] = m[s]||m.completed
   return <span className={`inline-flex items-center text-xs font-bold px-2.5 py-0.5 rounded-full border ${c}`}>{l}</span>
@@ -574,8 +578,11 @@ export default function CustomerPage() {
       return (b.rating||0) - (a.rating||0)
     })
   const cats = [...new Set(businesses.map(b => b.category))]
-  const upcomingAppts = appointments.filter(a => ['pending','confirmed'].includes(a.status))
-  const pastAppts = appointments.filter(a => ['completed','cancelled'].includes(a.status))
+  // Yaklaşan = aktif statü VE randevu zamanı gelecekte; geçmiş = diğer her şey
+  const apptDateTime = (a) => new Date(`${a.appointment_date}T${String(a.appointment_time||'23:59').slice(0,5)}`)
+  const nowMs = Date.now()
+  const upcomingAppts = appointments.filter(a => ['pending','confirmed'].includes(a.status) && apptDateTime(a).getTime() > nowMs)
+  const pastAppts = appointments.filter(a => !(['pending','confirmed'].includes(a.status) && apptDateTime(a).getTime() > nowMs))
   const pct = profile ? Math.min(100, Math.round((profile.loyalty_points||0)/3000*100)) : 0
 
   const themeKey = theme?.name || 'default'
@@ -1315,7 +1322,7 @@ export default function CustomerPage() {
                           <div className="text-gray-400 text-xs">{a.services?.name||'—'} · {new Date(a.appointment_date).toLocaleDateString('tr-TR')}</div>
                         </div>
                         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                          <Bdg s={a.status} />
+                          <Bdg s={a.status} pastDue={apptDateTime(a).getTime() <= nowMs} />
                           {a.status === 'completed' && (
                             <div className="flex gap-1.5 flex-wrap">
                               <button onClick={() => { setReviewModal(a); setReviewForm({ rating: 5, comment: '' }) }}
