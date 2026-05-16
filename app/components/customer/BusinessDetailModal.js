@@ -1,4 +1,5 @@
 'use client'
+import { useState } from 'react'
 import { t as i18n } from '@/lib/i18n'
 
 const STAFF_COLORS = ['#ff6b35','#3b82f6','#10b981','#8b5cf6','#ec4899','#f59e0b','#06b6d4','#ef4444']
@@ -14,7 +15,8 @@ const VARIANTS = {
 
 function Spin({color}) { return <div className="w-5 h-5 border-2 rounded-full animate-spin flex-shrink-0" style={{borderColor:'rgba(150,150,150,0.25)',borderTopColor:color}}/> }
 
-export default function BusinessDetailModal({ biz, bizIdx, services, staff, loading, onClose, onBook, variant='default', uiLang='tr' }) {
+export default function BusinessDetailModal({ biz, bizIdx, services, staff, reviews=[], canReview=false, onReview, loading, onClose, onBook, variant='default', uiLang='tr' }) {
+  const [lightboxUrl, setLightboxUrl] = useState(null)
   if (!biz) return null
   const T = (k, vars) => i18n(k, uiLang, vars)
   const V = VARIANTS[variant] || VARIANTS.default
@@ -180,7 +182,7 @@ export default function BusinessDetailModal({ biz, bizIdx, services, staff, load
                           borderRadius: variant==='bold'||variant==='minimal' ? '0' : '0.75rem',
                           border: '1px solid '+V.border,
                         }}
-                        onClick={() => window.open(url,'_blank')}/>
+                        onClick={() => setLightboxUrl(url)}/>
                     ))}
                   </div>
                 </div>
@@ -234,6 +236,52 @@ export default function BusinessDetailModal({ biz, bizIdx, services, staff, load
                   </div>
                 </div>
               )}
+
+              {/* Yorumlar */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-[11px] font-black tracking-[0.25em]" style={{color:V.accent}}>⭐ YORUMLAR ({biz.review_count||0})</div>
+                  {canReview && (
+                    <button onClick={onReview}
+                      className="text-[11px] font-bold px-3 py-1.5 transition-opacity hover:opacity-80"
+                      style={{
+                        background:V.accent, color: isDark?'#000':'#fff',
+                        borderRadius: variant==='bold'||variant==='minimal' ? '0' : '9999px',
+                      }}>
+                      ✍️ Yorum Yaz
+                    </button>
+                  )}
+                </div>
+                {reviews.length === 0 ? (
+                  <div className="text-sm" style={{color:V.muted}}>
+                    Henüz yorum yok.{!canReview && ' Yorum yapabilmek için bu firmada tamamlanmış bir randevunuz olmalı.'}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {reviews.slice(0,5).map(r => (
+                      <div key={r.id} className="p-3"
+                        style={{
+                          background:V.chip,
+                          border:'1px solid '+V.border,
+                          borderRadius: variant==='bold'||variant==='minimal' ? '0' : '0.75rem',
+                        }}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="text-xs font-bold" style={{color:V.ink}}>{r.profiles?.full_name || 'Müşteri'}</div>
+                          <div className="text-xs font-bold" style={{color:V.accent}}>{'★'.repeat(r.rating||0)}<span style={{color:V.muted}}>{'★'.repeat(Math.max(0,5-(r.rating||0)))}</span></div>
+                        </div>
+                        {r.comment && <div className="text-xs leading-relaxed" style={{color:V.muted}}>{r.comment}</div>}
+                      </div>
+                    ))}
+                    {reviews.length > 5 && (
+                      <a href={'/firma/'+biz.id} target="_blank" rel="noopener noreferrer"
+                        className="block text-center text-xs font-bold py-2 transition-opacity hover:opacity-80"
+                        style={{color:V.accent}}>
+                        Tüm yorumları gör →
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
             </>
           )}
 
@@ -251,6 +299,17 @@ export default function BusinessDetailModal({ biz, bizIdx, services, staff, load
           </button>
         </div>
       </div>
+
+      {/* Galeri lightbox */}
+      {lightboxUrl && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/90 cursor-zoom-out"
+          onClick={() => setLightboxUrl(null)}>
+          <button onClick={(e)=>{e.stopPropagation();setLightboxUrl(null)}}
+            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center text-white text-xl bg-white/10 hover:bg-white/20 rounded-full">✕</button>
+          <img src={lightboxUrl} alt="" className="max-w-full max-h-full object-contain"
+            onClick={(e)=>e.stopPropagation()}/>
+        </div>
+      )}
     </div>
   )
 }

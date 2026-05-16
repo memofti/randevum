@@ -32,6 +32,7 @@ export default function CustomerPage() {
   const router = useRouter()
   const [user, setUser] = useState(null)
   const [tab, setTab] = useState('home')
+  const [highlightedBizId, setHighlightedBizId] = useState(null)
   const [businesses, setBusinesses] = useState([])
   const [catFilter, setCatFilter] = useState('')
   const [searchQ, setSearchQ] = useState('')
@@ -61,6 +62,7 @@ export default function CustomerPage() {
   const [detailBiz, setDetailBiz] = useState(null)
   const [bizServices, setBizServices] = useState([])
   const [bizStaff, setBizStaff] = useState([])
+  const [bizReviews, setBizReviews] = useState([])
   const [detailLoading, setDetailLoading] = useState(false)
   // Randevu al modal
   const [bookModal, setBookModal] = useState(false)
@@ -258,16 +260,21 @@ export default function CustomerPage() {
   // İşletme detay aç
   async function openDetail(biz, discount=0) {
     setDetailBiz(biz)
+    setHighlightedBizId(biz.id)
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
     setActiveAdDiscount(discount)
     setDetailLoading(true)
     setBookedRanges([])
+    setBizReviews([])
     try {
-      const [{ data: svcs }, { data: stff }] = await Promise.all([
+      const [{ data: svcs }, { data: stff }, { data: revs }] = await Promise.all([
         supabase.from('services').select('*').eq('business_id', biz.id).eq('status','active'),
         supabase.from('staff').select('*').eq('business_id', biz.id),
+        supabase.from('reviews').select('*, profiles(full_name)').eq('business_id', biz.id).order('created_at', { ascending: false }).limit(20),
       ])
       setBizServices(svcs||[])
       setBizStaff(stff||[])
+      setBizReviews(revs||[])
     } catch(e) {
       toast3('❌ Detay yüklenemedi: '+(e?.message||''))
     } finally {
@@ -569,6 +576,12 @@ export default function CustomerPage() {
       if (sortBy === 'reviews') return (b.review_count||0) - (a.review_count||0)
       return (b.rating||0) - (a.rating||0)
     })
+    .sort((a, b) => {
+      // Haritadan/detaydan açılan firmayı listenin başına al
+      if (a.id === highlightedBizId) return -1
+      if (b.id === highlightedBizId) return 1
+      return 0
+    })
   const cats = [...new Set(businesses.map(b => b.category))]
   const upcomingAppts = appointments.filter(a => ['pending','confirmed'].includes(a.status))
   const pastAppts = appointments.filter(a => ['completed','cancelled'].includes(a.status))
@@ -727,6 +740,12 @@ export default function CustomerPage() {
         bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)}
         services={bizServices}
         staff={bizStaff}
+        reviews={bizReviews}
+        canReview={!!appointments.find(a => a.business_id===detailBiz?.id && a.status==='completed')}
+        onReview={() => {
+          const a = appointments.find(a => a.business_id===detailBiz?.id && a.status==='completed')
+          if (a) { setReviewModal(a); setReviewForm({ rating: 5, comment: '' }) }
+        }}
         loading={detailLoading}
         onClose={()=>setDetailBiz(null)}
         onBook={()=>setBookModal(true)}
@@ -1116,7 +1135,7 @@ export default function CustomerPage() {
             </div>
           </div>
 
-          <div className="max-w-6xl mx-auto px-3 sm:px-6 py-6 sm:py-8 w-full">
+          <div className="max-w-6xl mx-auto px-3 sm:px-6 pt-6 sm:pt-8 pb-32 sm:pb-12 w-full">
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-bold text-lg">
                 {catFilter ? `${catFilter} İşletmeleri` : '📍 Yakınındaki İşletmeler'}
@@ -1171,7 +1190,7 @@ export default function CustomerPage() {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {filteredBiz.map((b,i) => (
-                  <BusinessCard key={b.id} b={b} i={i} onDetail={openDetail} onMap={()=>setTab('map')}/>
+                  <BusinessCard key={b.id} b={b} i={i} onDetail={openDetail} onMap={()=>setTab('map')} highlighted={b.id===highlightedBizId}/>
                 ))}
                 {false && filteredBiz.map((b,i) => (
                   <div key={b.id} onClick={() => openDetail(b)}
@@ -1225,23 +1244,10 @@ export default function CustomerPage() {
       {tab === 'map' && (
         <MapView
           businesses={businesses}
-          onBook={(biz) => {
-            setDetailBiz(biz)
+          onBook={async (biz) => {
             setTab('home')
-            setTimeout(() => {
-              setBizServices([])
-              setBizStaff([])
-              setDetailLoading(true)
-              Promise.all([
-                supabase.from('services').select('*').eq('business_id', biz.id).eq('status', 'active'),
-                supabase.from('staff').select('*').eq('business_id', biz.id).eq('status', 'available')
-              ]).then(([{ data: svcs }, { data: stf }]) => {
-                setBizServices(svcs || [])
-                setBizStaff(stf || [])
-                setDetailLoading(false)
-                setBookModal(true)
-              })
-            }, 100)
+            await openDetail(biz)
+            setBookModal(true)
           }}
         />
       )}
