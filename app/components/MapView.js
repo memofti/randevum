@@ -47,6 +47,7 @@ export default function MapView({ businesses, onBook }) {
   const routeLayerRef = useRef(null)
   const markersRef = useRef([])
   const userMarkerRef = useRef(null)
+  const listRef = useRef(null)
 
   const [userLocation, setUserLocation] = useState(null)
   const [locationStatus, setLocationStatus] = useState('idle')
@@ -71,6 +72,11 @@ export default function MapView({ businesses, onBook }) {
       document.head.appendChild(link)
     }
   }, [])
+
+  // Haritadan/markerdan firma seçilince liste başa kaydır
+  useEffect(() => {
+    if (selectedBiz && listRef.current) listRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [selectedBiz?.id])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -217,6 +223,12 @@ export default function MapView({ businesses, onBook }) {
       if (filterSort === 'reviews') return (b.review_count||0) - (a.review_count||0)
       return (b.rating||0) - (a.rating||0)
     })
+    .sort((a,b) => {
+      // Haritada seçili olan firmayı listenin başına al
+      if (selectedBiz?.id === a.id) return -1
+      if (selectedBiz?.id === b.id) return 1
+      return 0
+    })
 
   return (
     <div className="flex flex-col md:flex-row w-full" style={{ height: 'calc(100vh - 56px)', overflow: 'hidden' }}>
@@ -319,7 +331,7 @@ export default function MapView({ businesses, onBook }) {
         )}
 
         {/* Liste */}
-        <div className="flex-1 overflow-y-auto overscroll-contain" style={{minHeight:0}}>
+        <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain" style={{minHeight:0}}>
           {sortedBiz.map((biz, i) => {
             const dist = distances[biz.id]
             const hasCoords = !!bizCoords[biz.id]
