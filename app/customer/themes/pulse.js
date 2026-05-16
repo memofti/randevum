@@ -34,16 +34,20 @@ function isOpenNow(b) {
 export default function PulseTheme(props) {
   const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff,
           detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled,
-          toast3, userLoc, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
+          toast3, userLoc, locStatus, requestLocation, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
           qrModal, setQrModal, upcomingAppts, uiLang='tr', saveBooking } = props
   const T = (k) => i18n(k, uiLang)
   const [mounted, setMounted] = useState(false)
   useEffect(() => { const t = setTimeout(()=>setMounted(true), 30); return ()=>clearTimeout(t) }, [])
 
-  const enriched = useMemo(() => businesses
-    .filter(b => (!catFilter || b.category === catFilter) && (!searchQ || b.name.toLowerCase().includes(searchQ.toLowerCase())))
-    .map(b => ({ ...b, dist: userLoc && b.lat && b.lng ? distKm(userLoc.lat, userLoc.lng, parseFloat(b.lat), parseFloat(b.lng)) : null, open: isOpenNow(b) }))
-  , [businesses, catFilter, searchQ, userLoc])
+  const enriched = useMemo(() => {
+    const base = businesses
+      .filter(b => (!catFilter || b.category === catFilter) && (!searchQ || b.name.toLowerCase().includes(searchQ.toLowerCase())))
+      .map(b => ({ ...b, dist: userLoc && b.lat && b.lng ? distKm(userLoc.lat, userLoc.lng, parseFloat(b.lat), parseFloat(b.lng)) : null, open: isOpenNow(b) }))
+    if (sortBy === 'distance') return base.sort((a,b) => (a.dist ?? 9999) - (b.dist ?? 9999))
+    if (sortBy === 'price_asc') return base.sort((a,b) => (a.price_from||0) - (b.price_from||0))
+    return base.sort((a,b) => (b.rating||0) - (a.rating||0))
+  }, [businesses, catFilter, searchQ, sortBy, userLoc])
 
   // Story carousel: rating yüksek olanlardan ilk 10
   const stories = [...enriched].sort((a,b) => (b.rating||0)-(a.rating||0)).slice(0, 10)
@@ -135,7 +139,7 @@ export default function PulseTheme(props) {
             </section>
           )}
 
-          {/* KATEGORİ CHIPS */}
+          {/* KATEGORİ + SORT CHIPS */}
           <div className="mb-6 flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 sm:-mx-6 px-4 sm:px-6">
             <button onClick={()=>setCatFilter('')} className="flex-shrink-0 text-xs font-bold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap" style={!catFilter?{background:MINT, color:'#000'}:{background:PANEL, color:INK, border:'1px solid '+PANEL2}}>
               Tümü
@@ -147,6 +151,18 @@ export default function PulseTheme(props) {
                 {cat}
               </button>
             ))}
+            {/* Yakındakiler / sort */}
+            <div className="flex-shrink-0 ml-2 w-px h-5" style={{background:PANEL2}}/>
+            <button onClick={()=>{ if(sortBy==='distance'){setSortBy('rating')} else { if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } } }}
+              className="flex-shrink-0 text-xs font-bold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap flex items-center gap-1"
+              style={sortBy==='distance'?{background:PINK, color:'#fff'}:{background:PANEL, color:INK, border:'1px solid '+PANEL2}}>
+              📍 Yakındakiler {locStatus==='loading' && '...'}
+            </button>
+            <button onClick={()=>setSortBy('rating')}
+              className="flex-shrink-0 text-xs font-bold px-3.5 py-1.5 rounded-full transition-all whitespace-nowrap"
+              style={sortBy==='rating'?{background:PINK, color:'#fff'}:{background:PANEL, color:INK, border:'1px solid '+PANEL2}}>
+              ⭐ En İyiler
+            </button>
           </div>
 
           {/* REKLAMLAR */}

@@ -593,7 +593,7 @@ export default function CustomerPage() {
     user, businesses, appointments, activeAds, profile,
     tab, setTab, openDetail, detailBiz, bizServices, bizStaff,
     detailLoading, bookModal, setBookModal, setDetailBiz,
-    activeAdDiscount, paymentEnabled, toast3, userLoc,
+    activeAdDiscount, paymentEnabled, toast3, userLoc, locStatus, requestLocation,
     searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
     cancelAppt, rescheduleAppt: openReschedule, setReviewModal, setReviewForm, qrModal, setQrModal,
     upcomingAppts, pastAppts, saveBooking,

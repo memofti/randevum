@@ -58,10 +58,15 @@ export default function MapView({ businesses, onBook }) {
   const [distances, setDistances] = useState({})
   const [geocoding, setGeocoding] = useState(false)
   const [mapReady, setMapReady] = useState(false)
-  const [showList, setShowList] = useState(true)
+  // Mobile'da varsayılan: harita; desktop'ta yine list+map yan yana açık
+  const [showList, setShowList] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return window.matchMedia('(min-width: 768px)').matches
+  })
   const [navModal, setNavModal] = useState(null)
   const [filterCat, setFilterCat] = useState('')
   const [filterSort, setFilterSort] = useState('rating') // { biz, lat, lng }
+  const [searchQ, setSearchQ] = useState('')
 
   useEffect(() => {
     // Leaflet CSS yükle
@@ -216,7 +221,7 @@ export default function MapView({ businesses, onBook }) {
 
   const COLORS = ['#f97316','#3b82f6','#10b981','#8b5cf6','#ec4899']
   const sortedBiz = businesses
-    .filter(b => !filterCat || b.category === filterCat)
+    .filter(b => (!filterCat || b.category === filterCat) && (!searchQ || b.name.toLowerCase().includes(searchQ.toLowerCase()) || (b.city||'').toLowerCase().includes(searchQ.toLowerCase())))
     .sort((a,b) => {
       if (filterSort === 'distance') return (distances[a.id]||999) - (distances[b.id]||999)
       if (filterSort === 'price_asc') return (a.price_from||0) - (b.price_from||0)
@@ -394,7 +399,18 @@ export default function MapView({ businesses, onBook }) {
           </div>
         )}
         <div className="md:hidden absolute top-3 left-3 z-[1000]">
-          <button onClick={() => setShowList(true)} className="bg-white border border-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl shadow-lg">← Liste</button>
+          <button onClick={() => setShowList(true)} className="bg-white border border-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl shadow-lg">📋 Liste</button>
+        </div>
+        {/* Mobile harita üstü kategori filtre bar */}
+        <div className="md:hidden absolute top-14 left-3 right-3 z-[1000] flex items-center gap-2 overflow-x-auto scrollbar-hide bg-white/95 backdrop-blur rounded-xl px-2 py-1.5 shadow-md">
+          <input type="search" placeholder="Mekân ara..." value={searchQ} onChange={e=>setSearchQ(e.target.value)}
+            className="flex-shrink-0 text-xs px-2 py-1 outline-none border-b border-gray-200 w-20 focus:w-32 transition-all"/>
+          <button onClick={()=>setFilterCat('')} className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap"
+            style={!filterCat?{background:'#f97316',color:'#fff'}:{background:'#f3f4f6',color:'#0a0a0a'}}>Tümü</button>
+          {[...new Set(businesses.map(b=>b.category).filter(Boolean))].map(c => (
+            <button key={c} onClick={()=>setFilterCat(c===filterCat?'':c)} className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap"
+              style={filterCat===c?{background:'#f97316',color:'#fff'}:{background:'#f3f4f6',color:'#0a0a0a'}}>{c}</button>
+          ))}
         </div>
         <div className="absolute bottom-4 right-3 z-[1000] bg-white rounded-xl px-3 py-2 shadow-md flex items-center gap-2 text-xs text-gray-500">
           <div className="w-2.5 h-2.5 bg-blue-500 rounded-full" /> Sen

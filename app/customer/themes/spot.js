@@ -24,7 +24,7 @@ const SANS   = "-apple-system, 'SF Pro Display', 'Inter', system-ui, sans-serif"
 export default function SpotTheme(props) {
   const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff,
           detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled,
-          toast3, userLoc, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
+          toast3, userLoc, locStatus, requestLocation, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
           qrModal, setQrModal, upcomingAppts, uiLang='tr', saveBooking } = props
   const T = (k) => i18n(k, uiLang)
   const containerRef = useRef(null)
@@ -56,44 +56,68 @@ export default function SpotTheme(props) {
 
   return (
     <div className="min-h-screen" style={{background:BG, color:INK, fontFamily:SANS, overflow:'hidden'}}>
-      {/* Üst bar — minimal cam efekti */}
-      <header className="fixed top-0 left-0 right-0 z-50" style={{background:'linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%)'}}>
+      {/* Üst bar — sadece home tabında fixed (overlay), diğer tablarda normal flow */}
+      <header className={`${tab==='home'?'fixed top-0 left-0 right-0':'sticky top-0'} z-50`} style={{background: tab==='home' ? 'linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%)' : 'rgba(10,10,10,0.95)', backdropFilter: tab==='home'?undefined:'blur(20px)', WebkitBackdropFilter: tab==='home'?undefined:'blur(20px)', borderBottom: tab==='home'?'none':'1px solid rgba(255,255,255,0.08)'}}>
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
+          <button onClick={()=>setTab('home')} className="flex items-center gap-1.5 transition-opacity hover:opacity-80">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center text-sm font-black" style={{background:ACCENT}}>S</div>
             <span className="font-black tracking-tight text-base">Spot</span>
-          </div>
-          <button onClick={()=>setShowFilters(v=>!v)} className="ml-auto px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5"
-            style={{background:'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)'}}>
-            <span>🔍</span> {catFilter || 'Filtre'}{catFilter && <span className="ml-1 text-[10px] opacity-60">✕</span>}
+          </button>
+          {/* Nav butonlar — diğer tablardan home'a dönmek için */}
+          <nav className="ml-3 hidden sm:flex items-center gap-1">
+            {[['home','🏠 Keşfet'],['map','🗺️ Harita']].map(([k,l]) => (
+              <button key={k} onClick={()=>setTab(k)}
+                className="text-xs font-bold px-3 py-1.5 rounded-full transition-all"
+                style={tab===k?{background:'rgba(255,255,255,0.15)', color:'#fff'}:{color:'rgba(255,255,255,0.5)'}}>
+                {l}
+              </button>
+            ))}
+          </nav>
+          {tab === 'home' && (
+            <button onClick={()=>setShowFilters(v=>!v)} className="ml-auto px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5"
+              style={{background:'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)'}}>
+              <span>🔍</span> {catFilter || 'Filtre'}{catFilter && <span className="ml-1 text-[10px] opacity-60">✕</span>}
+            </button>
+          )}
+          {tab !== 'home' && <div className="ml-auto"/>}
+          <button onClick={()=>setTab('map')} className="sm:hidden px-3 py-1.5 rounded-full text-xs font-bold" style={{background:'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)'}}>
+            🗺️
           </button>
           <button onClick={()=>setTab('appts')} className="px-3 py-1.5 rounded-full text-xs font-bold relative"
-            style={{background:'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)'}}>
+            style={{background: tab==='appts'?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)'}}>
             📅
             {upcomingAppts?.length>0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center" style={{background:ACCENT, color:'#fff'}}>{upcomingAppts.length}</span>}
           </button>
-          <button onClick={()=>setTab('profile')} className="w-8 h-8 rounded-full flex items-center justify-center font-black text-xs" style={{background:'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)'}}>
+          <button onClick={()=>setTab('profile')} className="w-8 h-8 rounded-full flex items-center justify-center font-black text-xs" style={{background: tab==='profile'?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)'}}>
             {user?.name?.[0]?.toUpperCase() || '?'}
           </button>
         </div>
 
-        {/* Filtre panel — slide down */}
-        {showFilters && (
-          <div className="absolute left-0 right-0 top-14 p-4 sm:p-6" style={{background:'rgba(0,0,0,0.92)', backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)'}}>
+        {/* Filtre panel — slide down, sadece home tabında */}
+        {showFilters && tab === 'home' && (
+          <div className="absolute left-0 right-0 top-14 p-4 sm:p-6" style={{background:'rgba(0,0,0,0.95)', backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)', borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
             <div className="max-w-screen-2xl mx-auto">
               <input type="search" placeholder="Mekân, kategori, şehir ara…"
                 value={searchQ} onChange={e=>setSearchQ(e.target.value)}
                 className="w-full mb-3 px-4 py-3 rounded-full outline-none text-sm" style={{background:'rgba(255,255,255,0.1)', color:INK}}/>
-              <div className="flex flex-wrap gap-2">
-                <button onClick={()=>{setCatFilter('');setShowFilters(false)}} className="text-xs font-bold px-3 py-1.5 rounded-full" style={!catFilter?{background:ACCENT, color:'#fff'}:{background:'rgba(255,255,255,0.1)', color:INK}}>
+              <div className="text-[10px] font-black tracking-[0.25em] mb-2 opacity-60">KATEGORİ</div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                <button onClick={()=>setCatFilter('')} className="text-xs font-bold px-3 py-1.5 rounded-full" style={!catFilter?{background:ACCENT, color:'#fff'}:{background:'rgba(255,255,255,0.1)', color:INK}}>
                   Tümü
                 </button>
                 {[...new Set(businesses.map(b => b.category).filter(Boolean))].map(c => (
-                  <button key={c} onClick={()=>{setCatFilter(c===catFilter?'':c);setShowFilters(false)}} className="text-xs font-bold px-3 py-1.5 rounded-full" style={catFilter===c?{background:ACCENT, color:'#fff'}:{background:'rgba(255,255,255,0.1)', color:INK}}>
+                  <button key={c} onClick={()=>setCatFilter(c===catFilter?'':c)} className="text-xs font-bold px-3 py-1.5 rounded-full" style={catFilter===c?{background:ACCENT, color:'#fff'}:{background:'rgba(255,255,255,0.1)', color:INK}}>
                     {c}
                   </button>
                 ))}
               </div>
+              <div className="text-[10px] font-black tracking-[0.25em] mb-2 opacity-60">SIRALA</div>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={()=>setSortBy('rating')} className="text-xs font-bold px-3 py-1.5 rounded-full" style={sortBy==='rating'?{background:ACCENT2, color:'#000'}:{background:'rgba(255,255,255,0.1)', color:INK}}>⭐ En İyiler</button>
+                <button onClick={()=>{ if(!userLoc && requestLocation){requestLocation(true)} else {setSortBy('distance')} }} className="text-xs font-bold px-3 py-1.5 rounded-full" style={sortBy==='distance'?{background:ACCENT2, color:'#000'}:{background:'rgba(255,255,255,0.1)', color:INK}}>📍 Yakındakiler {locStatus==='loading'&&'...'}</button>
+                <button onClick={()=>setSortBy('price_asc')} className="text-xs font-bold px-3 py-1.5 rounded-full" style={sortBy==='price_asc'?{background:ACCENT2, color:'#000'}:{background:'rgba(255,255,255,0.1)', color:INK}}>₺ Ucuzdan</button>
+              </div>
+              <button onClick={()=>setShowFilters(false)} className="mt-4 w-full py-2.5 rounded-full text-xs font-bold" style={{background:ACCENT, color:'#fff'}}>Uygula</button>
             </div>
           </div>
         )}
@@ -102,6 +126,16 @@ export default function SpotTheme(props) {
       {tab === 'home' && (
         <main ref={containerRef} className="overflow-y-scroll snap-y snap-mandatory"
           style={{height:'100vh', scrollbarWidth:'none'}}>
+          {/* Kampanya — feed'in başında, ilk slide */}
+          {activeAds.length > 0 && (
+            <section className="snap-start flex items-center justify-center px-4 sm:px-8 pt-20 pb-12" style={{minHeight:'100vh'}}>
+              <div className="w-full max-w-2xl mx-auto">
+                <div className="text-xs font-black tracking-[0.3em] mb-4" style={{color:ACCENT}}>● BUGÜNÜN KAMPANYALARI</div>
+                <AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail} variant="luxury" uiLang={uiLang}/>
+                <div className="mt-6 text-xs text-center opacity-50">↓ Kaydır · Tüm mekanları gör</div>
+              </div>
+            </section>
+          )}
           {feed.length === 0 ? (
             <FeedEmpty/>
           ) : feed.map((b, i) => (
@@ -110,16 +144,6 @@ export default function SpotTheme(props) {
               onDetail={()=>openDetail(b)} onMap={()=>setTab('map')}
               onNext={()=>containerRef.current?.scrollTo({top:(i+1)*window.innerHeight, behavior:'smooth'})}/>
           ))}
-
-          {/* Reklamlar varsa son slide */}
-          {activeAds.length > 0 && (
-            <section className="snap-start flex items-center justify-center px-4 py-20" style={{minHeight:'100vh'}}>
-              <div className="w-full max-w-2xl">
-                <div className="text-xs font-black tracking-[0.3em] mb-4" style={{color:ACCENT}}>● KAMPANYA</div>
-                <AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail} variant="luxury" uiLang={uiLang}/>
-              </div>
-            </section>
-          )}
         </main>
       )}
 

@@ -27,7 +27,7 @@ export default function BusinessDetailModal({ biz, bizIdx, services, staff, revi
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{background:'rgba(0,0,0,0.55)'}}
       onClick={e => e.target===e.currentTarget && onClose()}>
-      <div className="w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl"
+      <div className="w-full sm:max-w-2xl max-h-[85vh] sm:max-h-[88vh] overflow-y-auto shadow-2xl"
         style={{
           background: V.bg,
           color: V.ink,
@@ -35,7 +35,7 @@ export default function BusinessDetailModal({ biz, bizIdx, services, staff, revi
           border: isDark ? '1px solid '+V.border : variant==='bold' ? '2px solid '+V.border : 'none',
         }}>
         {/* COVER */}
-        <div className="relative h-52 sm:h-56 overflow-hidden flex-shrink-0"
+        <div className="relative h-36 sm:h-52 overflow-hidden flex-shrink-0"
           style={{
             background: biz.cover_url ? '#000' : V.heroFallback,
             borderBottom: variant==='bold' ? '2px solid '+V.border : isDark ? '1px solid '+V.border : 'none',
@@ -100,7 +100,7 @@ export default function BusinessDetailModal({ biz, bizIdx, services, staff, revi
         </div>
 
         {/* BODY */}
-        <div className="p-5 sm:p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
           {/* Bio */}
           {(biz.bio || biz.description) && (
             <div className="text-sm leading-relaxed" style={{color:V.muted}}>

@@ -38,7 +38,7 @@ const colorFor = (cat) => CAT_COLORS[cat] || '#5a5550'
 export default function AtlasTheme(props) {
   const { user, businesses, activeAds, tab, setTab, openDetail, detailBiz, bizServices, bizStaff,
           detailLoading, bookModal, setBookModal, setDetailBiz, activeAdDiscount, paymentEnabled,
-          toast3, userLoc, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
+          toast3, userLoc, locStatus, requestLocation, searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
           qrModal, setQrModal, upcomingAppts, uiLang='tr', saveBooking } = props
   const T = (k) => i18n(k, uiLang)
   const [mounted, setMounted] = useState(false)
@@ -48,10 +48,13 @@ export default function AtlasTheme(props) {
     .map(b => ({ ...b, dist: userLoc && b.lat && b.lng ? distKm(userLoc.lat, userLoc.lng, parseFloat(b.lat), parseFloat(b.lng)) : null }))
   , [businesses, userLoc])
 
-  const filtered = useMemo(() => enriched
-    .filter(b => (!catFilter || b.category === catFilter) && (!searchQ || b.name.toLowerCase().includes(searchQ.toLowerCase())))
-    .sort((a,b) => (b.rating||0) - (a.rating||0))
-  , [enriched, catFilter, searchQ])
+  const filtered = useMemo(() => {
+    const base = enriched.filter(b => (!catFilter || b.category === catFilter) && (!searchQ || b.name.toLowerCase().includes(searchQ.toLowerCase())))
+    if (sortBy === 'distance') return base.sort((a,b) => (a.dist ?? 9999) - (b.dist ?? 9999))
+    if (sortBy === 'price_asc') return base.sort((a,b) => (a.price_from||0) - (b.price_from||0))
+    if (sortBy === 'reviews') return base.sort((a,b) => (b.review_count||0) - (a.review_count||0))
+    return base.sort((a,b) => (b.rating||0) - (a.rating||0))
+  }, [enriched, catFilter, searchQ, sortBy])
 
   // Tüm farklı kategoriler — sticky bar için
   const cats = useMemo(() => [...new Set(businesses.map(b => b.category).filter(Boolean))], [businesses])
@@ -114,6 +117,14 @@ export default function AtlasTheme(props) {
                 value={searchQ} onChange={e=>setSearchQ(e.target.value)}
                 className="text-xs px-2 py-1 outline-none bg-transparent border-b"
                 style={{borderColor:RULE, color:INK, width:'5.5rem'}}/>
+              <select value={sortBy} onChange={e=>{ if(e.target.value==='distance' && !userLoc && requestLocation){ requestLocation(true) } else { setSortBy(e.target.value) } }}
+                className="text-[10px] font-bold tracking-[0.15em] uppercase outline-none cursor-pointer px-1.5 py-1"
+                style={{background:'transparent', color:INK, border:'1px solid '+RULE}}>
+                <option value="rating">⭐ Puan</option>
+                <option value="distance">📍 Yakın</option>
+                <option value="price_asc">₺ Ucuz</option>
+                <option value="reviews">💬 Yorum</option>
+              </select>
             </div>
           </div>
         </div>
