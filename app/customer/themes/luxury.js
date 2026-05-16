@@ -82,20 +82,19 @@ export default function LuxuryTheme(props) {
                     value={searchQ} onChange={e => setSearchQ(e.target.value)} />
                   <button className="px-8 py-4 text-sm font-bold tracking-widest" style={{background:`linear-gradient(135deg,${GOLD},${GOLD2})`,color:'#000'}}>ARA →</button>
                 </div>
-                <div className={'flex gap-2 mt-8 flex-wrap justify-center items-center transition-all duration-700 delay-500 '+(heroVisible?'opacity-100':'opacity-0')}>
+                <div className={'flex gap-1.5 sm:gap-2 mt-6 sm:mt-8 flex-wrap justify-center items-center transition-all duration-700 delay-500 '+(heroVisible?'opacity-100':'opacity-0')}>
                   {[{v:'',l:'TÜMÜ'},{v:'Güzellik',l:'GÜZELLİK'},{v:'Kuaför',l:'KUAFÖR'},{v:'Masaj',l:'MASAJ'},{v:'Fitness',l:'FİTNESS'},{v:'Sağlık',l:'SAĞLIK'}].map(({v,l})=>{
                     const active = (!v&&!catFilter)||(catFilter===v&&v!=='')
                     return (
                       <button key={v} onClick={()=>setCatFilter(v===catFilter&&v!==''?'':v)}
-                        className="px-5 py-2 text-xs font-semibold tracking-[0.2em] rounded-full transition-all"
+                        className="px-3 sm:px-5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold tracking-[0.15em] sm:tracking-[0.2em] rounded-full transition-all"
                         style={active?{background:GOLD,color:'#000',border:`1px solid ${GOLD}`}:{background:'transparent',color:'rgba(255,255,255,0.5)',border:'1px solid rgba(255,255,255,0.12)'}}>
                         {l}
                       </button>
                     )
                   })}
-                  <span className="text-[10px] tracking-[0.3em] hidden sm:inline" style={{color:'rgba(255,255,255,0.3)'}}>·</span>
                   <select value={sortBy} onChange={e=>setSortBy(e.target.value)}
-                    className="px-4 py-2 text-xs font-semibold tracking-[0.2em] rounded-full outline-none cursor-pointer transition-all"
+                    className="px-3 sm:px-4 py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold tracking-[0.15em] sm:tracking-[0.2em] rounded-full outline-none cursor-pointer transition-all"
                     style={{background:'transparent',color:GOLD,border:`1px solid ${GOLD}66`}}>
                     <option value="rating" style={{background:'#111',color:GOLD}}>★ EN POPÜLER</option>
                     <option value="distance" style={{background:'#111',color:GOLD}}>📍 EN YAKIN</option>
@@ -105,7 +104,7 @@ export default function LuxuryTheme(props) {
             </div>
           </div>
 
-          <div className="max-w-7xl mx-auto px-6 pt-10 sm:pt-14 pb-32 sm:pb-14">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-32 sm:pb-14">
             {activeAds.length > 0 && <div className="mb-10"><AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail} variant="luxury" uiLang={uiLang}/></div>}
 
             {/* SECTION 1 — Featured editorial */}
@@ -118,13 +117,13 @@ export default function LuxuryTheme(props) {
                 <div onClick={()=>openDetail(featured)}
                   className="relative grid grid-cols-1 md:grid-cols-2 gap-0 rounded-2xl overflow-hidden cursor-pointer group"
                   style={{background:'#0f0f0f',border:'1px solid #1a1a1a'}}>
-                  <div className="h-72 md:h-96 relative overflow-hidden" style={{background:'#1a1a1a'}}>
+                  <div className="h-48 sm:h-72 md:h-96 relative overflow-hidden" style={{background:'#1a1a1a'}}>
                     {featured.cover_url
                       ? <img src={featured.cover_url} alt={featured.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"/>
                       : <div className="w-full h-full flex items-center justify-center text-8xl">{featured.emoji||'🏢'}</div>}
                     <div className="absolute inset-0" style={{background:'linear-gradient(to right, transparent 50%, rgba(15,15,15,1) 100%)'}}/>
                   </div>
-                  <div className="p-8 md:p-10 flex flex-col justify-center">
+                  <div className="p-5 sm:p-8 md:p-10 flex flex-col justify-center">
                     <div className="text-[10px] tracking-[0.3em] mb-3" style={{color:GOLD}}>{(featured.category||'').toUpperCase()} · {(featured.city||'').toUpperCase()}</div>
                     <h3 className="text-3xl md:text-4xl font-black mb-4 tracking-tight">{featured.name}</h3>
                     {featured.bio && <p className="mb-6 leading-relaxed" style={{color:'rgba(255,255,255,0.55)'}}>{featured.bio.slice(0, 160)}{featured.bio.length>160?'…':''}</p>}
@@ -157,7 +156,7 @@ export default function LuxuryTheme(props) {
                   {editorial.map((b) => (
                     <div key={b.id} onClick={()=>openDetail(b)} className="group cursor-pointer rounded-2xl overflow-hidden transition-all hover:-translate-y-1"
                       style={{background:'#0f0f0f',border:'1px solid #1a1a1a'}}>
-                      <div className="h-56 relative overflow-hidden" style={{background:'#1a1a1a'}}>
+                      <div className="h-44 sm:h-56 relative overflow-hidden" style={{background:'#1a1a1a'}}>
                         {b.cover_url
                           ? <img src={b.cover_url} alt={b.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"/>
                           : <div className="w-full h-full flex items-center justify-center text-6xl">{b.emoji||'🏢'}</div>}
@@ -225,7 +224,7 @@ export default function LuxuryTheme(props) {
       {tab === 'profile' && <ProfileTab {...props} variant="luxury" />}
 
       <BusinessDetailModal biz={detailBiz} bizIdx={businesses.findIndex(b=>b.id===detailBiz?.id)} services={bizServices} staff={bizStaff} loading={detailLoading} onClose={()=>setDetailBiz(null)} onBook={()=>setBookModal(true)} variant="luxury" uiLang={uiLang}/>
-      <BookingModal biz={bookModal&&detailBiz?detailBiz:null} services={bizServices} staff={bizStaff} onClose={()=>setBookModal(false)} onBook={saveBooking} toast3={toast3} paymentEnabled={paymentEnabled} discount={activeAdDiscount} variant="luxury" uiLang={uiLang} userId={user?.id} userPoints={user?.loyalty_points||0}/>
+      <BookingModal biz={bookModal&&detailBiz?detailBiz:null} services={bizServices} staff={bizStaff} onClose={()=>setBookModal(false)} onBook={saveBooking} toast3={toast3} paymentEnabled={paymentEnabled} loyaltyEnabled={props.loyaltyEnabled} discount={activeAdDiscount} variant="luxury" uiLang={uiLang} userId={user?.id} userPoints={user?.loyalty_points||0}/>
       <QRModal qrModal={props.qrModal} setQrModal={props.setQrModal} />
     </div>
   )

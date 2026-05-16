@@ -45,6 +45,8 @@ export default function AdminPage() {
   const [allAds, setAllAds] = useState([])
   const [paymentEnabled, setPaymentEnabled] = useState(false)
   const [savingPayment, setSavingPayment] = useState(false)
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
+  const [savingLoyalty, setSavingLoyalty] = useState(false)
   const [commissionRate, setCommissionRate] = useState(10)
   const [activeTheme, setActiveTheme] = useState('orange')
   const [statusF, setStatusF] = useState('')
@@ -107,6 +109,8 @@ export default function AdminPage() {
       setCoupons(cpr?.data||[])
       const paySet = settingsr?.data?.find(s=>s.key==='payment_enabled')
       if(paySet) setPaymentEnabled(paySet.value==='true')
+      const loySet = settingsr?.data?.find(s=>s.key==='loyalty_enabled')
+      if(loySet) setLoyaltyEnabled(loySet.value==='true')
       const commSet = settingsr?.data?.find(s=>s.key==='commission_rate')
       if(commSet) setCommissionRate(+commSet.value||10)
       const themeSet = settingsr?.data?.find(s=>s.key==='theme')
@@ -699,6 +703,26 @@ export default function AdminPage() {
                         setSavingPayment(false)
                       }} disabled={savingPayment} className={'relative w-14 h-7 rounded-full transition-colors '+(paymentEnabled?'bg-orange-500':'bg-gray-300')}>
                         <div className={'absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-all '+(paymentEnabled?'left-7':'left-0.5')}/>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="bg-white border-2 border-amber-200 rounded-xl p-4 shadow-sm mb-5 flex items-center gap-4">
+                    <div className="text-2xl">⭐</div>
+                    <div className="flex-1">
+                      <div className="font-bold text-sm">Sadakat Programı</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{loyaltyEnabled ? 'Aktif — müşteriler puan kazanır ve harcayabilir' : 'Kapalı — puan kartı/harcama gizli, henüz aktif değil'}</div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-bold">{loyaltyEnabled?'AÇIK':'KAPALI'}</span>
+                      <button onClick={async()=>{
+                        setSavingLoyalty(true)
+                        const v = !loyaltyEnabled
+                        const { error } = await supabase.from('platform_settings').upsert({key:'loyalty_enabled',value:String(v),updated_at:new Date().toISOString()})
+                        if (error) { toast3('❌ Kaydedilemedi: '+error.message); setSavingLoyalty(false); return }
+                        setLoyaltyEnabled(v)
+                        setSavingLoyalty(false)
+                      }} disabled={savingLoyalty} className={'relative w-14 h-7 rounded-full transition-colors '+(loyaltyEnabled?'bg-amber-500':'bg-gray-300')}>
+                        <div className={'absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-all '+(loyaltyEnabled?'left-7':'left-0.5')}/>
                       </button>
                     </div>
                   </div>

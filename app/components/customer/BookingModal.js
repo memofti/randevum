@@ -14,7 +14,7 @@ const VARIANTS = {
 // 100 puan = ₺10 indirim (10x oran)
 const POINTS_PER_TL = 10
 
-export default function BookingModal({ biz, services, staff, onClose, onBook, toast3, discount=0, paymentEnabled=false, variant='default', uiLang='tr', userId=null, userPoints=0 }) {
+export default function BookingModal({ biz, services, staff, onClose, onBook, toast3, discount=0, paymentEnabled=false, loyaltyEnabled=false, variant='default', uiLang='tr', userId=null, userPoints=0 }) {
   const [form, setForm] = useState({ service:'', staff:'', date:'', time:'' })
   const [payStep, setPayStep] = useState(false)
   const [payCard, setPayCard] = useState({ name:'', number:'', expire:'', cvv:'' })
@@ -273,8 +273,8 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
                 )}
               </div>
 
-              {/* Sadakat puanı — kullanılabilir puan varsa göster */}
-              {userPoints > 0 && svc && maxRedeemableTL > 0 && (
+              {/* Sadakat puanı — sadece loyalty_enabled açıkken ve puan varsa */}
+              {loyaltyEnabled && userPoints > 0 && svc && maxRedeemableTL > 0 && (
                 <label className="flex items-center gap-2.5 rounded-xl p-3 cursor-pointer" style={{background:V.accent+'10',border:'1px solid '+V.accent+'33'}}>
                   <input type="checkbox" checked={usePoints} onChange={e=>setUsePoints(e.target.checked)} className="w-4 h-4 accent-current" style={{accentColor:V.accent}}/>
                   <div className="flex-1 text-xs">

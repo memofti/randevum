@@ -14,7 +14,7 @@ export default function ProfileTab({
   editProfile, setEditProfile, savingProfile, saveProfile,
   setProfile, requestPushPermission, uiLang='tr', setUiLang, toast3,
   appointments=[], upcomingAppts=[],
-  variant = 'default',
+  variant = 'default', loyaltyEnabled = false,
 }) {
   const T = (k, vars) => i18n(k, uiLang, vars)
   const isDark = variant === 'luxury'
@@ -116,7 +116,8 @@ export default function ProfileTab({
 
         {/* SAĞ — sadakat hero + ayarlar */}
         <div className="md:col-span-2 space-y-4">
-          {/* Sadakat hero kartı */}
+          {/* Sadakat hero kartı — sadece loyalty_enabled açıkken */}
+          {loyaltyEnabled && (
           <div className="relative overflow-hidden rounded-2xl p-6 sm:p-7 text-white shadow-lg"
             style={{background:variant==='luxury'?'linear-gradient(135deg,#d4af37,#b8941f)':variant==='soft'?'linear-gradient(135deg,#e85d8a,#9b5cb8)':variant==='minimal'?'linear-gradient(135deg,#b04a3a,#5d6d3e)':variant==='bold'?'linear-gradient(135deg,#1736ff,#0f24c4)':'linear-gradient(135deg,#f97316,#ea580c)'}}>
             <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10"/>
@@ -138,6 +139,7 @@ export default function ProfileTab({
               </div>
             </div>
           </div>
+          )}
 
           {/* Stat sayıları */}
           <div className="grid grid-cols-3 gap-3">

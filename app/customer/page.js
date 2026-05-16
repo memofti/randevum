@@ -55,6 +55,7 @@ export default function CustomerPage() {
   const [bizLoading, setBizLoading] = useState(true)
   const [activeAds, setActiveAds] = useState([])
   const [paymentEnabled, setPaymentEnabled] = useState(false)
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
   const [activeAdDiscount, setActiveAdDiscount] = useState(0)
   const [uiLang, setUiLang] = useState('tr')
   const [theme, setTheme] = useState({primary:'#f97316',primaryDark:'#ea580c',navBg:'#1e293b',heroFrom:'#1e293b',heroTo:'#334155',accent:'#ff6b35',name:'orange'})
@@ -156,6 +157,9 @@ export default function CustomerPage() {
         if (row?.key === 'payment_enabled' && payload.new?.value !== undefined) {
           setPaymentEnabled(payload.new.value === 'true')
         }
+        if (row?.key === 'loyalty_enabled' && payload.new?.value !== undefined) {
+          setLoyaltyEnabled(payload.new.value === 'true')
+        }
       })
       .subscribe()
     return () => { supabase.removeChannel(ch) }
@@ -193,6 +197,8 @@ export default function CustomerPage() {
           setActiveAds(ads||[])
           const paySet = (settings||[]).find(s=>s.key==='payment_enabled')
           if(paySet) setPaymentEnabled(paySet.value==='true')
+          const loySet = (settings||[]).find(s=>s.key==='loyalty_enabled')
+          if(loySet) setLoyaltyEnabled(loySet.value==='true')
           const themeSet = (settings||[]).find(s=>s.key==='theme')
           if (themeSet?.value) setTheme(p => ({ ...p, name: themeSet.value }))
         } catch(e) { console.log('load err:', e) }
@@ -593,7 +599,7 @@ export default function CustomerPage() {
     user, businesses, appointments, activeAds, profile,
     tab, setTab, openDetail, detailBiz, bizServices, bizStaff,
     detailLoading, bookModal, setBookModal, setDetailBiz,
-    activeAdDiscount, paymentEnabled, toast3, userLoc, locStatus, requestLocation,
+    activeAdDiscount, paymentEnabled, loyaltyEnabled, toast3, userLoc, locStatus, requestLocation,
     searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
     cancelAppt, rescheduleAppt: openReschedule, setReviewModal, setReviewForm, qrModal, setQrModal,
     upcomingAppts, pastAppts, saveBooking,
@@ -860,7 +866,7 @@ export default function CustomerPage() {
         services={bizServices}
         staff={bizStaff}
         discount={activeAdDiscount}
-        paymentEnabled={paymentEnabled}
+        paymentEnabled={paymentEnabled} loyaltyEnabled={loyaltyEnabled}
         variant="default"
         uiLang={uiLang}
         userId={user?.id}
