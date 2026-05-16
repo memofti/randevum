@@ -49,8 +49,8 @@ export default function PulseTheme(props) {
     return base.sort((a,b) => (b.rating||0) - (a.rating||0))
   }, [businesses, catFilter, searchQ, sortBy, userLoc])
 
-  // Story carousel: rating yüksek olanlardan ilk 10
-  const stories = [...enriched].sort((a,b) => (b.rating||0)-(a.rating||0)).slice(0, 10)
+  // Story carousel: aktif sıralamanın ilk 10'u (en yakın seçiliyse en yakınlar, default'ta rating)
+  const stories = enriched.slice(0, 10)
 
   // Kategori-bazlı şeritler (sadece sonuç olan kategoriler)
   const categoryShelves = useMemo(() => {
