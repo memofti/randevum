@@ -43,12 +43,14 @@ export default function AppointmentsTab({
   const accent = ({
     default:'#f97316', minimal:'#b04a3a', luxury:'#d4af37', soft:'#e85d8a', bold:'#1736ff',
   })[variant] || '#f97316'
+  const ink = isDark ? '#fff' : '#0a0a0a'
   const cardCls = isDark
     ? 'rounded-2xl p-5 border hover:bg-white/[0.03] transition-colors'
     : 'bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow'
-  const cardStyle = isDark ? { background:'#111', borderColor:'#222', color:'#fff' } : {}
+  const cardStyle = isDark ? { background:'#111', borderColor:'#222', color:'#fff' } : { color:'#0a0a0a' }
   const muted = isDark ? 'rgba(255,255,255,0.5)' : '#6b7280'
-  const rowDivider = isDark ? 'border-white/10' : 'border-gray-100'
+  const subCardBg = isDark ? 'rgba(255,255,255,0.04)' : '#f8f9fb'
+  const subCardBorder = isDark ? 'rgba(255,255,255,0.08)' : '#eef0f3'
 
   if ((upcomingAppts||[]).length === 0 && (pastAppts||[]).length === 0) {
     return (
@@ -72,9 +74,10 @@ export default function AppointmentsTab({
   const ApptRow = ({ a, isPast }) => {
     const b = statusBadge(a.status, isDark, T)
     return (
-      <div className={'flex items-start gap-3 py-3 border-t '+rowDivider}>
+      <div className="flex items-start gap-3 p-3 rounded-lg"
+        style={{ background: subCardBg, border: '1px solid '+subCardBorder }}>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-bold truncate" style={isDark?{color:'#fff'}:{}}>{a.services?.name||'—'}</div>
+          <div className="text-sm font-bold truncate" style={{color:ink}}>{a.services?.name||'—'}</div>
           <div className="text-xs mt-0.5" style={{color:muted}}>
             📅 {new Date(a.appointment_date).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'})}
             {' · ⏰ '}{String(a.appointment_time).slice(0,5)}
@@ -134,7 +137,7 @@ export default function AppointmentsTab({
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{background:isDark?'#1a1a1a':'#f3f4f6'}}>{biz?.emoji||'🏢'}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-base truncate" style={isDark?{color:'#fff'}:{}}>{biz?.name||'—'}</div>
+                    <div className="font-bold text-base truncate" style={{color:ink}}>{biz?.name||'—'}</div>
                     <div className="text-xs truncate" style={{color:muted}}>
                       {[biz?.address, biz?.city].filter(Boolean).join(' · ') || '—'}
                       {g.appts.length>1 && <span style={{color:accent}}> · {g.appts.length} randevu</span>}
@@ -147,8 +150,8 @@ export default function AppointmentsTab({
                     </a>
                   )}
                 </div>
-                {/* Randevu listesi */}
-                <div className="mt-2">
+                {/* Randevu listesi — her biri kendi alt kartında, aralarında boşluk */}
+                <div className="mt-3 space-y-2">
                   {g.appts.map(a => <ApptRow key={a.id} a={a} isPast={isPast} />)}
                 </div>
               </div>
