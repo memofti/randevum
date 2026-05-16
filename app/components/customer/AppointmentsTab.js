@@ -1,5 +1,20 @@
 'use client'
+import { useState } from 'react'
 import { t as i18n } from '@/lib/i18n'
+
+function timeUntil(dateStr, timeStr, uiLang) {
+  if (!dateStr) return null
+  const now = new Date()
+  const target = new Date(dateStr + 'T' + (timeStr||'00:00'))
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const tDate = new Date(target.getFullYear(), target.getMonth(), target.getDate())
+  const diffDays = Math.round((tDate - today) / 86400000)
+  if (diffDays < 0) return null
+  if (diffDays === 0) return uiLang==='en' ? 'Today' : 'Bugün'
+  if (diffDays === 1) return uiLang==='en' ? 'Tomorrow' : 'Yarın'
+  if (diffDays <= 7) return uiLang==='en' ? `${diffDays} days` : `${diffDays} gün`
+  return null
+}
 
 function statusBadge(s, isDark, T) {
   const map = {
@@ -44,13 +59,28 @@ export default function AppointmentsTab({
     default:'#f97316', minimal:'#b04a3a', luxury:'#d4af37', soft:'#e85d8a', bold:'#1736ff',
   })[variant] || '#f97316'
   const ink = isDark ? '#fff' : '#0a0a0a'
-  const cardCls = isDark
+  const muted = isDark ? 'rgba(255,255,255,0.5)' : '#6b7280'
+  const [pastOpen, setPastOpen] = useState(false)
+
+  // Upcoming — vivid, accent-stripped
+  const upcomingCardCls = isDark
     ? 'rounded-2xl p-5 border hover:bg-white/[0.03] transition-colors'
     : 'bg-white border border-gray-100 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow'
-  const cardStyle = isDark ? { background:'#111', borderColor:'#222', color:'#fff' } : { color:'#0a0a0a' }
-  const muted = isDark ? 'rgba(255,255,255,0.5)' : '#6b7280'
-  const subCardBg = isDark ? 'rgba(255,255,255,0.04)' : '#f8f9fb'
-  const subCardBorder = isDark ? 'rgba(255,255,255,0.08)' : '#eef0f3'
+  const upcomingCardStyle = isDark
+    ? { background:'#111', borderColor:'#222', color:'#fff', borderLeft:'4px solid '+accent }
+    : { color:'#0a0a0a', borderLeft:'4px solid '+accent }
+  const upcomingSubBg = isDark ? 'rgba(255,255,255,0.04)' : '#f8f9fb'
+  const upcomingSubBorder = isDark ? 'rgba(255,255,255,0.08)' : '#eef0f3'
+
+  // Past — muted, compact, archive feel
+  const pastCardCls = isDark
+    ? 'rounded-xl p-3.5 border'
+    : 'border border-gray-100 rounded-xl p-3.5'
+  const pastCardStyle = isDark
+    ? { background:'#0c0c0c', borderColor:'#191919', color:'rgba(255,255,255,0.65)' }
+    : { background:'#fafbfc', color:'#4b5563' }
+  const pastSubBg = isDark ? 'rgba(255,255,255,0.02)' : '#ffffff'
+  const pastSubBorder = isDark ? 'rgba(255,255,255,0.05)' : '#eef0f3'
 
   if ((upcomingAppts||[]).length === 0 && (pastAppts||[]).length === 0) {
     return (
@@ -73,12 +103,15 @@ export default function AppointmentsTab({
 
   const ApptRow = ({ a, isPast }) => {
     const b = statusBadge(a.status, isDark, T)
+    const countdown = !isPast && a.status !== 'cancelled' ? timeUntil(a.appointment_date, a.appointment_time, uiLang) : null
+    const subBg = isPast ? pastSubBg : upcomingSubBg
+    const subBorder = isPast ? pastSubBorder : upcomingSubBorder
     return (
-      <div className="flex items-start gap-3 p-3 rounded-lg"
-        style={{ background: subCardBg, border: '1px solid '+subCardBorder }}>
+      <div className={'flex items-start gap-3 rounded-lg '+(isPast?'p-2.5':'p-3')}
+        style={{ background: subBg, border: '1px solid '+subBorder }}>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-bold truncate" style={{color:ink}}>{a.services?.name||'—'}</div>
-          <div className="text-xs mt-0.5" style={{color:muted}}>
+          <div className={(isPast?'text-xs font-semibold':'text-sm font-bold')+' truncate'} style={{color:isPast?(isDark?'rgba(255,255,255,0.75)':'#374151'):ink}}>{a.services?.name||'—'}</div>
+          <div className={(isPast?'text-[11px]':'text-xs')+' mt-0.5'} style={{color:muted}}>
             📅 {new Date(a.appointment_date).toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'})}
             {' · ⏰ '}{String(a.appointment_time).slice(0,5)}
             {a.staff?.name && ` · 👤 ${a.staff.name}`}
@@ -86,7 +119,12 @@ export default function AppointmentsTab({
           </div>
         </div>
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-          <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${b.cls}`}>{b.l}</span>
+          <div className="flex items-center gap-1.5">
+            {countdown && (
+              <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full" style={{background:accent,color:isDark?'#000':'#fff'}}>{countdown}</span>
+            )}
+            <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${b.cls}`}>{b.l}</span>
+          </div>
           <div className="flex gap-1 flex-wrap justify-end">
             {!isPast && a.status !== 'cancelled' && setQrModal && a.qr_token && (
               <button onClick={()=>setQrModal(a)} title={T('qrCode')}
@@ -102,13 +140,13 @@ export default function AppointmentsTab({
             )}
             {isPast && a.status === 'completed' && (
               <a href={'/fatura/'+a.id} target="_blank" rel="noopener noreferrer" title={T('invoice')}
-                className={'text-xs px-2 py-1 rounded-md font-bold '+(isDark?'bg-white/5 hover:bg-white/10 text-white/70 border border-white/10':'bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200')}>
+                className={'text-[11px] px-2 py-1 rounded-md font-bold '+(isDark?'bg-white/5 hover:bg-white/10 text-white/70 border border-white/10':'bg-white hover:bg-gray-50 text-gray-600 border border-gray-200')}>
                 🧾 {T('invoice')}
               </a>
             )}
             {isPast && a.status === 'completed' && setReviewModal && (
               <button onClick={()=>{ setReviewForm?.({rating:5,comment:''}); setReviewModal(a) }}
-                className={'text-xs px-2 py-1 rounded-md font-bold border '+(isDark?'text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20':'text-amber-600 border-amber-300 bg-amber-50 hover:bg-amber-100')}>
+                className={'text-[11px] px-2 py-1 rounded-md font-bold border '+(isDark?'text-amber-400 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20':'text-amber-600 border-amber-300 bg-amber-50 hover:bg-amber-100')}>
                 ⭐ {T('review')}
               </button>
             )}
@@ -121,55 +159,83 @@ export default function AppointmentsTab({
   const Section = ({ title, items, isPast }) => {
     if (items.length === 0) return null
     const groups = groupByBusiness(items, isPast)
+    const groupCardCls = isPast ? pastCardCls : upcomingCardCls
+    const groupCardStyle = isPast ? pastCardStyle : upcomingCardStyle
+    const bizNameSize = isPast ? 'text-sm' : 'text-base'
+    const bizEmojiBox = isPast ? 'w-10 h-10 text-xl' : 'w-12 h-12 text-2xl'
+    const bizNameColor = isPast ? (isDark?'rgba(255,255,255,0.8)':'#374151') : ink
+    const renderList = (
+      <div className="space-y-3">
+        {groups.map(g => {
+          const biz = g.biz
+          const dirQ = biz?.lat && biz?.lng
+            ? `${biz.lat},${biz.lng}`
+            : encodeURIComponent([biz?.name, biz?.address, biz?.city].filter(Boolean).join(' '))
+          const dirUrl = `https://www.google.com/maps/search/?api=1&query=${dirQ}`
+          return (
+            <div key={g.business_id} className={groupCardCls} style={groupCardStyle}>
+              {/* Firma başlığı */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={()=>{
+                    if (!openDetail) return
+                    const full = (businesses||[]).find(x => x.id === g.business_id)
+                    openDetail(full || { id: g.business_id, ...biz })
+                  }}
+                  disabled={!openDetail}
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left -m-1 p-1 rounded-lg transition-colors hover:bg-black/[0.04] disabled:hover:bg-transparent">
+                  <div className={'rounded-xl flex items-center justify-center flex-shrink-0 '+bizEmojiBox} style={{background:isDark?'#1a1a1a':'#f3f4f6'}}>{biz?.emoji||'🏢'}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className={'font-bold truncate flex items-center gap-1.5 '+bizNameSize} style={{color:bizNameColor}}>
+                      {biz?.name||'—'}
+                      {openDetail && biz && <span className="text-xs font-semibold" style={{color:accent}}>›</span>}
+                    </div>
+                    <div className="text-xs truncate" style={{color:muted}}>
+                      {[biz?.address, biz?.city].filter(Boolean).join(' · ') || '—'}
+                      {g.appts.length>1 && <span style={{color:accent}}> · {g.appts.length} randevu</span>}
+                    </div>
+                  </div>
+                </button>
+                {!isPast && biz && (biz.lat || biz.address || biz.name) && (
+                  <a href={dirUrl} target="_blank" rel="noopener noreferrer" title={T('directions')}
+                    className={'text-xs px-2 py-1 rounded-md font-bold flex-shrink-0 '+(isDark?'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30':'bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200')}>
+                    🗺️ {T('directions')}
+                  </a>
+                )}
+              </div>
+              {/* Randevu listesi — her biri kendi alt kartında, aralarında boşluk */}
+              <div className={(isPast?'mt-2 space-y-1.5':'mt-3 space-y-2')}>
+                {g.appts.map(a => <ApptRow key={a.id} a={a} isPast={isPast} />)}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+
+    if (isPast) {
+      return (
+        <div className="mb-7">
+          <button onClick={()=>setPastOpen(o=>!o)}
+            className={'w-full flex items-center justify-between py-2 px-1 mb-2 rounded-lg transition-colors '+(isDark?'hover:bg-white/5':'hover:bg-gray-50')}
+            aria-expanded={pastOpen}>
+            <span className="text-xs font-bold uppercase tracking-wider" style={{color:muted}}>
+              {title} · {items.length}
+            </span>
+            <span className="text-xs font-bold transition-transform inline-block" style={{color:muted, transform:pastOpen?'rotate(180deg)':'rotate(0deg)'}}>▼</span>
+          </button>
+          {pastOpen && renderList}
+        </div>
+      )
+    }
+
     return (
       <div className="mb-7">
-        <div className="text-xs font-bold uppercase tracking-wider mb-3" style={{color:muted}}>{title} ({items.length})</div>
-        <div className="space-y-3">
-          {groups.map(g => {
-            const biz = g.biz
-            const dirQ = biz?.lat && biz?.lng
-              ? `${biz.lat},${biz.lng}`
-              : encodeURIComponent([biz?.name, biz?.address, biz?.city].filter(Boolean).join(' '))
-            const dirUrl = `https://www.google.com/maps/search/?api=1&query=${dirQ}`
-            return (
-              <div key={g.business_id} className={cardCls} style={cardStyle}>
-                {/* Firma başlığı */}
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={()=>{
-                      if (!openDetail) return
-                      const full = (businesses||[]).find(x => x.id === g.business_id)
-                      openDetail(full || { id: g.business_id, ...biz })
-                    }}
-                    disabled={!openDetail}
-                    className="flex items-center gap-3 flex-1 min-w-0 text-left -m-1 p-1 rounded-lg transition-colors hover:bg-black/[0.04] disabled:hover:bg-transparent">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{background:isDark?'#1a1a1a':'#f3f4f6'}}>{biz?.emoji||'🏢'}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-base truncate flex items-center gap-1.5" style={{color:ink}}>
-                        {biz?.name||'—'}
-                        {openDetail && biz && <span className="text-xs font-semibold" style={{color:accent}}>›</span>}
-                      </div>
-                      <div className="text-xs truncate" style={{color:muted}}>
-                        {[biz?.address, biz?.city].filter(Boolean).join(' · ') || '—'}
-                        {g.appts.length>1 && <span style={{color:accent}}> · {g.appts.length} randevu</span>}
-                      </div>
-                    </div>
-                  </button>
-                  {biz && (biz.lat || biz.address || biz.name) && (
-                    <a href={dirUrl} target="_blank" rel="noopener noreferrer" title={T('directions')}
-                      className={'text-xs px-2 py-1 rounded-md font-bold flex-shrink-0 '+(isDark?'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30':'bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200')}>
-                      🗺️ {T('directions')}
-                    </a>
-                  )}
-                </div>
-                {/* Randevu listesi — her biri kendi alt kartında, aralarında boşluk */}
-                <div className="mt-3 space-y-2">
-                  {g.appts.map(a => <ApptRow key={a.id} a={a} isPast={isPast} />)}
-                </div>
-              </div>
-            )
-          })}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-xs font-extrabold uppercase tracking-wider" style={{color:accent}}>{title}</span>
+          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full" style={{background:accent,color:isDark?'#000':'#fff'}}>{items.length}</span>
         </div>
+        {renderList}
       </div>
     )
   }
