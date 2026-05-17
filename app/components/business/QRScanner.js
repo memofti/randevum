@@ -19,6 +19,7 @@ export default function QRScanner({ bizId }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const rafRef = useRef(0)
+  const detectorRef = useRef(null)
   const lastTokenRef = useRef('')
   const lockRef = useRef(false)
   const [supported, setSupported] = useState(true)
@@ -29,49 +30,81 @@ export default function QRScanner({ bizId }) {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && !('BarcodeDetector' in window)) setSupported(false)
+    // Mobile-safe feature detection — BarcodeDetector + secure-context + mediaDevices
+    if (typeof window === 'undefined') return
+    let ok = true
+    try {
+      if (!('BarcodeDetector' in window)) ok = false
+      if (!navigator?.mediaDevices?.getUserMedia) ok = false
+      if (typeof window.isSecureContext === 'boolean' && !window.isSecureContext) ok = false
+    } catch { ok = false }
+    setSupported(ok)
     return () => stopCamera()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function stopCamera() {
-    cancelAnimationFrame(rafRef.current)
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop())
-      streamRef.current = null
-    }
+    try { cancelAnimationFrame(rafRef.current) } catch {}
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => { try { t.stop() } catch {} })
+        streamRef.current = null
+      }
+    } catch {}
+    detectorRef.current = null
     setScanning(false)
   }
 
   async function startScanner() {
     setErr(''); setResult(null)
-    if (!('BarcodeDetector' in window)) { setSupported(false); return }
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+      if (!('BarcodeDetector' in window) || !navigator?.mediaDevices?.getUserMedia) {
+        setSupported(false); return
+      }
+      // Detector'ı önce sınamak için try-catch ile yarat — bazı tarayıcılarda format desteklemiyorsa atar
+      let detector = null
+      try {
+        detector = new window.BarcodeDetector({ formats: ['qr_code'] })
+      } catch (e) {
+        setSupported(false)
+        setErr('Bu tarayıcı QR kodu okumayı desteklemiyor. Aşağıdaki kutuya tokeni yapıştırın.')
+        return
+      }
+      detectorRef.current = detector
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      })
       streamRef.current = stream
       const v = videoRef.current
+      if (!v) { stopCamera(); return }
       v.srcObject = stream
-      await v.play()
+      try { await v.play() } catch {}
       setScanning(true)
-      const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
       const tick = async () => {
-        if (!streamRef.current) return
+        if (!streamRef.current || !detectorRef.current) return
         try {
-          const codes = await detector.detect(v)
-          if (codes && codes[0]?.rawValue && !lockRef.current) {
-            const tok = extractToken(codes[0].rawValue)
-            if (tok && tok !== lastTokenRef.current) {
-              lastTokenRef.current = tok
-              lockRef.current = true
-              await checkIn(tok)
-              setTimeout(() => { lockRef.current = false }, 1500)
+          if (v.readyState >= 2) {
+            const codes = await detectorRef.current.detect(v)
+            if (codes && codes[0]?.rawValue && !lockRef.current) {
+              const tok = extractToken(codes[0].rawValue)
+              if (tok && tok !== lastTokenRef.current) {
+                lastTokenRef.current = tok
+                lockRef.current = true
+                await checkIn(tok)
+                setTimeout(() => { lockRef.current = false }, 1500)
+              }
             }
           }
         } catch {}
-        rafRef.current = requestAnimationFrame(tick)
+        if (streamRef.current) rafRef.current = requestAnimationFrame(tick)
       }
       rafRef.current = requestAnimationFrame(tick)
     } catch (e) {
-      setErr(e?.message || 'Kamera açılamadı')
+      const msg = e?.name === 'NotAllowedError'
+        ? 'Kamera izni reddedildi. Tarayıcı ayarlarından kamera erişimine izin verin.'
+        : (e?.message || 'Kamera açılamadı')
+      setErr(msg)
       setScanning(false)
     }
   }
@@ -79,13 +112,15 @@ export default function QRScanner({ bizId }) {
   async function checkIn(token) {
     setBusy(true); setResult(null); setErr('')
     try {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL + '/functions/v1/qr-checkin'
-      const r = await fetch(url, {
+      const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      if (!baseUrl || !anon) throw new Error('Sunucu ayarları eksik')
+      const r = await fetch(baseUrl + '/functions/v1/qr-checkin', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY },
+        headers: { 'Content-Type': 'application/json', 'apikey': anon },
         body: JSON.stringify({ qr_token: token }),
       })
-      const d = await r.json()
+      const d = await r.json().catch(()=>({success:false,error:'Sunucu yanıtı okunamadı'}))
       if (d.success) {
         setResult({ ok: true, msg: d.message || 'Randevu tamamlandı', data: d })
         if (navigator.vibrate) try { navigator.vibrate(120) } catch {}
@@ -134,7 +169,8 @@ export default function QRScanner({ bizId }) {
           </>
         ) : (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 text-xs text-amber-800">
-            Bu tarayıcı kamera tabanlı QR okumayı desteklemiyor. Lütfen QR kodun altındaki bağlantıyı veya tokeni aşağıya yapıştırın.
+            Bu tarayıcı kamera tabanlı QR okumayı desteklemiyor (iPhone Safari, eski Android Chrome).
+            <br/>QR kodun altındaki bağlantıyı veya tokeni aşağıya yapıştırın.
           </div>
         )}
 

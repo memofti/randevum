@@ -154,6 +154,7 @@ export default function BusinessPage() {
   const [notifOpen, setNotifOpen] = useState(false)
   // Filters
   const [apptStatus, setApptStatus] = useState('')
+  const [apptStaff, setApptStaff] = useState('')
   const [reviews, setReviews] = useState([])
   const [planLimits, setPlanLimits] = useState(null)
   const [allPlans, setAllPlans] = useState([])
@@ -768,8 +769,9 @@ export default function BusinessPage() {
   // Filtreli randevular
   const filteredAppts = appts.filter(a => {
     const matchS = !apptStatus || a.status===apptStatus
+    const matchSt = !apptStaff || a.staff_id===apptStaff
     const matchQ = !apptSearch || (a.profiles?.full_name||'').toLowerCase().includes(apptSearch.toLowerCase()) || (a.services?.name||'').toLowerCase().includes(apptSearch.toLowerCase())
-    return matchS && matchQ
+    return matchS && matchSt && matchQ
   })
 
   // Filtreli müşteriler
@@ -1504,6 +1506,10 @@ export default function BusinessPage() {
                         <option value="confirmed">✓ Onaylı</option>
                         <option value="completed">Tamamlandı</option>
                         <option value="cancelled">İptal</option>
+                      </select>
+                      <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" value={apptStaff} onChange={e=>setApptStaff(e.target.value)}>
+                        <option value="">Tüm Personel</option>
+                        {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                       </select>
                     </div>
                     <div className="overflow-x-auto">
