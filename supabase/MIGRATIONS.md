@@ -63,6 +63,7 @@ Bu komut tüm migration geçmişini SQL dosyası olarak `supabase/migrations/` a
 | 2026-05-17 | ad_packages_enforce_duration_impressions_regional |
 | 2026-05-17 | harden_security_definer_functions_and_view |
 | 2026-05-17 | revoke_public_execute_on_internal_definer_functions |
+| 2026-05-17 | business_categories_table |
 
 ## Project bilgileri
 

@@ -26,7 +26,7 @@ function KPI({ label, value, sub, color }) {
     </div>
   )
 }
-const NAV_KEYS=[['dashboard','⊞','nav_dashboard'],['firms','🏢','nav_firms'],['requests','📬','nav_requests'],['ads','📢','nav_ads'],['adpkgs','🎁','nav_adpkgs'],['coupons','🎟️','nav_coupons'],['plans','📦','nav_plans'],['revenue','💰','nav_revenue'],['subscriptions','💳','nav_subscriptions'],['users','👥','nav_users']]
+const NAV_KEYS=[['dashboard','⊞','nav_dashboard'],['firms','🏢','nav_firms'],['categories','🗂️','nav_categories'],['requests','📬','nav_requests'],['ads','📢','nav_ads'],['adpkgs','🎁','nav_adpkgs'],['coupons','🎟️','nav_coupons'],['plans','📦','nav_plans'],['revenue','💰','nav_revenue'],['subscriptions','💳','nav_subscriptions'],['users','👥','nav_users']]
 
 export default function AdminPage() {
   const router = useRouter()
@@ -76,6 +76,10 @@ export default function AdminPage() {
   const [couponModal, setCouponModal] = useState(false) // false | 'add' | coupon
   const [couponForm, setCouponForm] = useState({code:'',description:'',discount_pct:0,discount_amount:0,min_amount:0,max_uses:'',valid_until:'',status:'active'})
   const [couponSaving, setCouponSaving] = useState(false)
+  const [categories, setCategories] = useState([])
+  const [catModal, setCatModal] = useState(false) // false | 'add' | category obj
+  const [catForm, setCatForm] = useState({name:'', emoji:'🏢', sort_order:0, status:'active'})
+  const [catSaving, setCatSaving] = useState(false)
   const [uiLang, setUiLang] = useState('tr')
   useEffect(()=>{ setUiLang(getLang()) },[])
   const T = (k, vars) => i18n(k, uiLang, vars)
@@ -96,7 +100,7 @@ export default function AdminPage() {
   async function loadAll() {
     setLoading(true)
     try {
-      const [fr,pr,ar,payr,adsr2,settingsr,plr,pkgsr,purchr,plReqs,cpr]=await Promise.all([
+      const [fr,pr,ar,payr,adsr2,settingsr,plr,pkgsr,purchr,plReqs,cpr,catr]=await Promise.all([
         supabase.from('businesses').select('*').order('created_at',{ascending:false}),
         supabase.from('profiles').select('*').order('created_at',{ascending:false}),
         supabase.from('appointments').select('id,status,business_id'),
@@ -108,6 +112,7 @@ export default function AdminPage() {
         supabase.from('ad_package_purchases').select('*, businesses(name,emoji)').order('created_at',{ascending:false}),
         supabase.from('plan_upgrade_requests').select('*, businesses(name,emoji)').order('created_at',{ascending:false}),
         supabase.from('coupons').select('*, businesses(name)').order('created_at',{ascending:false}),
+        supabase.from('business_categories').select('*').order('sort_order'),
       ])
       setFirms(fr.data||[])
       setProfiles(pr.data||[])
@@ -119,6 +124,7 @@ export default function AdminPage() {
       setAdPurchases(purchr?.data||[])
       setPlanRequests(plReqs?.data||[])
       setCoupons(cpr?.data||[])
+      setCategories(catr?.data||[])
       const paySet = settingsr?.data?.find(s=>s.key==='payment_enabled')
       if(paySet) setPaymentEnabled(paySet.value==='true')
       const loySet = settingsr?.data?.find(s=>s.key==='loyalty_enabled')
@@ -258,6 +264,58 @@ export default function AdminPage() {
     setCouponModal(false)
     toast3('🗑️ Kupon silindi')
   }
+  // Kategori CRUD
+  function openCatAdd() {
+    setCatForm({ name:'', emoji:'🏢', sort_order: categories.length+1, status:'active' })
+    setCatModal('add')
+  }
+  function openCatEdit(c) {
+    setCatForm({ name:c.name, emoji:c.emoji||'🏢', sort_order:c.sort_order||0, status:c.status||'active' })
+    setCatModal(c)
+  }
+  async function saveCat() {
+    const name = catForm.name.trim()
+    if (!name) { toast3('❌ İsim zorunlu'); return }
+    setCatSaving(true)
+    try {
+      const payload = {
+        name,
+        emoji: catForm.emoji || '🏢',
+        sort_order: +catForm.sort_order || 0,
+        status: catForm.status || 'active',
+      }
+      if (catModal === 'add') {
+        const { data, error } = await supabase.from('business_categories').insert(payload).select().maybeSingle()
+        if (error) throw error
+        setCategories(p => [...p, data].sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)))
+        toast3('✅ Kategori eklendi')
+      } else {
+        const { data, error } = await supabase.from('business_categories').update(payload).eq('id', catModal.id).select().maybeSingle()
+        if (error) throw error
+        setCategories(p => p.map(c => c.id===catModal.id ? data : c).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)))
+        toast3('✅ Kategori güncellendi')
+      }
+      setCatModal(false)
+    } catch(e) {
+      const msg = String(e?.message||'')
+      if (msg.includes('duplicate') || msg.includes('unique')) toast3('❌ Bu isim zaten kullanılıyor')
+      else toast3('❌ '+msg)
+    } finally {
+      setCatSaving(false)
+    }
+  }
+  async function deleteCat(id, name) {
+    const usedBy = firms.filter(f => f.category === name).length
+    const msg = usedBy > 0
+      ? `"${name}" kategorisi ${usedBy} firmada kullanılıyor — silmeden önce o firmaların kategorisini değiştir. Yine de silmek istiyor musun?`
+      : `"${name}" kategorisi silinsin mi?`
+    if (!confirm(msg)) return
+    const { error } = await supabase.from('business_categories').delete().eq('id', id)
+    if (error) { toast3('❌ '+error.message); return }
+    setCategories(p => p.filter(c => c.id !== id))
+    setCatModal(false)
+    toast3('🗑️ Kategori silindi')
+  }
   async function approvePurchase(id) {
     const purch = adPurchases.find(p => p.id === id)
     if (!purch) return
@@ -320,10 +378,10 @@ export default function AdminPage() {
   const unsuspendFirm = (id,name) => setFirmStatus(id, name, 'active')
   async function saveFirm(){
     if(!form.name||!form.category||!form.city){toast3('❌ Zorunlu alanları doldurun');return}
+    const catEmoji = categories.find(c => c.name === form.category)?.emoji || '🏢'
     setSaving(true)
     try {
-      const emojis={Güzellik:'💆',Kuaför:'✂️',Masaj:'🧘',Fitness:'🏋️',Sağlık:'💊'}
-      await supabase.from('businesses').insert({...form,status:'review',rating:4.5,review_count:0,emoji:emojis[form.category]||'🏢'})
+      await supabase.from('businesses').insert({...form,status:'review',rating:4.5,review_count:0,emoji:catEmoji})
       setModal(false)
       setForm({name:'',category:'',city:'',owner_name:'',email:'',phone:'',price_from:0,plan:'free'})
       toast3(`✅ ${form.name} eklendi`)
@@ -453,6 +511,58 @@ export default function AdminPage() {
               {pkgModal!=='add' && <button onClick={()=>deletePkg(pkgModal.id, pkgModal.name)} className="px-3 py-2.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 rounded-xl text-xs font-bold">🗑️ Sil</button>}
               <button onClick={()=>setPkgModal(false)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50">İptal</button>
               <button onClick={savePkg} disabled={pkgSaving} className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-xl text-sm font-bold">{pkgSaving?'Kaydediliyor...':pkgModal==='add'?'Ekle':'Güncelle'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {catModal && (
+        <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setCatModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+              <div className="font-bold">{catModal==='add'?'Kategori Ekle':'Kategori Düzenle'}</div>
+              <button onClick={()=>setCatModal(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-bold block mb-1">İsim *</label>
+                <input value={catForm.name} onChange={e=>setCatForm(p=>({...p,name:e.target.value}))}
+                  placeholder="Örn: Berber, Kafe, Otopark" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs font-bold block mb-1">Emoji</label>
+                  <input value={catForm.emoji} onChange={e=>setCatForm(p=>({...p,emoji:e.target.value}))}
+                    maxLength={4} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-2xl text-center outline-none focus:border-orange-400"/>
+                </div>
+                <div>
+                  <label className="text-xs font-bold block mb-1">Sıra</label>
+                  <input type="number" value={catForm.sort_order} onChange={e=>setCatForm(p=>({...p,sort_order:+e.target.value}))}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                </div>
+                <div>
+                  <label className="text-xs font-bold block mb-1">Durum</label>
+                  <select value={catForm.status} onChange={e=>setCatForm(p=>({...p,status:e.target.value}))}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
+                    <option value="active">Aktif</option>
+                    <option value="inactive">Pasif</option>
+                  </select>
+                </div>
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs text-blue-800">
+                ℹ️ Emoji önerileri: ✂️ 💆 🧘 🏋️ 💊 🍽️ 🚗 🐶 📚 🔧 💅 🦷 🩺
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-2 border-t border-gray-100 pt-3">
+              {catModal !== 'add' && (
+                <button onClick={()=>deleteCat(catModal.id, catModal.name)}
+                  className="text-xs bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-2 rounded-lg font-bold">🗑️ Sil</button>
+              )}
+              <button onClick={()=>setCatModal(false)} className="ml-auto px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-50 rounded-lg">İptal</button>
+              <button onClick={saveCat} disabled={catSaving}
+                className="px-5 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-lg text-sm font-bold">
+                {catSaving?'Kaydediliyor...':'Kaydet'}
+              </button>
             </div>
           </div>
         </div>
@@ -619,7 +729,7 @@ export default function AdminPage() {
                 <div><label className="text-xs font-bold block mb-1">Firma Adı *</label><input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" value={form.name} onChange={e=>fld('name',e.target.value)} placeholder="Örn: Güzellik Salonu" /></div>
                 <div><label className="text-xs font-bold block mb-1">Kategori *</label>
                   <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" value={form.category} onChange={e=>fld('category',e.target.value)}>
-                    <option value="">Seçin</option>{['Güzellik','Kuaför','Masaj','Fitness','Sağlık'].map(c=><option key={c}>{c}</option>)}
+                    <option value="">Seçin</option>{categories.filter(c=>c.status==='active').map(c=><option key={c.id} value={c.name}>{c.emoji} {c.name}</option>)}
                   </select></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -1054,6 +1164,56 @@ export default function AdminPage() {
                   )}
                 </div>
               )}
+
+              {view==='categories'&&(() => {
+                const activeCats = categories.filter(c=>c.status==='active')
+                const usedCounts = {}
+                firms.forEach(f => { if (f.category) usedCounts[f.category] = (usedCounts[f.category]||0)+1 })
+                return (
+                <div>
+                  <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                    <div>
+                      <h1 className="text-xl font-bold">Kategoriler</h1>
+                      <p className="text-gray-500 text-sm">{categories.length} kategori · {activeCats.length} aktif · Firmaların seçeneklerini buradan yönet</p>
+                    </div>
+                    <button onClick={openCatAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Kategori Ekle</button>
+                  </div>
+                  {categories.length === 0 ? (
+                    <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+                      <div className="text-4xl mb-3">🗂️</div>
+                      <div className="font-bold mb-1">Kategori yok</div>
+                      <button onClick={openCatAdd} className="text-orange-500 hover:underline text-sm">İlkini ekle →</button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {categories.map(c => {
+                        const used = usedCounts[c.name] || 0
+                        return (
+                          <div key={c.id} className={'bg-white border-2 rounded-xl p-4 shadow-sm '+(c.status==='active'?'border-gray-200':'border-gray-100 opacity-60')}>
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-2xl">{c.emoji||'🏢'}</div>
+                                <div>
+                                  <div className="font-bold text-sm">{c.name}</div>
+                                  <div className="text-xs text-gray-400">Sıra: {c.sort_order} · {used} firma</div>
+                                </div>
+                              </div>
+                              <span className={'text-[11px] font-bold px-2 py-0.5 rounded-full border '+(c.status==='active'?'bg-green-50 text-green-700 border-green-200':'bg-gray-100 text-gray-500 border-gray-200')}>
+                                {c.status==='active'?'Aktif':'Pasif'}
+                              </span>
+                            </div>
+                            <div className="flex gap-1.5 mt-3">
+                              <button onClick={()=>openCatEdit(c)} className="flex-1 text-xs bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 px-2.5 py-1.5 rounded-lg font-semibold">✏️ Düzenle</button>
+                              <button onClick={()=>deleteCat(c.id, c.name)} className="text-xs bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1.5 rounded-lg font-semibold">🗑️</button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+                )
+              })()}
 
               {view==='users'&&(
                 <div>

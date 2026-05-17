@@ -159,6 +159,7 @@ export default function BusinessPage() {
   const [planLimits, setPlanLimits] = useState(null)
   const [allPlans, setAllPlans] = useState([])
   const [adPackages, setAdPackages] = useState([])
+  const [categories, setCategories] = useState([])
   const [myAdPurchases, setMyAdPurchases] = useState([])
   const [adCredits, setAdCredits] = useState({ total:0, used:0, remaining:0 })
   const [adLimits, setAdLimits] = useState({ allowRegional:false, maxClicks:0, maxImpressions:0, durationDays:30, currentClicks:0, currentImpressions:0 })
@@ -275,7 +276,7 @@ export default function BusinessPage() {
   const loadAll = useCallback(async (bId, bizPlanKey='free') => {
     setLoading(true)
     try {
-      const [ar,sr,svr,nr,rr,plAll,adsr,pkgs,myPurch,myPlanReq,cpr] = await Promise.all([
+      const [ar,sr,svr,nr,rr,plAll,adsr,pkgs,myPurch,myPlanReq,cpr,catr] = await Promise.all([
         supabase.from('appointments').select('id,profile_id,service_id,staff_id,appointment_date,appointment_time,status,price,profiles(full_name,email,phone,sms_consent,sms_unsubscribed),services(name,price,duration_min),staff(name)').eq('business_id',bId).order('appointment_date',{ascending:false}),
         supabase.from('staff').select('*').eq('business_id',bId),
         supabase.from('services').select('*').eq('business_id',bId),
@@ -287,6 +288,7 @@ export default function BusinessPage() {
         supabase.from('ad_package_purchases').select('*').eq('business_id', bId).order('created_at',{ascending:false}),
         supabase.from('plan_upgrade_requests').select('*').eq('business_id', bId).order('created_at',{ascending:false}),
         supabase.from('coupons').select('*').eq('business_id', bId).order('created_at',{ascending:false}),
+        supabase.from('business_categories').select('*').eq('status','active').order('sort_order'),
       ])
       setAppts(ar.data||[])
       setStaff(sr.data||[])
@@ -299,6 +301,7 @@ export default function BusinessPage() {
       if (myPlan) setPlanLimits(myPlan)
       setAds(adsr?.data||[])
       setAdPackages(pkgs?.data||[])
+      setCategories(catr?.data||[])
       setMyAdPurchases(myPurch?.data||[])
       // Aktif kontör özetini hesapla + paket limit özeti
       const now = new Date()
@@ -1095,7 +1098,7 @@ export default function BusinessPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-xs font-bold block mb-1">Kategori</label>
                   <select value={bizForm.category||''} onChange={e=>setBizForm(p=>({...p,category:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
-                    {['Güzellik','Kuaför','Masaj','Fitness','Sağlık'].map(c=><option key={c}>{c}</option>)}
+                    {categories.filter(c=>c.status==='active').map(c=><option key={c.id} value={c.name}>{c.emoji} {c.name}</option>)}
                   </select></div>
                 <div><label className="text-xs font-bold block mb-1">Şehir</label>
                   <input value={bizForm.city||''} onChange={e=>setBizForm(p=>({...p,city:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
@@ -2704,7 +2707,7 @@ export default function BusinessPage() {
                       <div className="grid grid-cols-2 gap-3">
                         <div><label className="text-xs font-bold block mb-1">Kategori</label>
                           <select value={bizForm.category||''} onChange={e=>setBizForm(p=>({...p,category:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
-                            {['Güzellik','Kuaför','Masaj','Fitness','Sağlık'].map(c=><option key={c}>{c}</option>)}
+                            {categories.filter(c=>c.status==='active').map(c=><option key={c.id} value={c.name}>{c.emoji} {c.name}</option>)}
                           </select></div>
                         <div><label className="text-xs font-bold block mb-1">Şehir</label>
                           <input value={bizForm.city||''} onChange={e=>setBizForm(p=>({...p,city:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" /></div>
