@@ -41,7 +41,9 @@ export default function LuxuryTheme(props) {
           <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm" style={{background:`linear-gradient(135deg,${GOLD},${GOLD2})`}}>📅</div>
           <span className="font-black text-lg tracking-widest" style={{color:GOLD}}>RANDEVU</span>
         </div>
-        {[['home',T('discover')],['map',T('map')],['appts',T('appointments')],['profile',T('profile')]].map(([k,l]) => (
+        {[['home',T('discover')],['map',T('map')],['appts',T('appointments')],['profile',T('profile')]]
+          .filter(([k]) => user || (k!=='profile' && k!=='appts'))
+          .map(([k,l]) => (
           <button key={k} onClick={() => setTab(k)}
             className="text-sm font-semibold transition-all px-3 py-1.5 rounded-lg tracking-wider"
             style={tab===k?{color:GOLD,background:'rgba(212,175,55,0.1)'}:{color:'rgba(255,255,255,0.4)'}}>
@@ -50,8 +52,12 @@ export default function LuxuryTheme(props) {
           </button>
         ))}
         <div className="ml-auto flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold" style={{background:`linear-gradient(135deg,${GOLD},${GOLD2})`,color:'#000'}}>{user.name?.[0]||'?'}</div>
-          <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }} style={{color:'rgba(255,255,255,0.3)'}} className="text-sm">{T('logout')}</button>
+          {user ? (<>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold" style={{background:`linear-gradient(135deg,${GOLD},${GOLD2})`,color:'#000'}}>{user.name?.[0]||'?'}</div>
+            <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }} style={{color:'rgba(255,255,255,0.3)'}} className="text-sm">{T('logout')}</button>
+          </>) : (
+            <a href="/login" className="px-3 py-1.5 rounded-lg text-sm font-bold tracking-wider" style={{background:`linear-gradient(135deg,${GOLD},${GOLD2})`,color:'#000'}}>GİRİŞ</a>
+          )}
         </div>
       </nav>
 

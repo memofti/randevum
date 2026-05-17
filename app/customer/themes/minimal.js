@@ -45,7 +45,9 @@ export default function MinimalTheme(props) {
             randevu<span style={{color:TERRA}}>.</span>
           </div>
           <nav className="ml-auto flex items-center gap-1">
-            {[['home',T('discover')],['map',T('map')],['appts',T('appointments')],['profile',T('profile')]].map(([k,l]) => (
+            {[['home',T('discover')],['map',T('map')],['appts',T('appointments')],['profile',T('profile')]]
+              .filter(([k]) => user || (k!=='profile' && k!=='appts'))
+              .map(([k,l]) => (
               <button key={k} onClick={() => setTab(k)}
                 className="text-sm font-medium px-3 py-1.5 rounded-full transition-all"
                 style={tab===k?{color:INK,background:INK+'0a'}:{color:MUTED}}>
@@ -53,7 +55,11 @@ export default function MinimalTheme(props) {
                 {k==='appts' && upcomingAppts?.length>0 && <span className="ml-1.5 text-[10px] rounded-full px-1.5 py-0.5" style={{background:TERRA,color:'#fff'}}>{upcomingAppts.length}</span>}
               </button>
             ))}
-            <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }} className="ml-3 text-sm font-medium" style={{color:MUTED}}>{T('logout')}</button>
+            {user ? (
+              <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }} className="ml-3 text-sm font-medium" style={{color:MUTED}}>{T('logout')}</button>
+            ) : (
+              <a href="/login" className="ml-3 text-sm font-bold px-3 py-1.5 rounded-full" style={{background:TERRA,color:'#fff'}}>Giriş</a>
+            )}
           </nav>
         </div>
       </header>

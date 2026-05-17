@@ -83,14 +83,20 @@ export default function SpotTheme(props) {
           <button onClick={()=>setTab('map')} className="sm:hidden px-3 py-1.5 rounded-full text-xs font-bold" style={{background:'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)'}}>
             🗺️
           </button>
-          <button onClick={()=>setTab('appts')} className="px-3 py-1.5 rounded-full text-xs font-bold relative"
-            style={{background: tab==='appts'?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)'}}>
-            📅
-            {upcomingAppts?.length>0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center" style={{background:ACCENT, color:'#fff'}}>{upcomingAppts.length}</span>}
-          </button>
-          <button onClick={()=>setTab('profile')} className="w-8 h-8 rounded-full flex items-center justify-center font-black text-xs" style={{background: tab==='profile'?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)'}}>
-            {user?.name?.[0]?.toUpperCase() || '?'}
-          </button>
+          {user && (
+            <button onClick={()=>setTab('appts')} className="px-3 py-1.5 rounded-full text-xs font-bold relative"
+              style={{background: tab==='appts'?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)'}}>
+              📅
+              {upcomingAppts?.length>0 && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center" style={{background:ACCENT, color:'#fff'}}>{upcomingAppts.length}</span>}
+            </button>
+          )}
+          {user ? (
+            <button onClick={()=>setTab('profile')} className="w-8 h-8 rounded-full flex items-center justify-center font-black text-xs" style={{background: tab==='profile'?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)', WebkitBackdropFilter:'blur(12px)'}}>
+              {user?.name?.[0]?.toUpperCase() || '?'}
+            </button>
+          ) : (
+            <a href="/login" className="px-3 py-1.5 rounded-full text-xs font-bold" style={{background:ACCENT,color:'#fff'}}>Giriş</a>
+          )}
         </div>
 
         {/* Filtre panel — slide down, sadece home tabında */}

@@ -48,7 +48,9 @@ export default function BoldTheme(props) {
             <span className="text-[10px] font-bold tracking-[0.25em] hidden sm:inline" style={{color:COBALT}}>VOL.{issue}</span>
           </div>
           <nav className="ml-auto flex items-center gap-1">
-            {[['home',T('discover')],['map',T('map')],['appts',T('appointments')],['profile',T('profile')]].map(([k,l]) => (
+            {[['home',T('discover')],['map',T('map')],['appts',T('appointments')],['profile',T('profile')]]
+              .filter(([k]) => user || (k!=='profile' && k!=='appts'))
+              .map(([k,l]) => (
               <button key={k} onClick={() => setTab(k)}
                 className="text-sm font-bold transition-all px-3.5 py-2 whitespace-nowrap"
                 style={tab===k?{background:COBALT,color:'#fff'}:{color:INK}}>
@@ -56,8 +58,12 @@ export default function BoldTheme(props) {
                 {k==='appts' && upcomingAppts?.length>0 && <span className="ml-1.5 text-xs font-black" style={{color:tab===k?'#fff':COBALT}}>·{upcomingAppts.length}</span>}
               </button>
             ))}
-            <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }}
-              className="ml-2 text-sm font-bold hidden sm:inline" style={{color:MUTED}}>{T('logout')}</button>
+            {user ? (
+              <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }}
+                className="ml-2 text-sm font-bold hidden sm:inline" style={{color:MUTED}}>{T('logout')}</button>
+            ) : (
+              <a href="/login" className="ml-2 px-3.5 py-2 text-sm font-bold" style={{background:COBALT,color:'#fff'}}>Giriş</a>
+            )}
           </nav>
         </div>
       </header>

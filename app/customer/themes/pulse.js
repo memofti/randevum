@@ -75,7 +75,9 @@ export default function PulseTheme(props) {
             <span className="hidden sm:inline text-[10px] font-bold tracking-[0.2em] ml-1" style={{color:MINT}}>● LIVE</span>
           </div>
           <nav className="ml-auto flex items-center gap-1">
-            {[['home','🏠'],['map','🗺️'],['appts','📅'],['profile','👤']].map(([k,ic]) => (
+            {[['home','🏠'],['map','🗺️'],['appts','📅'],['profile','👤']]
+              .filter(([k]) => user || (k!=='profile' && k!=='appts'))
+              .map(([k,ic]) => (
               <button key={k} onClick={()=>setTab(k)}
                 className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${tab===k?'text-black':'text-white/60 hover:text-white'}`}
                 style={tab===k?{background:MINT}:{}}>
@@ -86,8 +88,12 @@ export default function PulseTheme(props) {
                 )}
               </button>
             ))}
-            <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }}
-              className="ml-2 text-xs font-bold hidden sm:inline opacity-60 hover:opacity-100">{T('logout')||'Çıkış'}</button>
+            {user ? (
+              <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }}
+                className="ml-2 text-xs font-bold hidden sm:inline opacity-60 hover:opacity-100">{T('logout')||'Çıkış'}</button>
+            ) : (
+              <a href="/login" className="ml-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all" style={{background:MINT, color:'#000'}}>Giriş</a>
+            )}
           </nav>
         </div>
       </header>

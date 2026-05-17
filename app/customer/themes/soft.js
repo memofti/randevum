@@ -81,7 +81,9 @@ export default function SoftTheme(props) {
           <span className="font-black text-lg tracking-tight hidden sm:inline" style={{color:DEEP,letterSpacing:'-0.02em'}}>randevu<span style={{color:'#e85d8a'}}>.</span></span>
         </div>
         <div className="flex items-center gap-1 overflow-x-auto">
-          {[['home',T('discover')],['map',T('map')],['appts',T('appointments')],['profile',T('profile')]].map(([k,l]) => (
+          {[['home',T('discover')],['map',T('map')],['appts',T('appointments')],['profile',T('profile')]]
+            .filter(([k]) => user || (k!=='profile' && k!=='appts'))
+            .map(([k,l]) => (
             <button key={k} onClick={() => setTab(k)}
               className="text-xs sm:text-sm font-bold transition-all px-3 sm:px-4 py-1.5 rounded-full whitespace-nowrap"
               style={tab===k?{background:'linear-gradient(135deg,'+PINK+','+LAV+')',color:'#fff',boxShadow:'0 4px 14px -4px rgba(232,93,138,0.5)'}:{color:MUTED}}>
@@ -91,8 +93,12 @@ export default function SoftTheme(props) {
           ))}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow" style={{background:'linear-gradient(135deg,'+LAV+','+PINK+')'}}>{user.name?.[0]||'?'}</div>
-          <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }} className="text-xs hidden sm:inline" style={{color:MUTED}}>{T('logout')}</button>
+          {user ? (<>
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow" style={{background:'linear-gradient(135deg,'+LAV+','+PINK+')'}}>{user.name?.[0]||'?'}</div>
+            <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }} className="text-xs hidden sm:inline" style={{color:MUTED}}>{T('logout')}</button>
+          </>) : (
+            <a href="/login" className="px-3 py-1.5 rounded-full text-xs font-bold text-white shadow" style={{background:'linear-gradient(135deg,'+PINK+','+LAV+')'}}>Giriş</a>
+          )}
         </div>
       </nav>
 

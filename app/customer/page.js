@@ -1064,7 +1064,9 @@ export default function CustomerPage() {
           <div className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center text-sm">📅</div>
           <span className="text-white font-bold text-sm hidden sm:block">RandevuApp</span>
         </div>
-        {[['home','🏠','Keşfet'],['map','🗺️','Harita'],['appts','📅','Randevularım'],['profile','👤','Profilim']].map(([k,ic,l]) => (
+        {[['home','🏠','Keşfet'],['map','🗺️','Harita'],['appts','📅','Randevularım'],['profile','👤','Profilim']]
+          .filter(([k]) => user || (k!=='profile' && k!=='appts'))
+          .map(([k,ic,l]) => (
           <button key={k} onClick={() => { if(k!=='home' && k!=='map') setLoading(true); setTab(k) }}
             className={`px-2 sm:px-3 py-1.5 rounded-lg text-sm font-semibold transition-all relative ${tab===k?'bg-white/20 text-white':'text-white/50 hover:text-white hover:bg-white/10'}`}>
             <span className="sm:hidden">{ic}</span>

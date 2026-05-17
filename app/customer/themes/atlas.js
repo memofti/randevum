@@ -82,7 +82,9 @@ export default function AtlasTheme(props) {
             </h1>
           </div>
           <nav className="ml-auto flex items-center gap-3 sm:gap-5">
-            {[['home', T('discover')||'Keşfet'], ['map', T('map')||'Harita'], ['appts', T('appointments')||'Randevular'], ['profile', T('profile')||'Profil']].map(([k,l]) => (
+            {[['home', T('discover')||'Keşfet'], ['map', T('map')||'Harita'], ['appts', T('appointments')||'Randevular'], ['profile', T('profile')||'Profil']]
+              .filter(([k]) => user || (k!=='profile' && k!=='appts'))
+              .map(([k,l]) => (
               <button key={k} onClick={()=>setTab(k)}
                 className="text-xs sm:text-sm font-bold transition-all py-1 relative"
                 style={tab===k?{color:INK, borderBottom:'2px solid '+INK}:{color:MUTED}}>
@@ -90,8 +92,12 @@ export default function AtlasTheme(props) {
                 {k==='appts' && upcomingAppts?.length>0 && <span className="ml-1 text-[10px] font-black px-1.5 rounded-full" style={{background:accent, color:PAPER}}>{upcomingAppts.length}</span>}
               </button>
             ))}
-            <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }}
-              className="hidden sm:inline text-xs font-bold" style={{color:MUTED}}>{T('logout')||'Çıkış'}</button>
+            {user ? (
+              <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }}
+                className="hidden sm:inline text-xs font-bold" style={{color:MUTED}}>{T('logout')||'Çıkış'}</button>
+            ) : (
+              <a href="/login" className="text-xs font-bold px-3 py-1.5 rounded" style={{background:accent,color:PAPER}}>Giriş</a>
+            )}
           </nav>
         </div>
       </header>
