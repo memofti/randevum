@@ -97,14 +97,20 @@ export default function CustomerPage() {
 
   const toast3 = (m) => { setToast(m); setTimeout(() => setToast(''), 3500) }
 
-  // Auth
+  // Auth — misafir modu: kullanıcı yoksa null kalır, sadece randevu işleminde /login'e yönlendir
   useEffect(() => {
     (async () => {
       const u = await getActiveUser()
-      if (!u) { router.push('/login'); return }
-      setUser(u)
+      if (u) setUser(u)
     })()
-  }, [router])
+  }, [])
+
+  const requireAuth = (action='işlem') => {
+    if (user) return true
+    toast3?.(action+' için giriş yap')
+    router.push('/login')
+    return false
+  }
 
   // Konum — sayfa açılınca iste
   useEffect(() => {
@@ -617,13 +623,21 @@ export default function CustomerPage() {
     },
     loading: detailLoading,
     onClose: () => setDetailBiz(null),
-    onBook: () => setBookModal(true),
+    onBook: () => { if (requireAuth('Randevu almak')) setBookModal(true) },
     uiLang,
+  }
+  // Misafir koruması: setBookModal(true) çağrılırsa user yoksa /login'e yönlendir
+  const guardedSetBookModal = (open) => {
+    if (open === true && !user) {
+      requireAuth('Randevu almak')
+      return
+    }
+    setBookModal(open)
   }
   const themeProps = {
     user, businesses, appointments, activeAds, profile,
     tab, setTab, openDetail, detailBiz, bizServices, bizStaff,
-    detailLoading, bookModal, setBookModal, setDetailBiz,
+    detailLoading, bookModal, setBookModal: guardedSetBookModal, setDetailBiz,
     activeAdDiscount, paymentEnabled, loyaltyEnabled, toast3, userLoc, locStatus, requestLocation,
     searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
     cancelAppt, rescheduleAppt: openReschedule, setReviewModal, setReviewForm, qrModal, setQrModal,
@@ -635,7 +649,7 @@ export default function CustomerPage() {
     uiLang, setUiLang,
   }
 
-  if (!user) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white/20 border-t-orange-500 rounded-full animate-spin" /></div>
+  // Misafir modu: user null olabilir — sayfayı yine render et
 
   const RescheduleOverlay = rescheduleModal && (
     <div className="fixed inset-0 bg-black/60 z-[80] flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setRescheduleModal(null)}>
@@ -863,7 +877,7 @@ export default function CustomerPage() {
                 </>
               )}
 
-              <button onClick={() => setBookModal(true)}
+              <button onClick={() => { if (requireAuth('Randevu almak')) setBookModal(true) }}
                 className="w-full py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition-colors shadow-md shadow-orange-500/25">
                 📅 Randevu Al
               </button>
@@ -1059,11 +1073,18 @@ export default function CustomerPage() {
           </button>
         ))}
         <div className="ml-auto flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-xs font-bold text-white border-2 border-white/20">
-            {user.name?.[0]||'?'}
-          </div>
-          <button onClick={async () => { await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); router.push('/login') }}
-            className="text-white/40 hover:text-white/70 text-xs transition-colors">Çıkış</button>
+          {user ? (
+            <>
+              <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-xs font-bold text-white border-2 border-white/20">
+                {user.name?.[0]||'?'}
+              </div>
+              <button onClick={async () => { await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); router.push('/login') }}
+                className="text-white/40 hover:text-white/70 text-xs transition-colors">Çıkış</button>
+            </>
+          ) : (
+            <button onClick={() => router.push('/login')}
+              className="text-white text-xs font-bold bg-orange-500 hover:bg-orange-600 px-3 py-1.5 rounded-lg transition-colors">Giriş</button>
+          )}
         </div>
       </nav>
 
@@ -1073,7 +1094,7 @@ export default function CustomerPage() {
           <div className="py-8 sm:py-12 px-4 sm:px-6 relative overflow-hidden" style={{background:"linear-gradient(135deg, "+theme.heroFrom+" 0%, "+theme.heroTo+" 100%)"}}>
             <div className="absolute right-0 top-0 w-72 h-72 bg-orange-500/10 rounded-full blur-3xl" />
             <div className="max-w-4xl mx-auto relative z-10">
-              <div className="text-white/60 text-sm mb-1">Merhaba, {user.name?.split(' ')[0]} 👋</div>
+              <div className="text-white/60 text-sm mb-1">{user ? `Merhaba, ${user.name?.split(' ')[0]} 👋` : 'Hoş geldin 👋'}</div>
               <h1 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight mb-4">Randevunuzu Alın</h1>
               <div className="flex bg-white rounded-xl overflow-hidden shadow-xl w-full sm:max-w-lg">
                 <input className="flex-1 px-4 py-3 text-sm outline-none" placeholder="İşletme veya hizmet ara..."
@@ -1284,13 +1305,21 @@ export default function CustomerPage() {
           onBook={async (biz) => {
             setTab('home')
             await openDetail(biz)
-            setBookModal(true)
+            if (requireAuth('Randevu almak')) setBookModal(true)
           }}
         />
       )}
 
       {/* RANDEVULARIM */}
-      {tab === 'appts' && (
+      {tab === 'appts' && !user && (
+        <div className="max-w-md mx-auto px-4 py-16 text-center">
+          <div className="text-5xl mb-3">🔒</div>
+          <div className="text-xl font-bold mb-2">Giriş yap</div>
+          <div className="text-sm text-gray-500 mb-6">Randevularını görmek için hesabına giriş yap.</div>
+          <button onClick={() => router.push('/login')} className="px-6 py-2.5 rounded-xl text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white">Giriş Yap</button>
+        </div>
+      )}
+      {tab === 'appts' && user && (
         <div className="max-w-3xl mx-auto w-full px-3 sm:px-6 py-5 sm:py-8">
           <div className="flex items-center justify-between mb-5">
             <div><h1 className="text-xl font-bold">Randevularım</h1><p className="text-gray-500 text-sm">{user.name}</p></div>
@@ -1394,7 +1423,15 @@ export default function CustomerPage() {
       )}
 
       {/* PROFİL — paylaşımlı bileşen */}
-      {tab === 'profile' && <ProfileTab {...themeProps} variant="default" />}
+      {tab === 'profile' && !user && (
+        <div className="max-w-md mx-auto px-4 py-16 text-center">
+          <div className="text-5xl mb-3">👤</div>
+          <div className="text-xl font-bold mb-2">Giriş yap</div>
+          <div className="text-sm text-gray-500 mb-6">Profilini görmek için hesabına giriş yap.</div>
+          <button onClick={() => router.push('/login')} className="px-6 py-2.5 rounded-xl text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white">Giriş Yap</button>
+        </div>
+      )}
+      {tab === 'profile' && user && <ProfileTab {...themeProps} variant="default" />}
     </div>
   )
 }
