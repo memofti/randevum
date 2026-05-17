@@ -49,6 +49,11 @@ export default function AdminPage() {
   const [revSort, setRevSort] = useState('revenue') // revenue | name | commission | count
   const [couponOwnerF, setCouponOwnerF] = useState('') // '' | admin | business
   const [subsSearch, setSubsSearch] = useState('')
+  const [adsStatusF, setAdsStatusF] = useState('')   // '' | pending | active | paused | expired
+  const [adsTypeF, setAdsTypeF]     = useState('')   // '' | general | regional
+  const [adsSearch, setAdsSearch]   = useState('')
+  const [adsSort, setAdsSort]       = useState('newest') // newest | endsoon | clicks | impressions | firm
+  const [adsPage, setAdsPage]       = useState(1)
   const [allAds, setAllAds] = useState([])
   const [paymentEnabled, setPaymentEnabled] = useState(false)
   const [savingPayment, setSavingPayment] = useState(false)
@@ -1084,55 +1089,190 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {view==='ads'&&(
+              {view==='ads'&&(() => {
+                const now = new Date()
+                const statusCount = (s) => allAds.filter(a => a.status===s).length
+                const typeCount = (t) => allAds.filter(a => a.type===t).length
+                const totalImpr = allAds.reduce((s,a)=>s+(a.impressions||0),0)
+                const totalClicks = allAds.reduce((s,a)=>s+(a.clicks||0),0)
+                const ctr = totalImpr > 0 ? (totalClicks/totalImpr*100) : 0
+                const q = adsSearch.toLowerCase()
+                const filteredAds = allAds.filter(a => (
+                  (!adsStatusF || a.status===adsStatusF)
+                  && (!adsTypeF || a.type===adsTypeF)
+                  && (!q || (a.title||'').toLowerCase().includes(q) || (a.businesses?.name||'').toLowerCase().includes(q) || (a.target_city||'').toLowerCase().includes(q))
+                )).slice().sort((a,b) => {
+                  if (adsSort==='endsoon')      return new Date(a.ends_at||0) - new Date(b.ends_at||0)
+                  if (adsSort==='clicks')       return (b.clicks||0) - (a.clicks||0)
+                  if (adsSort==='impressions')  return (b.impressions||0) - (a.impressions||0)
+                  if (adsSort==='firm')         return (a.businesses?.name||'').localeCompare(b.businesses?.name||'','tr')
+                  return new Date(b.created_at||0) - new Date(a.created_at||0)
+                })
+                const ADS_PAGE_SIZE = 20
+                const adsTotalPages = Math.max(1, Math.ceil(filteredAds.length / ADS_PAGE_SIZE))
+                const safeAdsPage = Math.min(adsPage, adsTotalPages)
+                const pageAds = filteredAds.slice((safeAdsPage-1)*ADS_PAGE_SIZE, safeAdsPage*ADS_PAGE_SIZE)
+                const remainingDays = (ad) => {
+                  if (!ad.ends_at) return null
+                  return Math.ceil((new Date(ad.ends_at) - now) / 86400000)
+                }
+                const statusMeta = {
+                  pending:  { l:'⏳ Bekliyor',  cls:'bg-amber-50 text-amber-700 border-amber-200' },
+                  active:   { l:'● Aktif',      cls:'bg-green-50 text-green-700 border-green-200' },
+                  paused:   { l:'⏸ Durduruldu', cls:'bg-gray-100 text-gray-600 border-gray-200' },
+                  expired:  { l:'❌ Süresi doldu', cls:'bg-red-50 text-red-700 border-red-200' },
+                  rejected: { l:'✗ Reddedildi', cls:'bg-red-50 text-red-700 border-red-200' },
+                }
+                return (
                 <div>
-                  <div className="mb-5"><h1 className="text-lg sm:text-xl font-bold">Reklam Yönetimi</h1><p className="text-gray-500 text-sm">{allAds.length} reklam</p></div>
-                  {allAds.length===0 ? (
-                    <div className="bg-white border border-gray-200 rounded-xl p-12 text-center"><div className="text-4xl mb-3">📢</div><div className="text-gray-400">Henüz reklam yok</div></div>
+                  <div className="mb-4">
+                    <h1 className="text-lg sm:text-xl font-bold">Reklam Yönetimi</h1>
+                    <p className="text-gray-500 text-sm">{allAds.length} reklam · Onaylama, durdurma ve süresi geçenleri yönet</p>
+                  </div>
+
+                  {/* KPI'lar — tıklanır filtre */}
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+                    <button onClick={()=>{ setAdsStatusF(''); setAdsPage(1) }} className={'text-left rounded-xl '+(!adsStatusF?'ring-2 ring-orange-400':'')}>
+                      <KPI label="Toplam" value={allAds.length} color="blue" />
+                    </button>
+                    <button onClick={()=>{ setAdsStatusF('pending'); setAdsPage(1) }} className={'text-left rounded-xl '+(adsStatusF==='pending'?'ring-2 ring-amber-400':'')}>
+                      <KPI label="Bekliyor" value={statusCount('pending')} color="orange" />
+                    </button>
+                    <button onClick={()=>{ setAdsStatusF('active'); setAdsPage(1) }} className={'text-left rounded-xl '+(adsStatusF==='active'?'ring-2 ring-green-400':'')}>
+                      <KPI label="Aktif" value={statusCount('active')} color="green" />
+                    </button>
+                    <button onClick={()=>{ setAdsStatusF('paused'); setAdsPage(1) }} className={'text-left rounded-xl '+(adsStatusF==='paused'?'ring-2 ring-gray-400':'')}>
+                      <KPI label="Durdurulan" value={statusCount('paused')} color="gray" />
+                    </button>
+                    <button onClick={()=>{ setAdsStatusF('expired'); setAdsPage(1) }} className={'text-left rounded-xl '+(adsStatusF==='expired'?'ring-2 ring-red-400':'')}>
+                      <KPI label="Süresi Doldu" value={statusCount('expired')} color="gray" />
+                    </button>
+                  </div>
+
+                  {/* Performans KPI'ları */}
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                      <div className="text-xl mb-1">👁️</div>
+                      <div className="text-base sm:text-lg font-extrabold">{totalImpr.toLocaleString('tr-TR')}</div>
+                      <div className="text-xs text-gray-500">Toplam gösterim</div>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                      <div className="text-xl mb-1">🖱️</div>
+                      <div className="text-base sm:text-lg font-extrabold">{totalClicks.toLocaleString('tr-TR')}</div>
+                      <div className="text-xs text-gray-500">Toplam tıklama</div>
+                    </div>
+                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 shadow-sm">
+                      <div className="text-xl mb-1">📊</div>
+                      <div className="text-base sm:text-lg font-extrabold text-orange-600">{ctr.toFixed(2)}%</div>
+                      <div className="text-xs text-orange-700 font-semibold">CTR</div>
+                    </div>
+                  </div>
+
+                  {/* Pending toplu eylem */}
+                  {statusCount('pending') > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-center justify-between gap-3 flex-wrap">
+                      <div className="text-sm font-bold text-amber-700">⏳ {statusCount('pending')} reklam onay bekliyor</div>
+                      <button onClick={async()=>{
+                        if (!confirm('Bekleyen tüm reklamları onaylamak istiyor musunuz?')) return
+                        const pendingIds = allAds.filter(a=>a.status==='pending').map(a=>a.id)
+                        if (pendingIds.length===0) return
+                        const { error } = await supabase.from('ads').update({status:'active'}).in('id', pendingIds)
+                        if (error) { toast3('❌ '+error.message); return }
+                        setAllAds(p=>p.map(a=>a.status==='pending'?{...a,status:'active'}:a))
+                        toast3('✅ '+pendingIds.length+' reklam onaylandı')
+                      }} className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold">✓ Hepsini Onayla</button>
+                    </div>
+                  )}
+
+                  {/* Filtre çubuğu */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-3 mb-4 flex items-center gap-2 flex-wrap">
+                    <input className="flex-1 min-w-48 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400"
+                      placeholder="Başlık, firma veya şehir ara..."
+                      value={adsSearch} onChange={e=>{ setAdsSearch(e.target.value); setAdsPage(1) }}/>
+                    <select value={adsStatusF} onChange={e=>{ setAdsStatusF(e.target.value); setAdsPage(1) }} className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none">
+                      <option value="">Tüm Durumlar</option>
+                      <option value="pending">⏳ Bekliyor</option>
+                      <option value="active">● Aktif</option>
+                      <option value="paused">⏸ Durdurulan</option>
+                      <option value="expired">❌ Süresi Doldu</option>
+                      <option value="rejected">✗ Reddedilen</option>
+                    </select>
+                    <select value={adsTypeF} onChange={e=>{ setAdsTypeF(e.target.value); setAdsPage(1) }} className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none">
+                      <option value="">Tüm Türler</option>
+                      <option value="general">🌍 Genel ({typeCount('general')})</option>
+                      <option value="regional">📍 Bölgesel ({typeCount('regional')})</option>
+                    </select>
+                    <select value={adsSort} onChange={e=>setAdsSort(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none">
+                      <option value="newest">Yeni → Eski</option>
+                      <option value="endsoon">Bitişi yakın</option>
+                      <option value="clicks">En çok tıklanan</option>
+                      <option value="impressions">En çok gösterilen</option>
+                      <option value="firm">Firmaya göre (A-Z)</option>
+                    </select>
+                  </div>
+
+                  {filteredAds.length===0 ? (
+                    <div className="bg-white border border-gray-200 rounded-xl p-12 text-center"><div className="text-4xl mb-3">📢</div><div className="text-gray-400">{adsSearch||adsStatusF||adsTypeF?'Sonuç bulunamadı':'Henüz reklam yok'}</div></div>
                   ) : (
+                    <>
                     <div className="space-y-3">
-                      {allAds.map(ad=>(
+                      {pageAds.map(ad => {
+                        const sm = statusMeta[ad.status] || statusMeta.pending
+                        const days = remainingDays(ad)
+                        return (
                         <div key={ad.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                           <div className="flex items-start gap-4 flex-wrap">
-                            {ad.image_url && <img src={ad.image_url} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0"/>}
+                            {ad.image_url
+                              ? <img src={ad.image_url} alt="" className="w-16 h-16 rounded-xl object-cover flex-shrink-0 border border-gray-100"/>
+                              : <div className="w-16 h-16 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 bg-orange-50 text-orange-400">📢</div>
+                            }
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap mb-1">
-                                <span className="font-bold text-sm">{ad.businesses?.emoji} {ad.businesses?.name}</span>
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${ad.status==='active'?'bg-green-50 text-green-700 border-green-200':ad.status==='pending'?'bg-amber-50 text-amber-700 border-amber-200':'bg-gray-100 text-gray-500 border-gray-200'}`}>
-                                  {ad.status==='active'?'● Aktif':ad.status==='pending'?'⏳ Bekliyor':'⏸ Durdu'}
-                                </span>
+                                <span className="font-bold text-sm">{ad.businesses?.emoji} {ad.businesses?.name||'—'}</span>
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${sm.cls}`}>{sm.l}</span>
                                 <span className="text-xs text-gray-400">{ad.type==='regional'?'📍 Bölgesel':'🌍 Genel'}</span>
+                                {days !== null && (
+                                  days <= 0
+                                    ? <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">Süresi doldu</span>
+                                    : days <= 3
+                                      ? <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">⏳ {days} gün kaldı</span>
+                                      : <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">{days} gün kaldı</span>
+                                )}
                               </div>
                               <div className="font-semibold text-sm">{ad.title}</div>
                               {ad.description && <div className="text-xs text-gray-500 mt-0.5">{ad.description}</div>}
                               <div className="flex gap-3 mt-2 text-xs text-gray-400 flex-wrap">
                                 {ad.target_city && <span>📍 {ad.target_city}{ad.target_district?' / '+ad.target_district:''} · {ad.target_radius_km}km</span>}
                                 {ad.discount_pct>0 && <span className="text-orange-500 font-bold">%{ad.discount_pct} indirim</span>}
-                                <span>👁 {ad.impressions} · 🖱 {ad.clicks}</span>
+                                <span>👁 {ad.impressions} · 🖱 {ad.clicks} · CTR %{ad.impressions>0?((ad.clicks/ad.impressions)*100).toFixed(1):'0.0'}</span>
                                 <span>Bitiş: {new Date(ad.ends_at).toLocaleDateString('tr-TR')}</span>
                               </div>
                             </div>
                             <div className="flex flex-col gap-2 flex-shrink-0">
-                              {/* Durum değiştir */}
-                              <div className="flex flex-col gap-1.5">
-                                {ad.status==='pending' && (
+                              {ad.status==='pending' && (
+                                <div className="flex gap-1.5">
                                   <button onClick={async()=>{
                                     await supabase.from('ads').update({status:'active'}).eq('id',ad.id)
                                     setAllAds(p=>p.map(a=>a.id===ad.id?{...a,status:'active'}:a))
                                   }} className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold">✓ Onayla</button>
-                                )}
-                                <select value={ad.status} onChange={async e=>{
-                                  const s = e.target.value
-                                  await supabase.from('ads').update({status:s}).eq('id',ad.id)
-                                  setAllAds(p=>p.map(a=>a.id===ad.id?{...a,status:s}:a))
-                                }} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-orange-400">
-                                  <option value="pending">⏳ Bekliyor</option>
-                                  <option value="active">● Aktif</option>
-                                  <option value="paused">⏸ Durdur</option>
-                                  <option value="expired">❌ Süresi doldu</option>
-                                </select>
-                              </div>
-                              {/* Tür değiştir */}
+                                  <button onClick={async()=>{
+                                    if(!confirm('Reklam reddedilsin mi?')) return
+                                    await supabase.from('ads').update({status:'rejected'}).eq('id',ad.id)
+                                    setAllAds(p=>p.map(a=>a.id===ad.id?{...a,status:'rejected'}:a))
+                                  }} className="text-xs bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 px-3 py-1.5 rounded-lg font-bold">Reddet</button>
+                                </div>
+                              )}
+                              <select value={ad.status} onChange={async e=>{
+                                const s = e.target.value
+                                await supabase.from('ads').update({status:s}).eq('id',ad.id)
+                                setAllAds(p=>p.map(a=>a.id===ad.id?{...a,status:s}:a))
+                              }} className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-orange-400">
+                                <option value="pending">⏳ Bekliyor</option>
+                                <option value="active">● Aktif</option>
+                                <option value="paused">⏸ Durdurulan</option>
+                                <option value="expired">❌ Süresi doldu</option>
+                                <option value="rejected">✗ Reddedildi</option>
+                              </select>
                               <select value={ad.type} onChange={async e=>{
                                 const t = e.target.value
                                 await supabase.from('ads').update({type:t}).eq('id',ad.id)
@@ -1141,14 +1281,38 @@ export default function AdminPage() {
                                 <option value="general">🌍 Genel</option>
                                 <option value="regional">📍 Bölgesel</option>
                               </select>
+                              <button onClick={async()=>{
+                                if (!confirm('Reklam silinsin mi? (Kontör iade edilmez)')) return
+                                const { error } = await supabase.from('ads').delete().eq('id',ad.id)
+                                if (error) { toast3('❌ '+error.message); return }
+                                setAllAds(p=>p.filter(a=>a.id!==ad.id))
+                                toast3('Reklam silindi')
+                              }} className="text-xs text-red-500 hover:text-red-700">🗑️ Sil</button>
                             </div>
                           </div>
                         </div>
-                      ))}
+                        )
+                      })}
                     </div>
+                    {filteredAds.length > ADS_PAGE_SIZE && (
+                      <div className="mt-4 flex items-center justify-between gap-2 flex-wrap">
+                        <div className="text-xs text-gray-500">
+                          {((safeAdsPage-1)*ADS_PAGE_SIZE)+1}–{Math.min(safeAdsPage*ADS_PAGE_SIZE, filteredAds.length)} / {filteredAds.length} reklam
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button disabled={safeAdsPage<=1} onClick={()=>setAdsPage(p=>Math.max(1,p-1))}
+                            className="px-2.5 py-1 text-xs font-bold rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50">‹ Önceki</button>
+                          <span className="text-xs font-bold px-2">Sayfa {safeAdsPage} / {adsTotalPages}</span>
+                          <button disabled={safeAdsPage>=adsTotalPages} onClick={()=>setAdsPage(p=>Math.min(adsTotalPages,p+1))}
+                            className="px-2.5 py-1 text-xs font-bold rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50">Sonraki ›</button>
+                        </div>
+                      </div>
+                    )}
+                    </>
                   )}
                 </div>
-              )}
+                )
+              })()}
               {view==='revenue'&&(() => {
                 const totalGross = revenueScopedPayments.reduce((s,p)=>s+(+p.amount||0),0)
                 const totalComm = totalGross*commissionRate/100
