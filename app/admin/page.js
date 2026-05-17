@@ -42,6 +42,13 @@ export default function AdminPage() {
   const [firmDetail, setFirmDetail] = useState(null) // firma objesi veya null
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const [firmSort, setFirmSort] = useState('newest') // newest | name | plan | status | appts
+  const [firmPage, setFirmPage] = useState(1)
+  const [firmPlanF, setFirmPlanF] = useState('') // '' | free | pro | enterprise
+  const [revFilter, setRevFilter] = useState('') // '' | thisMonth | last3 | last12
+  const [revSort, setRevSort] = useState('revenue') // revenue | name | commission | count
+  const [couponOwnerF, setCouponOwnerF] = useState('') // '' | admin | business
+  const [subsSearch, setSubsSearch] = useState('')
   const [allAds, setAllAds] = useState([])
   const [paymentEnabled, setPaymentEnabled] = useState(false)
   const [savingPayment, setSavingPayment] = useState(false)
@@ -318,11 +325,44 @@ export default function AdminPage() {
 
   const reviewFirms=firms.filter(f=>f.status==='review')
   const activeFirms=firms.filter(f=>f.status==='active')
-  const filtered=firms.filter(f=>{
+  const apptCountByFirm = appts.reduce((m,a)=>{ m[a.business_id]=(m[a.business_id]||0)+1; return m },{})
+  const filteredAll = firms.filter(f=>{
     const q=search.toLowerCase()
-    return(!q||f.name.toLowerCase().includes(q)||(f.email||'').toLowerCase().includes(q)||(f.city||'').toLowerCase().includes(q))&&(!statusF||f.status===statusF)
+    return(!q||f.name.toLowerCase().includes(q)||(f.email||'').toLowerCase().includes(q)||(f.city||'').toLowerCase().includes(q))
+      && (!statusF||f.status===statusF)
+      && (!firmPlanF||f.plan===firmPlanF)
+  }).slice().sort((a,b)=>{
+    if (firmSort==='name')   return (a.name||'').localeCompare(b.name||'','tr')
+    if (firmSort==='plan')   { const ord={enterprise:0,pro:1,free:2}; return (ord[a.plan]??9)-(ord[b.plan]??9) }
+    if (firmSort==='status') { const ord={active:0,review:1,suspended:2,passive:3}; return (ord[a.status]??9)-(ord[b.status]??9) }
+    if (firmSort==='appts')  return (apptCountByFirm[b.id]||0) - (apptCountByFirm[a.id]||0)
+    return new Date(b.created_at) - new Date(a.created_at)
   })
+  const FIRM_PAGE_SIZE = 20
+  const firmTotalPages = Math.max(1, Math.ceil(filteredAll.length / FIRM_PAGE_SIZE))
+  const safeFirmPage = Math.min(firmPage, firmTotalPages)
+  const filtered = filteredAll.slice((safeFirmPage-1)*FIRM_PAGE_SIZE, safeFirmPage*FIRM_PAGE_SIZE)
   const planCounts=firms.reduce((a,f)=>({...a,[f.plan]:(a[f.plan]||0)+1}),{})
+  const statusCounts=firms.reduce((a,f)=>({...a,[f.status]:(a[f.status]||0)+1}),{})
+
+  // Revenue date filter
+  const revenueScopedPayments = (() => {
+    if (!revFilter) return payments
+    const now = new Date()
+    if (revFilter==='thisMonth') {
+      const mp = now.toISOString().slice(0,7)
+      return payments.filter(p => (p.created_at||'').startsWith(mp))
+    }
+    if (revFilter==='last3') {
+      const lim = new Date(now.getFullYear(), now.getMonth()-3, now.getDate())
+      return payments.filter(p => new Date(p.created_at) >= lim)
+    }
+    if (revFilter==='last12') {
+      const lim = new Date(now.getFullYear()-1, now.getMonth(), now.getDate())
+      return payments.filter(p => new Date(p.created_at) >= lim)
+    }
+    return payments
+  })()
 
   if(!user) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="w-8 h-8 border-2 border-white/20 border-t-orange-500 rounded-full animate-spin" /></div>
 
@@ -880,11 +920,38 @@ export default function AdminPage() {
                       <button onClick={()=>setModal(true)} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Firma Ekle</button>
                     </div>
                   </div>
+                  {/* KPI tab'ları (tıklanır filtre) */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                    <button onClick={()=>{ setStatusF(''); setFirmPlanF(''); setFirmPage(1) }} className={'text-left rounded-xl '+(!statusF&&!firmPlanF?'ring-2 ring-orange-400':'')}>
+                      <KPI label="Toplam" value={firms.length} color="blue" />
+                    </button>
+                    <button onClick={()=>{ setStatusF('active'); setFirmPlanF(''); setFirmPage(1) }} className={'text-left rounded-xl '+(statusF==='active'?'ring-2 ring-green-400':'')}>
+                      <KPI label="Aktif" value={statusCounts.active||0} color="green" />
+                    </button>
+                    <button onClick={()=>{ setStatusF('review'); setFirmPlanF(''); setFirmPage(1) }} className={'text-left rounded-xl '+(statusF==='review'?'ring-2 ring-amber-400':'')}>
+                      <KPI label="İnceleme" value={statusCounts.review||0} color="orange" />
+                    </button>
+                    <button onClick={()=>{ setStatusF('suspended'); setFirmPlanF(''); setFirmPage(1) }} className={'text-left rounded-xl '+(statusF==='suspended'?'ring-2 ring-red-400':'')}>
+                      <KPI label="Askıda" value={statusCounts.suspended||0} color="gray" />
+                    </button>
+                  </div>
                   <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                    <div className="p-4 border-b border-gray-100 flex gap-3 flex-wrap">
-                      <input className="flex-1 min-w-48 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" placeholder="Ara..." value={search} onChange={e=>setSearch(e.target.value)} />
-                      <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none" value={statusF} onChange={e=>setStatusF(e.target.value)}>
-                        <option value="">Tüm Durumlar</option><option value="active">Aktif</option><option value="review">İnceleme</option><option value="suspended">Askıya</option><option value="passive">Pasif</option>
+                    <div className="p-4 border-b border-gray-100 flex gap-2 flex-wrap items-center">
+                      <input className="flex-1 min-w-48 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400"
+                        placeholder="Firma adı, e-posta veya şehir ara..."
+                        value={search} onChange={e=>{ setSearch(e.target.value); setFirmPage(1) }} />
+                      <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none" value={statusF} onChange={e=>{ setStatusF(e.target.value); setFirmPage(1) }}>
+                        <option value="">Tüm Durumlar</option><option value="active">Aktif</option><option value="review">İnceleme</option><option value="suspended">Askıda</option><option value="passive">Pasif</option>
+                      </select>
+                      <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none" value={firmPlanF} onChange={e=>{ setFirmPlanF(e.target.value); setFirmPage(1) }}>
+                        <option value="">Tüm Planlar</option><option value="free">Ücretsiz</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option>
+                      </select>
+                      <select className="px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none" value={firmSort} onChange={e=>setFirmSort(e.target.value)}>
+                        <option value="newest">Yeni → Eski</option>
+                        <option value="name">İsme göre (A-Z)</option>
+                        <option value="plan">Plana göre</option>
+                        <option value="status">Duruma göre</option>
+                        <option value="appts">İşleme göre (randevu)</option>
                       </select>
                     </div>
                     <div className="overflow-x-auto">
@@ -916,7 +983,22 @@ export default function AdminPage() {
                         </tbody>
                       </table>
                     </div>
-                    <div className="px-5 py-3 border-t border-gray-100 text-sm text-gray-500">{filtered.length} firma</div>
+                    <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between flex-wrap gap-2">
+                      <div className="text-xs text-gray-500">
+                        {filteredAll.length>0
+                          ? `${((safeFirmPage-1)*FIRM_PAGE_SIZE)+1}–${Math.min(safeFirmPage*FIRM_PAGE_SIZE, filteredAll.length)} / ${filteredAll.length} firma`
+                          : '0 firma'}
+                      </div>
+                      {filteredAll.length > FIRM_PAGE_SIZE && (
+                        <div className="flex items-center gap-1">
+                          <button disabled={safeFirmPage<=1} onClick={()=>setFirmPage(p=>Math.max(1,p-1))}
+                            className="px-2.5 py-1 text-xs font-bold rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50">‹ Önceki</button>
+                          <span className="text-xs font-bold px-2">Sayfa {safeFirmPage} / {firmTotalPages}</span>
+                          <button disabled={safeFirmPage>=firmTotalPages} onClick={()=>setFirmPage(p=>Math.min(firmTotalPages,p+1))}
+                            className="px-2.5 py-1 text-xs font-bold rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50">Sonraki ›</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1067,10 +1149,37 @@ export default function AdminPage() {
                   )}
                 </div>
               )}
-              {view==='revenue'&&(
+              {view==='revenue'&&(() => {
+                const totalGross = revenueScopedPayments.reduce((s,p)=>s+(+p.amount||0),0)
+                const totalComm = totalGross*commissionRate/100
+                const thisMonthGross = payments.filter(p=>p.created_at?.startsWith(new Date().toISOString().slice(0,7))).reduce((s,p)=>s+(+p.amount||0),0)
+                const lastMonthDate = new Date(); lastMonthDate.setMonth(lastMonthDate.getMonth()-1)
+                const lastMonthKey = lastMonthDate.toISOString().slice(0,7)
+                const lastMonthGross = payments.filter(p=>p.created_at?.startsWith(lastMonthKey)).reduce((s,p)=>s+(+p.amount||0),0)
+                const mom = lastMonthGross > 0 ? Math.round(((thisMonthGross-lastMonthGross)/lastMonthGross)*100) : 0
+                const avgTicket = revenueScopedPayments.length > 0 ? totalGross / revenueScopedPayments.length : 0
+                const planRev = ['enterprise','pro','free'].map(plan => {
+                  const fids = new Set(firms.filter(f=>f.plan===plan).map(f=>f.id))
+                  const gross = revenueScopedPayments.filter(p=>fids.has(p.business_id)).reduce((s,p)=>s+(+p.amount||0),0)
+                  return { plan, gross, count: firms.filter(f=>f.plan===plan).length }
+                })
+                const firmRows = firms.filter(f=>f.status==='active').map(f=>{
+                  const fp = revenueScopedPayments.filter(p=>p.business_id===f.id)
+                  const total = fp.reduce((s,p)=>s+(+p.amount||0),0)
+                  return { ...f, _count: fp.length, _total: total, _comm: total*commissionRate/100 }
+                }).sort((a,b)=>{
+                  if (revSort==='name') return (a.name||'').localeCompare(b.name||'','tr')
+                  if (revSort==='count') return b._count - a._count
+                  if (revSort==='commission') return b._comm - a._comm
+                  return b._total - a._total
+                })
+                return (
                 <div>
                   <div className="mb-5 flex items-center justify-between flex-wrap gap-3">
-                    <h1 className="text-xl font-bold">Gelir Takibi</h1>
+                    <div>
+                      <h1 className="text-xl font-bold">Gelir Takibi</h1>
+                      <p className="text-sm text-gray-500">Komisyonu güncellersen tüm raporlar yeniden hesaplanır.</p>
+                    </div>
                     <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2">
                       <span className="text-xs font-bold text-gray-500">Komisyon:</span>
                       <input type="number" min="0" max="100" value={commissionRate}
@@ -1084,45 +1193,98 @@ export default function AdminPage() {
                       }} className="text-xs bg-orange-500 text-white px-2.5 py-1 rounded-lg font-bold">Kaydet</button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-                    {[
-                      ['Toplam Ciro','₺'+(payments.reduce((s,p)=>s+(+p.amount||0),0)).toLocaleString(),'text-gray-800','💳'],
-                      ['Komisyon Geliri','₺'+(payments.reduce((s,p)=>s+(+p.amount||0),0)*commissionRate/100).toLocaleString(),'text-orange-500','💰'],
-                      ['Bu Ay','₺'+(payments.filter(p=>p.created_at?.startsWith(new Date().toISOString().slice(0,7))).reduce((s,p)=>s+(+p.amount||0),0)).toLocaleString(),'text-blue-600','📅'],
-                      ['İşlem Sayısı',payments.length,'text-green-600','📊'],
-                    ].map(([l,v,c,icon])=>(
-                      <div key={l} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                        <div className="text-xl mb-2">{icon}</div>
-                        <div className={'text-lg font-extrabold mb-0.5 '+c}>{v}</div>
-                        <div className="text-xs text-gray-500">{l}</div>
-                      </div>
+
+                  {/* Zaman filtresi */}
+                  <div className="flex gap-2 mb-4 flex-wrap">
+                    {[['','Tümü'],['thisMonth','Bu Ay'],['last3','Son 3 Ay'],['last12','Son 12 Ay']].map(([k,l])=>(
+                      <button key={k||'all'} onClick={()=>setRevFilter(k)}
+                        className={'px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors '+(revFilter===k?'bg-orange-500 text-white border-orange-500':'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}>
+                        {l}
+                      </button>
                     ))}
                   </div>
+
+                  {/* Ana KPI'lar */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                      <div className="text-xl mb-2">💳</div>
+                      <div className="text-lg font-extrabold mb-0.5 text-gray-800">₺{totalGross.toLocaleString('tr-TR')}</div>
+                      <div className="text-xs text-gray-500">Toplam Ciro</div>
+                    </div>
+                    <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 shadow-sm">
+                      <div className="text-xl mb-2">💰</div>
+                      <div className="text-lg font-extrabold mb-0.5 text-orange-600">₺{totalComm.toLocaleString('tr-TR')}</div>
+                      <div className="text-xs text-orange-700 font-semibold">Komisyon Geliri (%{commissionRate})</div>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                      <div className="text-xl mb-2">📅</div>
+                      <div className="text-lg font-extrabold mb-0.5 text-blue-600">₺{thisMonthGross.toLocaleString('tr-TR')}</div>
+                      <div className="text-xs text-gray-500">Bu Ay {mom !== 0 && <span className={'font-bold ml-1 '+(mom>=0?'text-green-600':'text-red-600')}>{mom>0?'+':''}{mom}%</span>}</div>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                      <div className="text-xl mb-2">📊</div>
+                      <div className="text-lg font-extrabold mb-0.5 text-green-600">{revenueScopedPayments.length}</div>
+                      <div className="text-xs text-gray-500">İşlem · Ort. ₺{avgTicket.toLocaleString('tr-TR',{maximumFractionDigits:0})}</div>
+                    </div>
+                  </div>
+
+                  {/* Plan bazlı dağılım */}
+                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm mb-5">
+                    <div className="px-5 py-3 border-b border-gray-100 font-bold text-sm">Plan Bazlı Ciro Dağılımı</div>
+                    <div className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {planRev.map(({plan,gross,count}) => {
+                        const pct = totalGross > 0 ? Math.round(gross/totalGross*100) : 0
+                        const cmap = { enterprise:'#3b82f6', pro:'#f97316', free:'#9ca3af' }
+                        const lmap = { enterprise:'Enterprise', pro:'Pro', free:'Ücretsiz' }
+                        return (
+                          <div key={plan} className="border border-gray-100 rounded-lg p-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-bold flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{background:cmap[plan]}}/>{lmap[plan]}</span>
+                              <span className="text-xs text-gray-400">{count} firma</span>
+                            </div>
+                            <div className="text-base font-extrabold" style={{color:cmap[plan]}}>₺{gross.toLocaleString('tr-TR')}</div>
+                            <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{width:pct+'%', background:cmap[plan]}}/>
+                            </div>
+                            <div className="text-[11px] text-gray-400 mt-1">%{pct} toplam ciro</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Firma bazlı tablo */}
                   <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                    <div className="px-5 py-3.5 border-b border-gray-100 font-bold text-sm">Firma Bazlı Gelir</div>
+                    <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+                      <span className="font-bold text-sm">Firma Bazlı Gelir <span className="text-xs text-gray-400 font-normal">({firmRows.length} aktif firma)</span></span>
+                      <select value={revSort} onChange={e=>setRevSort(e.target.value)} className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none">
+                        <option value="revenue">En çok ciro</option>
+                        <option value="commission">En çok komisyon</option>
+                        <option value="count">En çok işlem</option>
+                        <option value="name">İsme göre (A-Z)</option>
+                      </select>
+                    </div>
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[500px]">
                         <thead className="bg-gray-50"><tr>{['Firma','Plan','İşlem','Ciro','Komisyon'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
                         <tbody>
-                          {firms.filter(f=>f.status==='active').map(f=>{
-                            const fp = payments.filter(p=>p.business_id===f.id)
-                            const total = fp.reduce((s,p)=>s+(+p.amount||0),0)
-                            return (
-                              <tr key={f.id} className="border-t border-gray-100 hover:bg-gray-50">
-                                <td className="px-4 py-3"><div className="font-semibold text-sm">{f.name}</div><div className="text-xs text-gray-400">{f.city}</div></td>
-                                <td className="px-4 py-3"><PlanBdg p={f.plan}/></td>
-                                <td className="px-4 py-3 text-sm text-gray-600">{fp.length}</td>
-                                <td className="px-4 py-3 text-sm font-bold">₺{total.toLocaleString()}</td>
-                                <td className="px-4 py-3 text-sm font-bold text-orange-500">₺{(total*commissionRate/100).toLocaleString()}</td>
-                              </tr>
-                            )
-                          })}
+                          {firmRows.map(f=>(
+                            <tr key={f.id} className="border-t border-gray-100 hover:bg-gray-50">
+                              <td className="px-4 py-3"><div className="font-semibold text-sm">{f.name}</div><div className="text-xs text-gray-400">{f.city}</div></td>
+                              <td className="px-4 py-3"><PlanBdg p={f.plan}/></td>
+                              <td className="px-4 py-3 text-sm text-gray-600">{f._count}</td>
+                              <td className="px-4 py-3 text-sm font-bold">₺{f._total.toLocaleString('tr-TR')}</td>
+                              <td className="px-4 py-3 text-sm font-bold text-orange-500">₺{f._comm.toLocaleString('tr-TR',{maximumFractionDigits:0})}</td>
+                            </tr>
+                          ))}
+                          {firmRows.length===0 && <tr><td colSpan="5" className="px-4 py-10 text-center text-gray-400">Bu zaman aralığında ödeme yok</td></tr>}
                         </tbody>
                       </table>
                     </div>
                   </div>
                 </div>
-              )}
+                )
+              })()}
               {view==='plans'&&(
                 <div>
                   <h1 className="text-xl font-bold mb-2">Plan Limitleri</h1>
@@ -1329,25 +1491,43 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {view==='coupons'&&(
+              {view==='coupons'&&(() => {
+                const adminCoupons = coupons.filter(c => !c.business_id)
+                const bizCoupons   = coupons.filter(c =>  c.business_id)
+                const filteredCoupons = couponOwnerF==='admin' ? adminCoupons : couponOwnerF==='business' ? bizCoupons : coupons
+                return (
                 <div>
-                  <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center justify-between mb-3">
                     <div>
                       <h1 className="text-xl font-bold">Kuponlar</h1>
-                      <p className="text-sm text-gray-500">Platform geneli indirim kodları — kullanım sayısıyla birlikte</p>
+                      <p className="text-sm text-gray-500">Hem <b>platform geneli</b> (admin) hem de <b>firmaların kendi</b> oluşturduğu kuponlar burada listelenir.</p>
                     </div>
                     <button onClick={openCouponAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">{T('addCoupon')}</button>
                   </div>
+                  <div className="flex gap-2 mb-4 flex-wrap">
+                    {[['', 'Tümü', coupons.length], ['admin', '👑 Platform (Admin)', adminCoupons.length], ['business', '🏢 Firma Kuponu', bizCoupons.length]].map(([k,l,c])=>(
+                      <button key={k||'all'} onClick={()=>setCouponOwnerF(k)}
+                        className={'px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors '+(couponOwnerF===k?'bg-orange-500 text-white border-orange-500':'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}>
+                        {l} <span className="opacity-70">({c})</span>
+                      </button>
+                    ))}
+                  </div>
                   <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
                     <table className="w-full min-w-[720px]">
-                      <thead className="bg-gray-50"><tr>{['Kod','İndirim','Kullanım','Geçerlilik','Durum','İşlem'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
+                      <thead className="bg-gray-50"><tr>{['Kod','Sahip','İndirim','Kullanım','Geçerlilik','Durum','İşlem'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
                       <tbody>
-                        {coupons.map(c=>(
+                        {filteredCoupons.map(c=>(
                           <tr key={c.id} className="border-t border-gray-100 hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm">
                               <div className="font-mono font-bold uppercase">{c.code}</div>
-                              {c.businesses?.name && <div className="text-xs text-gray-400">{c.businesses.name}</div>}
                               {c.description && <div className="text-xs text-gray-500">{c.description}</div>}
+                            </td>
+                            <td className="px-4 py-3 text-xs">
+                              {c.business_id ? (
+                                <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 font-bold px-2 py-0.5 rounded-full">🏢 {c.businesses?.name||'Firma'}</span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 font-bold px-2 py-0.5 rounded-full">👑 Platform</span>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-sm">
                               {c.discount_pct>0 && <span className="bg-orange-50 text-orange-700 font-bold px-2 py-0.5 rounded mr-1">%{c.discount_pct}</span>}
@@ -1372,48 +1552,93 @@ export default function AdminPage() {
                             </td>
                           </tr>
                         ))}
-                        {coupons.length===0 && <tr><td colSpan="6" className="px-4 py-12 text-center text-gray-400">Kupon yok — <button onClick={openCouponAdd} className="text-orange-500 hover:underline">ilkini ekle</button></td></tr>}
+                        {filteredCoupons.length===0 && <tr><td colSpan="7" className="px-4 py-12 text-center text-gray-400">Kupon yok — <button onClick={openCouponAdd} className="text-orange-500 hover:underline">ilkini ekle</button></td></tr>}
                       </tbody>
                     </table>
                   </div>
                 </div>
-              )}
+                )
+              })()}
 
-              {view==='subscriptions'&&(
+              {view==='subscriptions'&&(() => {
+                const planMeta = {
+                  enterprise: { label:'Enterprise', color:'#3b82f6', kpi:'blue',   price:750 },
+                  pro:        { label:'Pro',        color:'#f97316', kpi:'orange', price:300 },
+                  free:       { label:'Ücretsiz',   color:'#6b7280', kpi:'gray',   price:0   },
+                }
+                const planOrder = ['enterprise','pro','free']
+                const sQ = subsSearch.toLowerCase()
+                const filterFirm = f => !sQ || f.name.toLowerCase().includes(sQ) || (f.email||'').toLowerCase().includes(sQ) || (f.city||'').toLowerCase().includes(sQ)
+                const grouped = planOrder.map(p => ({
+                  plan: p,
+                  meta: planMeta[p],
+                  list: firms.filter(f => f.plan === p).filter(filterFirm)
+                }))
+                const monthlyTotal = (planCounts.enterprise||0)*planMeta.enterprise.price + (planCounts.pro||0)*planMeta.pro.price
+                return (
                 <div>
-                  <h1 className="text-xl font-bold mb-5">Abonelikler</h1>
+                  <h1 className="text-xl font-bold mb-1">Abonelikler</h1>
+                  <p className="text-sm text-gray-500 mb-5">Aylık tahmini gelir: <b className="text-orange-500">₺{monthlyTotal.toLocaleString('tr-TR')}</b></p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-5">
-                    <KPI label="Pro Plan" value={planCounts.pro||0} sub={`₺${(planCounts.pro||0)*300}/ay`} color="orange" />
-                    <KPI label="Enterprise" value={planCounts.enterprise||0} sub={`₺${(planCounts.enterprise||0)*750}/ay`} color="blue" />
+                    <KPI label="Enterprise" value={planCounts.enterprise||0} sub={`₺${((planCounts.enterprise||0)*planMeta.enterprise.price).toLocaleString('tr-TR')}/ay`} color="blue" />
+                    <KPI label="Pro Plan" value={planCounts.pro||0} sub={`₺${((planCounts.pro||0)*planMeta.pro.price).toLocaleString('tr-TR')}/ay`} color="orange" />
                     <KPI label="Ücretsiz" value={planCounts.free||0} sub="Deneme" color="gray" />
                   </div>
-                  <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-x-auto">
-                    <table className="w-full min-w-[560px]">
-                      <thead className="bg-gray-50"><tr>{['Firma','Plan','Durum','İşlem'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
-                      <tbody>
-                        {firms.map(f=>(
-                          <tr key={f.id} className="border-t border-gray-100 hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm font-semibold">{f.name}</td>
-                            <td className="px-4 py-3"><PlanBdg p={f.plan} /></td>
-                            <td className="px-4 py-3"><StatusBdg s={f.status} /></td>
-                            <td className="px-4 py-3"><div className="flex gap-2">
-                              <select value={f.plan} onChange={async e=>{
-                                const p=e.target.value
-                                await supabase.from('businesses').update({plan:p}).eq('id',f.id)
-                                setFirms(prev=>prev.map(x=>x.id===f.id?{...x,plan:p}:x))
-                              }} className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-orange-400">
-                                <option value="free">Ücretsiz</option>
-                                <option value="pro">Pro</option>
-                                <option value="enterprise">Enterprise</option>
-                              </select>
-                            </div></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="mb-4">
+                    <input className="w-full max-w-md px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400 bg-white"
+                      placeholder="Firma adı veya e-posta ara..." value={subsSearch} onChange={e=>setSubsSearch(e.target.value)} />
+                  </div>
+                  <div className="space-y-4">
+                    {grouped.map(g => (
+                      <div key={g.plan} className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between" style={{background:g.meta.color+'08'}}>
+                          <div className="flex items-center gap-3">
+                            <span className="w-3 h-3 rounded-full" style={{background:g.meta.color}}/>
+                            <span className="font-bold text-sm">{g.meta.label}</span>
+                            <span className="text-xs text-gray-500">{g.list.length} firma</span>
+                          </div>
+                          <div className="text-xs font-bold" style={{color:g.meta.color}}>
+                            {g.meta.price>0 ? `₺${(g.list.length*g.meta.price).toLocaleString('tr-TR')}/ay` : '—'}
+                          </div>
+                        </div>
+                        {g.list.length === 0 ? (
+                          <div className="px-5 py-6 text-center text-sm text-gray-400">Bu planda firma yok</div>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full min-w-[560px]">
+                              <thead className="bg-gray-50"><tr>{['Firma','Şehir','Durum','Plan değiştir'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
+                              <tbody>
+                                {g.list.map(f=>(
+                                  <tr key={f.id} className="border-t border-gray-100 hover:bg-gray-50">
+                                    <td className="px-4 py-3 text-sm">
+                                      <div className="font-semibold">{f.name}</div>
+                                      {f.email && <div className="text-xs text-gray-400">{f.email}</div>}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-500">{f.city||'—'}</td>
+                                    <td className="px-4 py-3"><StatusBdg s={f.status} /></td>
+                                    <td className="px-4 py-3">
+                                      <select value={f.plan} onChange={async e=>{
+                                        const p=e.target.value
+                                        await supabase.from('businesses').update({plan:p}).eq('id',f.id)
+                                        setFirms(prev=>prev.map(x=>x.id===f.id?{...x,plan:p}:x))
+                                      }} className="text-xs border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-orange-400">
+                                        <option value="free">Ücretsiz</option>
+                                        <option value="pro">Pro</option>
+                                        <option value="enterprise">Enterprise</option>
+                                      </select>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )}
+                )
+              })()}
             </>
           )}
         </div>
