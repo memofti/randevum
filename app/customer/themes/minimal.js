@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, logout } from '@/lib/supabase'
 import { t as i18n } from '@/lib/i18n'
 import dynamic from 'next/dynamic'
 import AdBanner from '@/app/components/customer/AdBanner'
@@ -56,7 +56,7 @@ export default function MinimalTheme(props) {
               </button>
             ))}
             {user ? (
-              <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }} className="ml-3 text-sm font-medium" style={{color:MUTED}}>{T('logout')}</button>
+              <button onClick={logout} className="ml-3 text-sm font-medium" style={{color:MUTED}}>{T('logout')}</button>
             ) : (
               <a href="/login" className="ml-3 text-sm font-bold px-3 py-1.5 rounded-full" style={{background:TERRA,color:'#fff'}}>Giriş</a>
             )}

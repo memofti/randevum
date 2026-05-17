@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, logout } from '@/lib/supabase'
 import { t as i18n } from '@/lib/i18n'
 import dynamic from 'next/dynamic'
 import AdBanner from '@/app/components/customer/AdBanner'
@@ -93,7 +93,7 @@ export default function AtlasTheme(props) {
               </button>
             ))}
             {user ? (
-              <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }}
+              <button onClick={logout}
                 className="hidden sm:inline text-xs font-bold" style={{color:MUTED}}>{T('logout')||'Çıkış'}</button>
             ) : (
               <a href="/login" className="text-xs font-bold px-3 py-1.5 rounded" style={{background:accent,color:PAPER}}>Giriş</a>

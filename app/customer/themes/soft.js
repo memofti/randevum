@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, logout } from '@/lib/supabase'
 import { t as i18n } from '@/lib/i18n'
 import dynamic from 'next/dynamic'
 import AdBanner from '@/app/components/customer/AdBanner'
@@ -95,7 +95,7 @@ export default function SoftTheme(props) {
         <div className="ml-auto flex items-center gap-2">
           {user ? (<>
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow" style={{background:'linear-gradient(135deg,'+LAV+','+PINK+')'}}>{user.name?.[0]||'?'}</div>
-            <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }} className="text-xs hidden sm:inline" style={{color:MUTED}}>{T('logout')}</button>
+            <button onClick={logout} className="text-xs hidden sm:inline" style={{color:MUTED}}>{T('logout')}</button>
           </>) : (
             <a href="/login" className="px-3 py-1.5 rounded-full text-xs font-bold text-white shadow" style={{background:'linear-gradient(135deg,'+PINK+','+LAV+')'}}>Giriş</a>
           )}

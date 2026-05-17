@@ -61,6 +61,8 @@ Bu komut tüm migration geçmişini SQL dosyası olarak `supabase/migrations/` a
 | 2026-05-16 | add_fk_indexes_and_drop_unused |
 | 2026-05-17 | ad_credits_kontör_and_enforce_max_30_days |
 | 2026-05-17 | ad_packages_enforce_duration_impressions_regional |
+| 2026-05-17 | harden_security_definer_functions_and_view |
+| 2026-05-17 | revoke_public_execute_on_internal_definer_functions |
 
 ## Project bilgileri
 

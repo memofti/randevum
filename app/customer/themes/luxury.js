@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, logout } from '@/lib/supabase'
 import { t as i18n } from '@/lib/i18n'
 import dynamic from 'next/dynamic'
 import AdBanner from '@/app/components/customer/AdBanner'
@@ -54,7 +54,7 @@ export default function LuxuryTheme(props) {
         <div className="ml-auto flex items-center gap-3">
           {user ? (<>
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold" style={{background:`linear-gradient(135deg,${GOLD},${GOLD2})`,color:'#000'}}>{user.name?.[0]||'?'}</div>
-            <button onClick={async()=>{ await supabase.auth.signOut(); localStorage.removeItem('randevu_user'); window.location.href='/login' }} style={{color:'rgba(255,255,255,0.3)'}} className="text-sm">{T('logout')}</button>
+            <button onClick={logout} style={{color:'rgba(255,255,255,0.3)'}} className="text-sm">{T('logout')}</button>
           </>) : (
             <a href="/login" className="px-3 py-1.5 rounded-lg text-sm font-bold tracking-wider" style={{background:`linear-gradient(135deg,${GOLD},${GOLD2})`,color:'#000'}}>GİRİŞ</a>
           )}
