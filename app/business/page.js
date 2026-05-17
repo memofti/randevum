@@ -161,6 +161,7 @@ export default function BusinessPage() {
   const [adPackages, setAdPackages] = useState([])
   const [myAdPurchases, setMyAdPurchases] = useState([])
   const [adCredits, setAdCredits] = useState({ total:0, used:0, remaining:0 })
+  const [adLimits, setAdLimits] = useState({ allowRegional:false, maxClicks:0, maxImpressions:0, durationDays:30, currentClicks:0, currentImpressions:0 })
   const [myPlanRequests, setMyPlanRequests] = useState([])
   const [buyingPkg, setBuyingPkg] = useState('')
   const [buyingPlan, setBuyingPlan] = useState('')
@@ -299,12 +300,27 @@ export default function BusinessPage() {
       setAds(adsr?.data||[])
       setAdPackages(pkgs?.data||[])
       setMyAdPurchases(myPurch?.data||[])
-      // Aktif kontör özetini hesapla
+      // Aktif kontör özetini hesapla + paket limit özeti
       const now = new Date()
       const activePurch = (myPurch?.data||[]).filter(p => p.status==='approved' && (!p.expires_at || new Date(p.expires_at) > now))
       const ct = activePurch.reduce((s,p)=>s+(p.credits_total||0),0)
       const cu = activePurch.reduce((s,p)=>s+(p.credits_used||0),0)
       setAdCredits({ total: ct, used: cu, remaining: Math.max(0, ct-cu) })
+      const activePkgs = activePurch.map(p => (pkgs?.data||[]).find(x=>x.id===p.package_id)).filter(Boolean)
+      const allowRegional = activePkgs.some(p => p.allow_regional !== false)
+      const maxClicks = activePkgs.reduce((m,p)=>Math.max(m, p.max_clicks||0), 0)
+      const maxImpr   = activePkgs.reduce((m,p)=>Math.max(m, p.max_impressions||0), 0)
+      const durDays   = activePkgs.reduce((m,p)=>Math.max(m, p.duration_days||0), 0)
+      const curClicks = (adsr?.data||[]).reduce((s,a)=>s+(a.clicks||0), 0)
+      const curImpr   = (adsr?.data||[]).reduce((s,a)=>s+(a.impressions||0), 0)
+      setAdLimits({
+        allowRegional,
+        maxClicks,
+        maxImpressions: maxImpr,
+        durationDays: Math.min(durDays || 30, 30),
+        currentClicks: curClicks,
+        currentImpressions: curImpr,
+      })
       setMyPlanRequests(myPlanReq?.data||[])
       setCoupons(cpr?.data||[])
     } catch(e) { console.error(e) }
@@ -2011,9 +2027,40 @@ export default function BusinessPage() {
                         🎟️ 1 kontör kullanılacak · {adCredits.remaining>0?`${adCredits.remaining-1} kontör kalacak`:'kontörünüz yok'}
                       </div>
                     </div>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 mb-4 text-xs text-blue-800">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 mb-3 text-xs text-blue-800">
                       <b>ℹ️ Bilgi:</b> Her yeni reklam kampanyası <b>1 kontör</b> tüketir. Reklam yayında olduğu sürece tek seferlik kontör düşülür — gün/tıklama başı ekstra kesinti yoktur.
                     </div>
+                    {/* Paket Limitleri Özeti */}
+                    {adCredits.total > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                        <div className="border border-gray-200 rounded-lg p-2 text-center">
+                          <div className="text-[10px] font-bold text-gray-500 uppercase">Reklam Süresi</div>
+                          <div className="text-sm font-extrabold text-gray-800">{adLimits.durationDays} gün</div>
+                          <div className="text-[10px] text-gray-400">paket başına</div>
+                        </div>
+                        <div className="border border-gray-200 rounded-lg p-2 text-center">
+                          <div className="text-[10px] font-bold text-gray-500 uppercase">Max Tıklama</div>
+                          <div className={'text-sm font-extrabold '+(adLimits.maxClicks>0 && adLimits.currentClicks >= adLimits.maxClicks ? 'text-red-600' : 'text-gray-800')}>
+                            {adLimits.maxClicks > 0 ? `${adLimits.currentClicks}/${adLimits.maxClicks}` : '∞'}
+                          </div>
+                          <div className="text-[10px] text-gray-400">dolunca durur</div>
+                        </div>
+                        <div className="border border-gray-200 rounded-lg p-2 text-center">
+                          <div className="text-[10px] font-bold text-gray-500 uppercase">Max Gösterim</div>
+                          <div className={'text-sm font-extrabold '+(adLimits.maxImpressions>0 && adLimits.currentImpressions >= adLimits.maxImpressions ? 'text-red-600' : 'text-gray-800')}>
+                            {adLimits.maxImpressions > 0 ? `${adLimits.currentImpressions}/${adLimits.maxImpressions}` : '∞'}
+                          </div>
+                          <div className="text-[10px] text-gray-400">dolunca durur</div>
+                        </div>
+                        <div className="border border-gray-200 rounded-lg p-2 text-center">
+                          <div className="text-[10px] font-bold text-gray-500 uppercase">Bölgesel</div>
+                          <div className={'text-sm font-extrabold '+(adLimits.allowRegional?'text-green-600':'text-gray-400')}>
+                            {adLimits.allowRegional ? '✓ Açık' : '🔒 Kapalı'}
+                          </div>
+                          <div className="text-[10px] text-gray-400">{adLimits.allowRegional?'şehir/ilçe':'sadece genel'}</div>
+                        </div>
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="sm:col-span-2">
                         <label className="text-xs font-bold block mb-1">Başlık *</label>
@@ -2054,23 +2101,35 @@ export default function BusinessPage() {
                           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
                       </div>
                       <div>
-                        <label className="text-xs font-bold block mb-1">Reklam Türü</label>
-                        <select value={adForm.type} onChange={e=>setAdForm(p=>({...p,type:e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
+                        <label className="text-xs font-bold block mb-1">
+                          Reklam Türü
+                          {!adLimits.allowRegional && <span className="ml-1 text-gray-400 font-normal">— bölgesel için Pro/Enterprise paket gerekir</span>}
+                        </label>
+                        <select value={adForm.type}
+                          onChange={e=>{
+                            const v = e.target.value
+                            if (v==='regional' && !adLimits.allowRegional) {
+                              toast3('Mevcut paketiniz bölgesel hedeflemeyi içermiyor — Pro/Enterprise paket gerekir')
+                              return
+                            }
+                            setAdForm(p=>({...p,type:v}))
+                          }}
+                          className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
                           <option value="general">🌍 Genel (Herkese göster)</option>
-                          <option value="regional">📍 Bölgesel (Yakınlara göster)</option>
+                          <option value="regional" disabled={!adLimits.allowRegional}>📍 Bölgesel (Yakınlara göster) {!adLimits.allowRegional?'🔒':''}</option>
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs font-bold block mb-1">Bitiş Tarihi <span className="text-gray-400 font-normal">(maks. 30 gün)</span></label>
+                        <label className="text-xs font-bold block mb-1">Bitiş Tarihi <span className="text-gray-400 font-normal">(maks. {adLimits.durationDays} gün — paketinize göre)</span></label>
                         <input type="date"
                           min={new Date().toISOString().split('T')[0]}
-                          max={new Date(Date.now()+30*24*60*60*1000).toISOString().split('T')[0]}
+                          max={new Date(Date.now()+adLimits.durationDays*24*60*60*1000).toISOString().split('T')[0]}
                           value={adForm.ends_at}
                           onChange={e=>{
                             const v = e.target.value
-                            const max = new Date(Date.now()+30*24*60*60*1000)
+                            const max = new Date(Date.now()+adLimits.durationDays*24*60*60*1000)
                             if (v && new Date(v+'T00:00:00') > max) {
-                              toast3('Reklam süresi maksimum 30 gün olabilir')
+                              toast3('Bu paketle reklam süresi en fazla '+adLimits.durationDays+' gün olabilir')
                               setAdForm(p=>({...p, ends_at: max.toISOString().split('T')[0]}))
                               return
                             }
@@ -2134,9 +2193,12 @@ export default function BusinessPage() {
                         }).select().maybeSingle()
                         setSavingAd(false)
                         if (adErr) {
-                          if (String(adErr.message||'').includes('kontör')) {
+                          const msg = String(adErr.message||'')
+                          if (msg.includes('kontör')) {
                             toast3('❌ Kontörünüz tükendi — yeni paket satın alın')
                             setView('adpkgs')
+                          } else if (msg.includes('bölgesel')) {
+                            toast3('❌ Bu paket bölgesel hedeflemeyi içermiyor — Pro/Enterprise paket gerekir')
                           } else {
                             toast3('❌ '+adErr.message)
                           }
@@ -2285,12 +2347,31 @@ export default function BusinessPage() {
                           <div className="mb-4">
                             <div className="text-3xl font-extrabold text-orange-500">₺{pkg.price}</div>
                             <div className="text-xs text-gray-400">{pkg.duration_days} gün boyunca aktif</div>
-                            {pkg.ad_credits > 0 && (
-                              <div className="mt-2 inline-flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 text-xs font-bold px-2.5 py-1 rounded-full"
-                                title={`${pkg.ad_credits} reklam kampanyası oluşturabilirsiniz (her kampanya 1 kontör)`}>
-                                🎟️ {pkg.ad_credits} kontör · {pkg.ad_credits} reklam
-                              </div>
-                            )}
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {pkg.ad_credits > 0 && (
+                                <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 text-[11px] font-bold px-2 py-0.5 rounded-full"
+                                  title={`${pkg.ad_credits} reklam kampanyası oluşturabilirsiniz`}>
+                                  🎟️ {pkg.ad_credits} kontör
+                                </span>
+                              )}
+                              {pkg.max_clicks > 0 && (
+                                <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold px-2 py-0.5 rounded-full"
+                                  title="Toplam tıklama limiti — dolunca reklamlar duraklatılır">
+                                  🖱️ {pkg.max_clicks.toLocaleString('tr-TR')} tık
+                                </span>
+                              )}
+                              {pkg.max_impressions > 0 && (
+                                <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-bold px-2 py-0.5 rounded-full"
+                                  title="Toplam gösterim limiti — dolunca reklamlar duraklatılır">
+                                  👁️ {pkg.max_impressions.toLocaleString('tr-TR')} gösterim
+                                </span>
+                              )}
+                              {pkg.allow_regional !== false ? (
+                                <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold px-2 py-0.5 rounded-full">📍 Bölgesel hedefleme</span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 border border-gray-200 text-[11px] font-bold px-2 py-0.5 rounded-full">🌍 Sadece genel</span>
+                              )}
+                            </div>
                           </div>
                           <ul className="space-y-2 mb-5 flex-1">
                             {(pkg.features||[]).map((f,i)=>(

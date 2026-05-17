@@ -70,7 +70,7 @@ export default function AdminPage() {
   const [planRequests, setPlanRequests] = useState([])
   const [notifOpen, setNotifOpen] = useState(false)
   const [pkgModal, setPkgModal] = useState(false) // false | 'add' | pkg
-  const [pkgForm, setPkgForm] = useState({name:'',description:'',price:0,duration_days:7,max_clicks:0,ad_credits:1,badge:'',features:'',is_popular:false,status:'active',sort_order:0})
+  const [pkgForm, setPkgForm] = useState({name:'',description:'',price:0,duration_days:7,max_clicks:0,max_impressions:0,ad_credits:1,allow_regional:true,badge:'',features:'',is_popular:false,status:'active',sort_order:0})
   const [pkgSaving, setPkgSaving] = useState(false)
   const [coupons, setCoupons] = useState([])
   const [couponModal, setCouponModal] = useState(false) // false | 'add' | coupon
@@ -147,13 +147,15 @@ export default function AdminPage() {
 
   // Ad packages CRUD
   function openPkgAdd() {
-    setPkgForm({name:'',description:'',price:0,duration_days:7,max_clicks:0,ad_credits:1,badge:'',features:'',is_popular:false,status:'active',sort_order:adPackages.length+1})
+    setPkgForm({name:'',description:'',price:0,duration_days:7,max_clicks:0,max_impressions:0,ad_credits:1,allow_regional:true,badge:'',features:'',is_popular:false,status:'active',sort_order:adPackages.length+1})
     setPkgModal('add')
   }
   function openPkgEdit(p) {
     setPkgForm({
       name:p.name, description:p.description||'', price:p.price, duration_days:p.duration_days,
-      max_clicks:p.max_clicks||0, ad_credits:p.ad_credits||1, badge:p.badge||'',
+      max_clicks:p.max_clicks||0, max_impressions:p.max_impressions||0,
+      ad_credits:p.ad_credits||1, allow_regional:p.allow_regional!==false,
+      badge:p.badge||'',
       features:(p.features||[]).join('\n'), is_popular:p.is_popular||false,
       status:p.status||'active', sort_order:p.sort_order||0,
     })
@@ -169,7 +171,9 @@ export default function AdminPage() {
         price: +pkgForm.price,
         duration_days: +pkgForm.duration_days,
         max_clicks: +pkgForm.max_clicks || 0,
+        max_impressions: +pkgForm.max_impressions || 0,
         ad_credits: Math.max(1, +pkgForm.ad_credits || 1),
+        allow_regional: !!pkgForm.allow_regional,
         badge: pkgForm.badge || null,
         features: pkgForm.features.split('\n').map(s=>s.trim()).filter(Boolean),
         is_popular: !!pkgForm.is_popular,
@@ -407,12 +411,21 @@ export default function AdminPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div><label className="text-xs font-bold block mb-1">Fiyat (₺)</label>
                   <input type="number" min="0" value={pkgForm.price} onChange={e=>setPkgForm(p=>({...p,price:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
-                <div><label className="text-xs font-bold block mb-1">Süre (gün)</label>
-                  <input type="number" min="1" max="30" value={pkgForm.duration_days} onChange={e=>setPkgForm(p=>({...p,duration_days:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
+                <div><label className="text-xs font-bold block mb-1">Süre (gün, max 30)</label>
+                  <input type="number" min="1" max="30" value={pkgForm.duration_days} onChange={e=>setPkgForm(p=>({...p,duration_days:Math.min(30,+e.target.value||1)}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
                 <div><label className="text-xs font-bold block mb-1">🎟️ Kontör</label>
                   <input type="number" min="1" value={pkgForm.ad_credits} onChange={e=>setPkgForm(p=>({...p,ad_credits:+e.target.value}))} className="w-full px-3 py-2.5 border border-orange-300 bg-orange-50 rounded-xl text-sm outline-none focus:border-orange-500 font-bold"/></div>
-                <div><label className="text-xs font-bold block mb-1">Max Tıklama</label>
-                  <input type="number" min="0" value={pkgForm.max_clicks} onChange={e=>setPkgForm(p=>({...p,max_clicks:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
+                <div><label className="text-xs font-bold block mb-1" title="0 = sınırsız">Max Tıklama</label>
+                  <input type="number" min="0" value={pkgForm.max_clicks} onChange={e=>setPkgForm(p=>({...p,max_clicks:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" placeholder="0 = sınırsız"/></div>
+                <div><label className="text-xs font-bold block mb-1" title="0 = sınırsız">Max Gösterim</label>
+                  <input type="number" min="0" value={pkgForm.max_impressions} onChange={e=>setPkgForm(p=>({...p,max_impressions:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400" placeholder="0 = sınırsız"/></div>
+                <div className="col-span-2 sm:col-span-3 flex items-center">
+                  <label className="flex items-center gap-2 cursor-pointer w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-white hover:bg-gray-50">
+                    <input type="checkbox" checked={pkgForm.allow_regional} onChange={e=>setPkgForm(p=>({...p,allow_regional:e.target.checked}))} className="accent-orange-500"/>
+                    <span className="font-bold">📍 Bölgesel hedefleme açık</span>
+                    <span className="text-xs text-gray-400 ml-auto">{pkgForm.allow_regional?'şehir / ilçe / yarıçap':'sadece genel'}</span>
+                  </label>
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div><label className="text-xs font-bold block mb-1">Rozet (emoji)</label>
@@ -1606,7 +1619,11 @@ export default function AdminPage() {
                         <div className="text-2xl font-extrabold text-orange-500 mb-2">₺{pkg.price}<span className="text-sm text-gray-400 font-normal"> / {pkg.duration_days} gün</span></div>
                         <div className="mb-3 flex flex-wrap gap-1.5">
                           <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 text-[11px] font-bold px-2 py-0.5 rounded-full">🎟️ {pkg.ad_credits||1} kontör</span>
-                          {pkg.max_clicks>0 && <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold px-2 py-0.5 rounded-full">🖱 {pkg.max_clicks} tık</span>}
+                          {pkg.max_clicks>0 && <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold px-2 py-0.5 rounded-full">🖱 {pkg.max_clicks.toLocaleString('tr-TR')} tık</span>}
+                          {pkg.max_impressions>0 && <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 text-[11px] font-bold px-2 py-0.5 rounded-full">👁 {pkg.max_impressions.toLocaleString('tr-TR')} gösterim</span>}
+                          <span className={'inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full border '+(pkg.allow_regional!==false?'bg-amber-50 text-amber-700 border-amber-200':'bg-gray-100 text-gray-500 border-gray-200')}>
+                            {pkg.allow_regional!==false?'📍 Bölgesel':'🌍 Sadece genel'}
+                          </span>
                         </div>
                         <ul className="space-y-1 mb-4">
                           {(pkg.features||[]).map((f,i)=>(
