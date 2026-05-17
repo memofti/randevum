@@ -166,6 +166,8 @@ export default function BusinessPage() {
   const [apptSearch, setApptSearch] = useState('')
   const [custSearch, setCustSearch] = useState('')
   const [staffStatusFilter, setStaffStatusFilter] = useState('') // '' | 'available' | 'busy'
+  const [custTab, setCustTab] = useState('all') // 'all' | 'sms'
+  const [custPage, setCustPage] = useState(1)
   // Calendar
   const [calDate, setCalDate] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState(null)
@@ -272,7 +274,7 @@ export default function BusinessPage() {
     setLoading(true)
     try {
       const [ar,sr,svr,nr,rr,plAll,adsr,pkgs,myPurch,myPlanReq,cpr] = await Promise.all([
-        supabase.from('appointments').select('id,profile_id,service_id,staff_id,appointment_date,appointment_time,status,price,profiles(full_name,email),services(name,price,duration_min),staff(name)').eq('business_id',bId).order('appointment_date',{ascending:false}),
+        supabase.from('appointments').select('id,profile_id,service_id,staff_id,appointment_date,appointment_time,status,price,profiles(full_name,email,phone,sms_consent,sms_unsubscribed),services(name,price,duration_min),staff(name)').eq('business_id',bId).order('appointment_date',{ascending:false}),
         supabase.from('staff').select('*').eq('business_id',bId),
         supabase.from('services').select('*').eq('business_id',bId),
         supabase.from('notifications').select('*').eq('business_id',bId).order('created_at',{ascending:false}).limit(20),
@@ -793,10 +795,19 @@ export default function BusinessPage() {
     return matchS && matchSt && matchQ
   })
 
-  // Filtreli müşteriler
-  const filteredCusts = Object.entries(custMap).filter(([,c]) =>
+  // Filtreli müşteriler (arama + SMS tab)
+  const allCusts = Object.entries(custMap).filter(([,c]) =>
     !custSearch || (c.full_name||'').toLowerCase().includes(custSearch.toLowerCase()) || (c.email||'').toLowerCase().includes(custSearch.toLowerCase())
   )
+  const isSmsActive = (c) => !!c?.sms_consent && !c?.sms_unsubscribed
+  const filteredCustsRaw = custTab === 'sms' ? allCusts.filter(([,c]) => isSmsActive(c)) : allCusts
+  const CUST_PAGE_SIZE = 20
+  const custTotalPages = Math.max(1, Math.ceil(filteredCustsRaw.length / CUST_PAGE_SIZE))
+  const safeCustPage = Math.min(custPage, custTotalPages)
+  const filteredCusts = filteredCustsRaw.slice((safeCustPage-1)*CUST_PAGE_SIZE, safeCustPage*CUST_PAGE_SIZE)
+  const smsCount = allCusts.filter(([,c]) => isSmsActive(c)).length
+  // Toplu SMS için kaynak (yukarıdaki butonun aradığı uniqueCustomers değişkenini de besler)
+  const uniqueCustomers = Object.values(custMap)
 
   // Takvim verisi
   const year = calDate.getFullYear(), month = calDate.getMonth()
@@ -1746,20 +1757,31 @@ export default function BusinessPage() {
                     }} className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-xl flex items-center gap-1.5">📱 Toplu SMS</button>
                   </div>
                   <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-                    <div className="p-4 border-b border-gray-100">
-                      <input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400"
-                        placeholder="İsim veya e-posta ara..." value={custSearch} onChange={e=>setCustSearch(e.target.value)} />
+                    <div className="p-4 border-b border-gray-100 flex flex-wrap items-center gap-3">
+                      <input className="flex-1 min-w-48 px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400"
+                        placeholder="İsim veya e-posta ara..." value={custSearch} onChange={e=>{ setCustSearch(e.target.value); setCustPage(1) }} />
+                      <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+                        <button onClick={()=>{ setCustTab('all'); setCustPage(1) }}
+                          className={'px-3 py-1.5 text-xs font-bold rounded-md transition-colors '+(custTab==='all'?'bg-white text-gray-900 shadow-sm':'text-gray-500 hover:text-gray-700')}>
+                          Tümü ({allCusts.length})
+                        </button>
+                        <button onClick={()=>{ setCustTab('sms'); setCustPage(1) }}
+                          className={'px-3 py-1.5 text-xs font-bold rounded-md transition-colors flex items-center gap-1 '+(custTab==='sms'?'bg-white text-blue-700 shadow-sm':'text-gray-500 hover:text-gray-700')}>
+                          📱 SMS açık ({smsCount})
+                        </button>
+                      </div>
                     </div>
                     <div className="overflow-x-auto">
                     <table className="w-full min-w-[640px]">
                       <thead className="bg-gray-50"><tr>
-                        {['Müşteri','E-posta','Randevu','Harcama','Son Ziyaret'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}
+                        {['Müşteri','E-posta','SMS','Randevu','Harcama','Son Ziyaret'].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}
                       </tr></thead>
                       <tbody>
                         {filteredCusts.map(([pid,c],i)=>{
                           const custAppts=appts.filter(a=>a.profile_id===pid)
                           const spend=custAppts.reduce((s,a)=>s+(a.price||0),0)
                           const last=custAppts[0]?.appointment_date
+                          const sms = isSmsActive(c)
                           return (
                             <tr key={pid} className="border-t border-gray-100 hover:bg-gray-50">
                               <td className="px-4 py-3"><div className="flex items-center gap-2.5">
@@ -1767,16 +1789,35 @@ export default function BusinessPage() {
                                 <span className="font-semibold text-sm">{c.full_name}</span>
                               </div></td>
                               <td className="px-4 py-3 text-sm text-gray-500">{c.email}</td>
+                              <td className="px-4 py-3">
+                                <span className={'text-[11px] font-bold px-2 py-0.5 rounded-full border '+(sms?'bg-blue-50 text-blue-700 border-blue-200':'bg-gray-50 text-gray-500 border-gray-200')}>
+                                  {sms ? 'Açık' : 'Kapalı'}
+                                </span>
+                              </td>
                               <td className="px-4 py-3 text-sm font-semibold">{custAppts.length}</td>
                               <td className="px-4 py-3 text-sm font-semibold text-orange-600">₺{spend}</td>
                               <td className="px-4 py-3 text-xs text-gray-400">{last?new Date(last).toLocaleDateString('tr-TR'):'—'}</td>
                             </tr>
                           )
                         })}
-                        {filteredCusts.length===0&&<tr><td colSpan="5" className="px-4 py-10 text-center text-gray-400">{custSearch?'Sonuç bulunamadı':'Müşteri yok'}</td></tr>}
+                        {filteredCusts.length===0&&<tr><td colSpan="6" className="px-4 py-10 text-center text-gray-400">{custSearch?'Sonuç bulunamadı':(custTab==='sms'?'SMS bildirimi açık müşteri yok':'Müşteri yok')}</td></tr>}
                       </tbody>
                     </table>
                     </div>
+                    {filteredCustsRaw.length > CUST_PAGE_SIZE && (
+                      <div className="p-3 border-t border-gray-100 flex items-center justify-between gap-2 text-sm">
+                        <div className="text-xs text-gray-500">
+                          {((safeCustPage-1)*CUST_PAGE_SIZE)+1}–{Math.min(safeCustPage*CUST_PAGE_SIZE, filteredCustsRaw.length)} / {filteredCustsRaw.length}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button disabled={safeCustPage<=1} onClick={()=>setCustPage(p=>Math.max(1,p-1))}
+                            className="px-2.5 py-1 text-xs font-bold rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50">‹ Önceki</button>
+                          <span className="text-xs font-bold px-2">Sayfa {safeCustPage} / {custTotalPages}</span>
+                          <button disabled={safeCustPage>=custTotalPages} onClick={()=>setCustPage(p=>Math.min(custTotalPages,p+1))}
+                            className="px-2.5 py-1 text-xs font-bold rounded-md border border-gray-200 disabled:opacity-40 hover:bg-gray-50">Sonraki ›</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
