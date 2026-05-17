@@ -64,6 +64,7 @@ Bu komut tüm migration geçmişini SQL dosyası olarak `supabase/migrations/` a
 | 2026-05-17 | harden_security_definer_functions_and_view |
 | 2026-05-17 | revoke_public_execute_on_internal_definer_functions |
 | 2026-05-17 | business_categories_table |
+| 2026-05-17 | cities_table_and_category_image_url |
 
 ## Project bilgileri
 

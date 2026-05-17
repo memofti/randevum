@@ -26,7 +26,7 @@ function KPI({ label, value, sub, color }) {
     </div>
   )
 }
-const NAV_KEYS=[['dashboard','⊞','nav_dashboard'],['firms','🏢','nav_firms'],['categories','🗂️','nav_categories'],['requests','📬','nav_requests'],['ads','📢','nav_ads'],['adpkgs','🎁','nav_adpkgs'],['coupons','🎟️','nav_coupons'],['plans','📦','nav_plans'],['revenue','💰','nav_revenue'],['subscriptions','💳','nav_subscriptions'],['users','👥','nav_users']]
+const NAV_KEYS=[['dashboard','⊞','nav_dashboard'],['firms','🏢','nav_firms'],['categories','🗂️','nav_categories'],['cities','🏙️','nav_cities'],['requests','📬','nav_requests'],['ads','📢','nav_ads'],['adpkgs','🎁','nav_adpkgs'],['coupons','🎟️','nav_coupons'],['plans','📦','nav_plans'],['revenue','💰','nav_revenue'],['subscriptions','💳','nav_subscriptions'],['users','👥','nav_users']]
 
 export default function AdminPage() {
   const router = useRouter()
@@ -78,8 +78,13 @@ export default function AdminPage() {
   const [couponSaving, setCouponSaving] = useState(false)
   const [categories, setCategories] = useState([])
   const [catModal, setCatModal] = useState(false) // false | 'add' | category obj
-  const [catForm, setCatForm] = useState({name:'', emoji:'🏢', sort_order:0, status:'active'})
+  const [catForm, setCatForm] = useState({name:'', emoji:'🏢', image_url:'', sort_order:0, status:'active'})
   const [catSaving, setCatSaving] = useState(false)
+  const [catImgUploading, setCatImgUploading] = useState(false)
+  const [cities, setCities] = useState([])
+  const [cityModal, setCityModal] = useState(false) // false | 'add' | city obj
+  const [cityForm, setCityForm] = useState({name:'', sort_order:0, status:'active'})
+  const [citySaving, setCitySaving] = useState(false)
   const [uiLang, setUiLang] = useState('tr')
   useEffect(()=>{ setUiLang(getLang()) },[])
   const T = (k, vars) => i18n(k, uiLang, vars)
@@ -100,7 +105,7 @@ export default function AdminPage() {
   async function loadAll() {
     setLoading(true)
     try {
-      const [fr,pr,ar,payr,adsr2,settingsr,plr,pkgsr,purchr,plReqs,cpr,catr]=await Promise.all([
+      const [fr,pr,ar,payr,adsr2,settingsr,plr,pkgsr,purchr,plReqs,cpr,catr,cityr]=await Promise.all([
         supabase.from('businesses').select('*').order('created_at',{ascending:false}),
         supabase.from('profiles').select('*').order('created_at',{ascending:false}),
         supabase.from('appointments').select('id,status,business_id'),
@@ -113,6 +118,7 @@ export default function AdminPage() {
         supabase.from('plan_upgrade_requests').select('*, businesses(name,emoji)').order('created_at',{ascending:false}),
         supabase.from('coupons').select('*, businesses(name)').order('created_at',{ascending:false}),
         supabase.from('business_categories').select('*').order('sort_order'),
+        supabase.from('cities').select('*').order('sort_order'),
       ])
       setFirms(fr.data||[])
       setProfiles(pr.data||[])
@@ -125,6 +131,7 @@ export default function AdminPage() {
       setPlanRequests(plReqs?.data||[])
       setCoupons(cpr?.data||[])
       setCategories(catr?.data||[])
+      setCities(cityr?.data||[])
       const paySet = settingsr?.data?.find(s=>s.key==='payment_enabled')
       if(paySet) setPaymentEnabled(paySet.value==='true')
       const loySet = settingsr?.data?.find(s=>s.key==='loyalty_enabled')
@@ -266,12 +273,28 @@ export default function AdminPage() {
   }
   // Kategori CRUD
   function openCatAdd() {
-    setCatForm({ name:'', emoji:'🏢', sort_order: categories.length+1, status:'active' })
+    setCatForm({ name:'', emoji:'🏢', image_url:'', sort_order: categories.length+1, status:'active' })
     setCatModal('add')
   }
   function openCatEdit(c) {
-    setCatForm({ name:c.name, emoji:c.emoji||'🏢', sort_order:c.sort_order||0, status:c.status||'active' })
+    setCatForm({ name:c.name, emoji:c.emoji||'🏢', image_url:c.image_url||'', sort_order:c.sort_order||0, status:c.status||'active' })
     setCatModal(c)
+  }
+  async function uploadCatImage(file) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) { toast3('❌ Sadece görsel dosyası yüklenebilir'); return }
+    if (file.size > 2*1024*1024) { toast3('❌ Görsel maks. 2MB olabilir'); return }
+    setCatImgUploading(true)
+    try {
+      const { uploadMedia } = await import('@/lib/supabase')
+      const url = await uploadMedia(file, 'categories')
+      setCatForm(p => ({ ...p, image_url: url }))
+      toast3('✅ Görsel yüklendi')
+    } catch(e) {
+      toast3('❌ Yükleme hatası: '+(e?.message||''))
+    } finally {
+      setCatImgUploading(false)
+    }
   }
   async function saveCat() {
     const name = catForm.name.trim()
@@ -281,6 +304,7 @@ export default function AdminPage() {
       const payload = {
         name,
         emoji: catForm.emoji || '🏢',
+        image_url: catForm.image_url || null,
         sort_order: +catForm.sort_order || 0,
         status: catForm.status || 'active',
       }
@@ -315,6 +339,53 @@ export default function AdminPage() {
     setCategories(p => p.filter(c => c.id !== id))
     setCatModal(false)
     toast3('🗑️ Kategori silindi')
+  }
+  // Şehir CRUD
+  function openCityAdd() {
+    setCityForm({ name:'', sort_order: cities.length+1, status:'active' })
+    setCityModal('add')
+  }
+  function openCityEdit(c) {
+    setCityForm({ name:c.name, sort_order:c.sort_order||0, status:c.status||'active' })
+    setCityModal(c)
+  }
+  async function saveCity() {
+    const name = cityForm.name.trim()
+    if (!name) { toast3('❌ İsim zorunlu'); return }
+    setCitySaving(true)
+    try {
+      const payload = { name, sort_order: +cityForm.sort_order || 0, status: cityForm.status || 'active' }
+      if (cityModal === 'add') {
+        const { data, error } = await supabase.from('cities').insert(payload).select().maybeSingle()
+        if (error) throw error
+        setCities(p => [...p, data].sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)))
+        toast3('✅ Şehir eklendi')
+      } else {
+        const { data, error } = await supabase.from('cities').update(payload).eq('id', cityModal.id).select().maybeSingle()
+        if (error) throw error
+        setCities(p => p.map(c => c.id===cityModal.id ? data : c).sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)))
+        toast3('✅ Şehir güncellendi')
+      }
+      setCityModal(false)
+    } catch(e) {
+      const msg = String(e?.message||'')
+      if (msg.includes('duplicate') || msg.includes('unique')) toast3('❌ Bu şehir zaten kayıtlı')
+      else toast3('❌ '+msg)
+    } finally {
+      setCitySaving(false)
+    }
+  }
+  async function deleteCity(id, name) {
+    const usedBy = firms.filter(f => f.city === name).length
+    const msg = usedBy > 0
+      ? `"${name}" şehri ${usedBy} firmada kullanılıyor — silmeden önce o firmaların şehrini değiştir. Yine de silmek istiyor musun?`
+      : `"${name}" şehri silinsin mi?`
+    if (!confirm(msg)) return
+    const { error } = await supabase.from('cities').delete().eq('id', id)
+    if (error) { toast3('❌ '+error.message); return }
+    setCities(p => p.filter(c => c.id !== id))
+    setCityModal(false)
+    toast3('🗑️ Şehir silindi')
   }
   async function approvePurchase(id) {
     const purch = adPurchases.find(p => p.id === id)
@@ -549,8 +620,33 @@ export default function AdminPage() {
                   </select>
                 </div>
               </div>
+              {/* Görsel yükleme — varsa emoji yerine bu kullanılır */}
+              <div>
+                <label className="text-xs font-bold block mb-1">Görsel <span className="text-gray-400 font-normal">(opsiyonel — emoji yerine kullanılır)</span></label>
+                <div className="flex items-center gap-3">
+                  <div className="w-16 h-16 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden text-2xl flex-shrink-0">
+                    {catForm.image_url
+                      ? <img src={catForm.image_url} alt="" className="w-full h-full object-cover"/>
+                      : <span>{catForm.emoji||'🏢'}</span>}
+                  </div>
+                  <div className="flex-1">
+                    <label className="block">
+                      <input type="file" accept="image/*" className="hidden"
+                        onChange={e=>{ const f=e.target.files?.[0]; if(f) uploadCatImage(f); e.target.value='' }}/>
+                      <span className={'cursor-pointer inline-block px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors '+(catImgUploading?'bg-gray-100 text-gray-400 border-gray-200':'bg-orange-500 hover:bg-orange-600 text-white border-orange-500')}>
+                        {catImgUploading?'Yükleniyor...':(catForm.image_url?'🔄 Değiştir':'📤 Görsel Yükle')}
+                      </span>
+                    </label>
+                    {catForm.image_url && (
+                      <button onClick={()=>setCatForm(p=>({...p,image_url:''}))}
+                        className="ml-2 text-xs text-red-600 font-bold hover:underline">Kaldır</button>
+                    )}
+                    <div className="text-[10px] text-gray-400 mt-1">PNG/JPG/WebP, maks. 2MB. Kare ve şeffaf arkaplan en iyi.</div>
+                  </div>
+                </div>
+              </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 text-xs text-blue-800">
-                ℹ️ Emoji önerileri: ✂️ 💆 🧘 🏋️ 💊 🍽️ 🚗 🐶 📚 🔧 💅 🦷 🩺
+                ℹ️ Görsel yüklemezsen emoji kullanılır. Emoji önerileri: ✂️ 💆 🧘 🏋️ 💊 🍽️ 🚗 🐶 📚 🔧 💅 🦷 🩺
               </div>
             </div>
             <div className="px-5 pb-5 flex gap-2 border-t border-gray-100 pt-3">
@@ -562,6 +658,50 @@ export default function AdminPage() {
               <button onClick={saveCat} disabled={catSaving}
                 className="px-5 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-lg text-sm font-bold">
                 {catSaving?'Kaydediliyor...':'Kaydet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {cityModal && (
+        <div className="fixed inset-0 bg-black/60 z-[70] flex items-center justify-center p-4" onClick={e=>e.target===e.currentTarget&&setCityModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center">
+              <div className="font-bold">{cityModal==='add'?'Şehir Ekle':'Şehir Düzenle'}</div>
+              <button onClick={()=>setCityModal(false)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400">✕</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-bold block mb-1">İsim *</label>
+                <input value={cityForm.name} onChange={e=>setCityForm(p=>({...p,name:e.target.value}))}
+                  placeholder="Örn: İstanbul, Ankara" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-bold block mb-1">Sıra</label>
+                  <input type="number" value={cityForm.sort_order} onChange={e=>setCityForm(p=>({...p,sort_order:+e.target.value}))}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
+                </div>
+                <div>
+                  <label className="text-xs font-bold block mb-1">Durum</label>
+                  <select value={cityForm.status} onChange={e=>setCityForm(p=>({...p,status:e.target.value}))}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400">
+                    <option value="active">Aktif</option>
+                    <option value="inactive">Pasif</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-2 border-t border-gray-100 pt-3">
+              {cityModal !== 'add' && (
+                <button onClick={()=>deleteCity(cityModal.id, cityModal.name)}
+                  className="text-xs bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-2 rounded-lg font-bold">🗑️ Sil</button>
+              )}
+              <button onClick={()=>setCityModal(false)} className="ml-auto px-4 py-2 text-sm font-semibold text-gray-500 hover:bg-gray-50 rounded-lg">İptal</button>
+              <button onClick={saveCity} disabled={citySaving}
+                className="px-5 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white rounded-lg text-sm font-bold">
+                {citySaving?'Kaydediliyor...':'Kaydet'}
               </button>
             </div>
           </div>
@@ -734,7 +874,12 @@ export default function AdminPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-xs font-bold block mb-1">Firma Sahibi *</label><input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" value={form.owner_name} onChange={e=>fld('owner_name',e.target.value)} placeholder="Ad Soyad" /></div>
-                <div><label className="text-xs font-bold block mb-1">Şehir *</label><input className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" value={form.city} onChange={e=>fld('city',e.target.value)} placeholder="İlçe, Şehir" /></div>
+                <div><label className="text-xs font-bold block mb-1">Şehir *</label>
+                  <select className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" value={form.city} onChange={e=>fld('city',e.target.value)}>
+                    <option value="">Seçin</option>
+                    {cities.filter(c=>c.status==='active').map(c=><option key={c.id} value={c.name}>{c.name}</option>)}
+                  </select>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-xs font-bold block mb-1">E-posta</label><input type="email" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:border-orange-400" value={form.email} onChange={e=>fld('email',e.target.value)} placeholder="firma@email.com" /></div>
@@ -1192,7 +1337,11 @@ export default function AdminPage() {
                           <div key={c.id} className={'bg-white border-2 rounded-xl p-4 shadow-sm '+(c.status==='active'?'border-gray-200':'border-gray-100 opacity-60')}>
                             <div className="flex items-start justify-between mb-2">
                               <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-2xl">{c.emoji||'🏢'}</div>
+                                <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center overflow-hidden text-2xl">
+                                  {c.image_url
+                                    ? <img src={c.image_url} alt={c.name} className="w-full h-full object-cover"/>
+                                    : <span>{c.emoji||'🏢'}</span>}
+                                </div>
                                 <div>
                                   <div className="font-bold text-sm">{c.name}</div>
                                   <div className="text-xs text-gray-400">Sıra: {c.sort_order} · {used} firma</div>
@@ -1209,6 +1358,61 @@ export default function AdminPage() {
                           </div>
                         )
                       })}
+                    </div>
+                  )}
+                </div>
+                )
+              })()}
+
+              {view==='cities'&&(() => {
+                const activeCount = cities.filter(c=>c.status==='active').length
+                const usedCounts = {}
+                firms.forEach(f => { if (f.city) usedCounts[f.city] = (usedCounts[f.city]||0)+1 })
+                return (
+                <div>
+                  <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                    <div>
+                      <h1 className="text-xl font-bold">Şehirler</h1>
+                      <p className="text-gray-500 text-sm">{cities.length} şehir · {activeCount} aktif</p>
+                    </div>
+                    <button onClick={openCityAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Şehir Ekle</button>
+                  </div>
+                  {cities.length === 0 ? (
+                    <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+                      <div className="text-4xl mb-3">🏙️</div>
+                      <div className="font-bold mb-1">Şehir yok</div>
+                      <button onClick={openCityAdd} className="text-orange-500 hover:underline text-sm">İlkini ekle →</button>
+                    </div>
+                  ) : (
+                    <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50"><tr>{['Sıra','Şehir','Firma','Durum',''].map(h=><th key={h} className="px-4 py-2.5 text-left text-xs font-bold text-gray-500 uppercase">{h}</th>)}</tr></thead>
+                        <tbody>
+                          {cities.map(c => {
+                            const used = usedCounts[c.name] || 0
+                            return (
+                              <tr key={c.id} className={'border-t border-gray-100 hover:bg-gray-50 '+(c.status==='inactive'?'opacity-60':'')}>
+                                <td className="px-4 py-3 text-sm text-gray-400">{c.sort_order}</td>
+                                <td className="px-4 py-3 font-semibold text-sm">{c.name}</td>
+                                <td className="px-4 py-3 text-xs">
+                                  {used>0
+                                    ? <span className="bg-blue-50 text-blue-700 border border-blue-200 font-bold px-2 py-0.5 rounded-full">{used} firma</span>
+                                    : <span className="text-gray-400">—</span>}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={'text-[11px] font-bold px-2 py-0.5 rounded-full border '+(c.status==='active'?'bg-green-50 text-green-700 border-green-200':'bg-gray-100 text-gray-500 border-gray-200')}>
+                                    {c.status==='active'?'Aktif':'Pasif'}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  <button onClick={()=>openCityEdit(c)} className="text-xs bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 px-2.5 py-1 rounded-lg font-semibold mr-1">✏️</button>
+                                  <button onClick={()=>deleteCity(c.id, c.name)} className="text-xs bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded-lg font-semibold">🗑️</button>
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
                     </div>
                   )}
                 </div>
