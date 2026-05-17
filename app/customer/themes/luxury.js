@@ -102,7 +102,7 @@ export default function LuxuryTheme(props) {
                 </div>
                 {/* SORT — kategori altında ayrı satır, belirgin */}
                 <div className={'flex gap-1.5 sm:gap-2 mt-3 flex-wrap justify-center items-center transition-all duration-700 delay-700 '+(heroVisible?'opacity-100':'opacity-0')}>
-                  <button onClick={()=>{ if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } }}
+                  <button onClick={()=>{ if(userLoc){setSortBy('distance');return} if(locStatus==='denied'){toast3?.('❌ Konum izni reddedildi. Tarayıcı ayarlarından izin verin.');return} requestLocation?.(true) }}
                     className="px-4 sm:px-5 py-1.5 sm:py-2 text-[10px] sm:text-xs font-bold tracking-[0.15em] sm:tracking-[0.2em] rounded-full transition-all flex items-center gap-1.5"
                     style={sortBy==='distance'?{background:`linear-gradient(135deg,${GOLD},${GOLD2})`,color:'#000',boxShadow:'0 0 20px '+GOLD+'66'}:{background:'transparent',color:GOLD,border:`1.5px solid ${GOLD}`}}>
                     📍 BANA EN YAKIN {locStatus==='loading'&&'…'}

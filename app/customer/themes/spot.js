@@ -120,7 +120,7 @@ export default function SpotTheme(props) {
               <div className="text-[10px] font-black tracking-[0.25em] mb-2 opacity-60">SIRALA</div>
               <div className="flex flex-wrap gap-2">
                 <button onClick={()=>setSortBy('rating')} className="text-xs font-bold px-3 py-1.5 rounded-full" style={sortBy==='rating'?{background:ACCENT2, color:'#000'}:{background:'rgba(255,255,255,0.1)', color:INK}}>⭐ En İyiler</button>
-                <button onClick={()=>{ if(!userLoc && requestLocation){requestLocation(true)} else {setSortBy('distance')} }} className="text-xs font-bold px-3 py-1.5 rounded-full" style={sortBy==='distance'?{background:ACCENT2, color:'#000'}:{background:'rgba(255,255,255,0.1)', color:INK}}>📍 Yakındakiler {locStatus==='loading'&&'...'}</button>
+                <button onClick={()=>{ if(userLoc){setSortBy('distance');return} if(locStatus==='denied'){toast3?.('❌ Konum izni reddedildi. Tarayıcı ayarlarından izin verin.');return} requestLocation?.(true) }} className="text-xs font-bold px-3 py-1.5 rounded-full" style={sortBy==='distance'?{background:ACCENT2, color:'#000'}:{background:'rgba(255,255,255,0.1)', color:INK}}>📍 Yakındakiler {locStatus==='loading'&&'...'}</button>
                 <button onClick={()=>setSortBy('price_asc')} className="text-xs font-bold px-3 py-1.5 rounded-full" style={sortBy==='price_asc'?{background:ACCENT2, color:'#000'}:{background:'rgba(255,255,255,0.1)', color:INK}}>₺ Ucuzdan</button>
               </div>
               <button onClick={()=>setShowFilters(false)} className="mt-4 w-full py-2.5 rounded-full text-xs font-bold" style={{background:ACCENT, color:'#fff'}}>Uygula</button>

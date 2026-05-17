@@ -161,7 +161,7 @@ export default function SoftTheme(props) {
           </div>
           {/* SORT — kategori altında belirgin */}
           <div className="flex items-center gap-2 mb-8 flex-wrap">
-            <button onClick={()=>{ if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } }}
+            <button onClick={()=>{ if(userLoc){setSortBy('distance');return} if(locStatus==='denied'){toast3?.('❌ Konum izni reddedildi. Tarayıcı ayarlarından izin verin.');return} requestLocation?.(true) }}
               className="px-5 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-1.5"
               style={sortBy==='distance'?{background:'linear-gradient(135deg,#e85d8a,#9b5cb8)',color:'#fff',boxShadow:'0 6px 18px -6px rgba(232,93,138,0.5)'}:{background:'rgba(255,255,255,0.8)',color:'#e85d8a',border:'1.5px solid #e85d8a'}}>
               📍 Bana en yakın {locStatus==='loading'&&'…'}

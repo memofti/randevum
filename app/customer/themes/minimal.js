@@ -96,7 +96,7 @@ export default function MinimalTheme(props) {
           </div>
           {/* SORT — kategori altında, belirgin */}
           <div className="flex items-center gap-2 mb-12">
-            <button onClick={()=>{ if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } }}
+            <button onClick={()=>{ if(userLoc){setSortBy('distance');return} if(locStatus==='denied'){toast3?.('❌ Konum izni reddedildi. Tarayıcı ayarlarından izin verin.');return} requestLocation?.(true) }}
               className="text-sm font-bold whitespace-nowrap px-4 py-2 rounded-full transition-all flex items-center gap-1.5"
               style={sortBy==='distance'?{background:TERRA,color:'#fff',boxShadow:'0 4px 14px -4px '+TERRA+'80'}:{color:TERRA,border:'1.5px solid '+TERRA}}>
               📍 Bana en yakın {locStatus==='loading'&&'…'}

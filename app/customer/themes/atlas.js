@@ -127,7 +127,7 @@ export default function AtlasTheme(props) {
           </div>
           {/* SORT — kategori altında belirgin */}
           <div className="max-w-[1280px] mx-auto px-5 sm:px-10 pb-2.5 flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
-            <button onClick={()=>{ if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } }}
+            <button onClick={()=>{ if(userLoc){setSortBy('distance');return} if(locStatus==='denied'){toast3?.('❌ Konum izni reddedildi. Tarayıcı ayarlarından izin verin.');return} requestLocation?.(true) }}
               className="text-[11px] font-black tracking-[0.2em] uppercase whitespace-nowrap px-3 py-1.5 transition-all flex items-center gap-1.5"
               style={sortBy==='distance'?{background:accent, color:PAPER}:{color:accent, border:'1.5px solid '+accent}}>
               📍 Bana en yakın {locStatus==='loading' && '…'}

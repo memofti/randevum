@@ -133,8 +133,13 @@ export default function CustomerPage() {
   }
 
   const requestLocation = (autoSort=true) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocStatus('denied')
+      toast3('❌ Tarayıcınız konum desteklemiyor (veya güvenli bağlantı gerekli)')
+      return
+    }
     setLocStatus('loading')
-    navigator.geolocation?.getCurrentPosition(
+    navigator.geolocation.getCurrentPosition(
       pos => {
         const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude }
         setUserLoc(loc)
@@ -794,7 +799,7 @@ export default function CustomerPage() {
               </div>
               {/* SORT — kategori altında belirgin */}
               <div className="flex gap-2 mt-3 flex-wrap items-center">
-                <button onClick={() => { if(!userLoc) { requestLocation(); return } setSortBy('distance') }}
+                <button onClick={() => { if(userLoc){setSortBy('distance');return} if(locStatus==='denied'){toast3('❌ Konum izni reddedildi. Tarayıcı ayarlarından izin verin.');return} requestLocation(true) }}
                   className={`px-4 py-1.5 rounded-full text-xs font-bold border-2 transition-all flex items-center gap-1.5 ${sortBy==='distance'?'bg-orange-500 border-orange-500 text-white shadow-lg shadow-orange-500/30':'bg-white/10 border-orange-400 text-orange-400 hover:bg-orange-500/10'}`}>
                   📍 Bana en yakın {locStatus==='loading'&&'…'}
                 </button>
@@ -817,7 +822,7 @@ export default function CustomerPage() {
                     <div className="text-white/50 text-xs font-semibold mb-2">Sıralama</div>
                     <div className="flex gap-1.5 flex-wrap">
                       {[['rating','⭐ Puan'],['distance','📍 En Yakın'],['price_asc','₺ Ucuz→Pahalı'],['price_desc','₺ Pahalı→Ucuz'],['reviews','💬 Yorum']].map(([v,l])=>(
-                        <button key={v} onClick={()=>{ if(v==='distance' && !userLoc) { requestLocation(); return } setSortBy(v) }}
+                        <button key={v} onClick={()=>{ if(v==='distance'){ if(userLoc){setSortBy('distance');return} if(locStatus==='denied'){toast3('❌ Konum izni reddedildi. Tarayıcı ayarlarından izin verin.');return} requestLocation(true); return } setSortBy(v) }}
                           className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${sortBy===v?'bg-orange-500 text-white':'bg-white/10 text-white/70 hover:bg-white/20'}`}>{l}</button>
                       ))}
                     </div>

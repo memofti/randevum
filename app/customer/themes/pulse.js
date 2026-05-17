@@ -160,7 +160,7 @@ export default function PulseTheme(props) {
           </div>
           {/* SORT — kategori altında belirgin */}
           <div className="mb-6 flex items-center gap-2 flex-wrap">
-            <button onClick={()=>{ if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } }}
+            <button onClick={()=>{ if(userLoc){setSortBy('distance');return} if(locStatus==='denied'){toast3?.('❌ Konum izni reddedildi. Tarayıcı ayarlarından izin verin.');return} requestLocation?.(true) }}
               className="text-xs font-bold px-4 py-1.5 rounded-full transition-all whitespace-nowrap flex items-center gap-1.5"
               style={sortBy==='distance'?{background:`linear-gradient(135deg,${MINT},${PINK})`, color:'#000', boxShadow:'0 4px 14px -4px '+MINT+'aa'}:{background:'transparent', color:MINT, border:'1.5px solid '+MINT}}>
               📍 Bana en yakın {locStatus==='loading' && '...'}

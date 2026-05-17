@@ -127,7 +127,7 @@ export default function BoldTheme(props) {
           </div>
           {/* SORT — kategori altında belirgin */}
           <div className="flex items-center gap-2 mb-10 flex-wrap">
-            <button onClick={()=>{ if(!userLoc && requestLocation){ requestLocation(true) } else { setSortBy('distance') } }}
+            <button onClick={()=>{ if(userLoc){setSortBy('distance');return} if(locStatus==='denied'){toast3?.('❌ Konum izni reddedildi. Tarayıcı ayarlarından izin verin.');return} requestLocation?.(true) }}
               className="text-xs font-black tracking-[0.15em] whitespace-nowrap px-4 py-2.5 transition-all flex items-center gap-1.5"
               style={sortBy==='distance'?{background:COBALT,color:'#fff',boxShadow:'4px 4px 0 0 '+INK}:{color:COBALT,border:'2px solid '+COBALT,background:PAPER}}>
               📍 EN YAKIN {locStatus==='loading'&&'…'}
