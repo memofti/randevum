@@ -135,10 +135,6 @@ export default function AppointmentsTab({
               <button onClick={()=>setQrModal(a)} title={T('qrCode')}
                 className={'text-xs px-2 py-1 rounded-md font-bold '+(isDark?'bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30':'bg-purple-50 hover:bg-purple-100 text-purple-600 border border-purple-200')}>{T('qrCode')}</button>
             )}
-            {!isPast && ['pending','confirmed'].includes(a.status) && rescheduleAppt && (
-              <button onClick={()=>rescheduleAppt(a)} title={uiLang==='en'?'Reschedule':'Taşı'}
-                className={'text-xs px-2 py-1 rounded-md font-bold '+(isDark?'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30':'bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200')}>{uiLang==='en'?'Reschedule':'Taşı'}</button>
-            )}
             {!isPast && ['pending','confirmed'].includes(a.status) && (
               <button onClick={()=>{ if(window.confirm(uiLang==='en'?'Are you sure you want to cancel?':'Randevuyu iptal etmek istediğinize emin misiniz?')) cancelAppt?.(a.id) }} title={T('cancelAppt')}
                 className={'text-xs px-2 py-1 rounded-md font-bold '+(isDark?'bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30':'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200')}>{T('cancelAppt')}</button>

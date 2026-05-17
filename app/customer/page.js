@@ -640,7 +640,7 @@ export default function CustomerPage() {
     detailLoading, bookModal, setBookModal: guardedSetBookModal, setDetailBiz,
     activeAdDiscount, paymentEnabled, loyaltyEnabled, toast3, userLoc, locStatus, requestLocation,
     searchQ, setSearchQ, catFilter, setCatFilter, sortBy, setSortBy,
-    cancelAppt, rescheduleAppt: openReschedule, setReviewModal, setReviewForm, qrModal, setQrModal,
+    cancelAppt, setReviewModal, setReviewForm, qrModal, setQrModal,
     upcomingAppts, pastAppts, saveBooking,
     bizReviews, detailModalProps,
     // Profil tab shared component props
@@ -1328,7 +1328,6 @@ export default function CustomerPage() {
               upcomingAppts={upcomingAppts}
               pastAppts={pastAppts}
               cancelAppt={cancelAppt}
-              rescheduleAppt={openReschedule}
               setReviewModal={setReviewModal}
               setReviewForm={setReviewForm}
               setQrModal={setQrModal}
