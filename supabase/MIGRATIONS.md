@@ -59,6 +59,7 @@ Bu komut tüm migration geçmişini SQL dosyası olarak `supabase/migrations/` a
 | 2026-05-16 | restore_is_admin_owns_business_execute |
 | 2026-05-16 | rls_initplan_optimization |
 | 2026-05-16 | add_fk_indexes_and_drop_unused |
+| 2026-05-17 | ad_credits_kontör_and_enforce_max_30_days |
 
 ## Project bilgileri
 

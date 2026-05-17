@@ -160,6 +160,7 @@ export default function BusinessPage() {
   const [allPlans, setAllPlans] = useState([])
   const [adPackages, setAdPackages] = useState([])
   const [myAdPurchases, setMyAdPurchases] = useState([])
+  const [adCredits, setAdCredits] = useState({ total:0, used:0, remaining:0 })
   const [myPlanRequests, setMyPlanRequests] = useState([])
   const [buyingPkg, setBuyingPkg] = useState('')
   const [buyingPlan, setBuyingPlan] = useState('')
@@ -298,6 +299,12 @@ export default function BusinessPage() {
       setAds(adsr?.data||[])
       setAdPackages(pkgs?.data||[])
       setMyAdPurchases(myPurch?.data||[])
+      // Aktif kontör özetini hesapla
+      const now = new Date()
+      const activePurch = (myPurch?.data||[]).filter(p => p.status==='approved' && (!p.expires_at || new Date(p.expires_at) > now))
+      const ct = activePurch.reduce((s,p)=>s+(p.credits_total||0),0)
+      const cu = activePurch.reduce((s,p)=>s+(p.credits_used||0),0)
+      setAdCredits({ total: ct, used: cu, remaining: Math.max(0, ct-cu) })
       setMyPlanRequests(myPlanReq?.data||[])
       setCoupons(cpr?.data||[])
     } catch(e) { console.error(e) }
@@ -1987,8 +1994,14 @@ export default function BusinessPage() {
               {/* REKLAMLAR */}
               {view==='ads'&&(
                 <div>
-                  <div className="flex items-center justify-between mb-5">
-                    <div><h1 className="text-lg sm:text-xl font-bold">Reklam & Kampanya</h1><p className="text-gray-500 text-sm">{ads.length} aktif reklam</p></div>
+                  <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+                    <div>
+                      <h1 className="text-lg sm:text-xl font-bold">Reklam & Kampanya</h1>
+                      <p className="text-gray-500 text-sm">{ads.length} aktif reklam · <span className={'font-bold '+(adCredits.remaining>0?'text-green-600':'text-red-500')}>🎟️ {adCredits.remaining} kontör kaldı</span></p>
+                    </div>
+                    {adCredits.remaining <= 0 && (
+                      <button onClick={()=>setView('adpkgs')} className="text-xs font-bold bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg">🎁 Paket Al</button>
+                    )}
                   </div>
                   {/* Yeni reklam formu */}
                   <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mb-5">
@@ -2040,8 +2053,21 @@ export default function BusinessPage() {
                         </select>
                       </div>
                       <div>
-                        <label className="text-xs font-bold block mb-1">Bitiş Tarihi</label>
-                        <input type="date" min={new Date().toISOString().split('T')[0]} value={adForm.ends_at} onChange={e=>setAdForm(p=>({...p,ends_at:e.target.value}))}
+                        <label className="text-xs font-bold block mb-1">Bitiş Tarihi <span className="text-gray-400 font-normal">(maks. 30 gün)</span></label>
+                        <input type="date"
+                          min={new Date().toISOString().split('T')[0]}
+                          max={new Date(Date.now()+30*24*60*60*1000).toISOString().split('T')[0]}
+                          value={adForm.ends_at}
+                          onChange={e=>{
+                            const v = e.target.value
+                            const max = new Date(Date.now()+30*24*60*60*1000)
+                            if (v && new Date(v+'T00:00:00') > max) {
+                              toast3('Reklam süresi maksimum 30 gün olabilir')
+                              setAdForm(p=>({...p, ends_at: max.toISOString().split('T')[0]}))
+                              return
+                            }
+                            setAdForm(p=>({...p,ends_at:v}))
+                          }}
                           className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/>
                       </div>
                       {adForm.type==='regional' && (<>
@@ -2065,6 +2091,12 @@ export default function BusinessPage() {
                     <div className="mt-4 flex justify-end">
                       <button onClick={async()=>{
                         if(!adForm.title) { toast3('❌ Başlık zorunlu'); return }
+                        // Kontör kontrolü
+                        if (adCredits.remaining <= 0) {
+                          toast3('❌ Kontörünüz yok — Reklam Paketleri sayfasından paket satın alın')
+                          setView('adpkgs')
+                          return
+                        }
                         // Aktif reklam limiti kontrolü
                         const activeAdsCount = ads.filter(a => ['active','pending','approved'].includes(a.status) && (!a.ends_at || new Date(a.ends_at) > new Date())).length
                         const limit = planLimits?.max_ads || 0
@@ -2073,7 +2105,11 @@ export default function BusinessPage() {
                           return
                         }
                         setSavingAd(true)
-                        const { data: newAd } = await supabase.from('ads').insert({
+                        // Max 30 gün enforce — trigger zaten kesiyor ama UI'da da kapat
+                        const reqEnd = adForm.ends_at ? new Date(adForm.ends_at) : new Date(Date.now()+30*24*60*60*1000)
+                        const max30 = new Date(Date.now()+30*24*60*60*1000)
+                        const finalEnd = reqEnd > max30 ? max30 : reqEnd
+                        const { data: newAd, error: adErr } = await supabase.from('ads').insert({
                           business_id: bizId,
                           title: adForm.title,
                           description: adForm.description,
@@ -2085,13 +2121,31 @@ export default function BusinessPage() {
                           target_radius_km: adForm.target_radius_km,
                           target_lat: bizInfo?.lat||null,
                           target_lng: bizInfo?.lng||null,
-                          ends_at: adForm.ends_at ? new Date(adForm.ends_at).toISOString() : new Date(Date.now()+30*24*60*60*1000).toISOString(),
+                          ends_at: finalEnd.toISOString(),
                           status: 'pending',
                         }).select().maybeSingle()
-                        if(newAd) setAds(p=>[newAd,...p])
-                        setAdForm({title:'',description:'',image_url:'',discount_pct:0,type:'general',target_city:'',target_district:'',target_radius_km:20,ends_at:''})
                         setSavingAd(false)
-                        toast3('✅ Reklam oluşturuldu! Admin onayından sonra yayına girer.')
+                        if (adErr) {
+                          if (String(adErr.message||'').includes('kontör')) {
+                            toast3('❌ Kontörünüz tükendi — yeni paket satın alın')
+                            setView('adpkgs')
+                          } else {
+                            toast3('❌ '+adErr.message)
+                          }
+                          return
+                        }
+                        if(newAd) setAds(p=>[newAd,...p])
+                        // Kontör state'ini güncelle (1 düştü)
+                        setAdCredits(c => ({ ...c, used: c.used+1, remaining: Math.max(0, c.remaining-1) }))
+                        setMyAdPurchases(prev => {
+                          const arr = [...prev]
+                          const now = new Date()
+                          const idx = arr.findIndex(p => p.status==='approved' && (!p.expires_at || new Date(p.expires_at) > now) && (p.credits_used||0) < (p.credits_total||0))
+                          if (idx >= 0) arr[idx] = { ...arr[idx], credits_used: (arr[idx].credits_used||0)+1 }
+                          return arr
+                        })
+                        setAdForm({title:'',description:'',image_url:'',discount_pct:0,type:'general',target_city:'',target_district:'',target_radius_km:20,ends_at:''})
+                        toast3('✅ Reklam oluşturuldu! 1 kontör kullanıldı. Admin onayından sonra yayına girer.')
                       }} disabled={savingAd} className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-bold rounded-xl">
                         {savingAd?'Gönderiliyor...':'📢 Reklam Oluştur'}
                       </button>
@@ -2123,6 +2177,14 @@ export default function BusinessPage() {
                               {ad.target_city && <span>📍 {ad.target_city}{ad.target_district ? ' / ' + ad.target_district : ''}</span>}
                               <span>👁 {ad.impressions} gösterim</span>
                               <span>🖱 {ad.clicks} tıklama</span>
+                              {(() => {
+                                const end = ad.ends_at ? new Date(ad.ends_at) : null
+                                if (!end) return null
+                                const diffDays = Math.ceil((end - new Date()) / 86400000)
+                                if (diffDays <= 0) return <span className="bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-full font-bold">Süresi doldu</span>
+                                if (diffDays <= 3) return <span className="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full font-bold">⏳ {diffDays} gün kaldı</span>
+                                return <span className="bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full font-bold">⏳ {diffDays} gün kaldı</span>
+                              })()}
                               <span>Bitiş: {new Date(ad.ends_at).toLocaleDateString('tr-TR')}</span>
                             </div>
                           </div>
@@ -2146,6 +2208,25 @@ export default function BusinessPage() {
                     <p className="text-sm text-gray-500">Daha fazla görünürlük için paketlerden satın al — Admin onayı sonrası aktif olur</p>
                   </div>
 
+                  {/* Kontör Özeti */}
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-5">
+                    <div className="bg-white border-2 border-green-200 rounded-xl p-4 shadow-sm">
+                      <div className="text-xs font-bold text-green-700 uppercase tracking-wider">Kalan Kontör</div>
+                      <div className="text-3xl font-extrabold text-green-600 mt-1">{adCredits.remaining}</div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">aktif paketlerden</div>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                      <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Kullanılan</div>
+                      <div className="text-3xl font-extrabold text-orange-500 mt-1">{adCredits.used}</div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">oluşturulan reklam</div>
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                      <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Toplam</div>
+                      <div className="text-3xl font-extrabold text-gray-700 mt-1">{adCredits.total}</div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">paketlerden gelen</div>
+                    </div>
+                  </div>
+
                   {/* Mevcut satın almalarım */}
                   {myAdPurchases.length>0 && (
                     <div className="bg-white border border-gray-200 rounded-xl shadow-sm mb-5">
@@ -2161,9 +2242,15 @@ export default function BusinessPage() {
                           const s = statusMap[p.status] || statusMap.pending
                           return (
                             <div key={p.id} className="flex items-center gap-3 p-3 text-sm">
-                              <div className="flex-1">
+                              <div className="flex-1 min-w-0">
                                 <div className="font-semibold">{p.package_name}</div>
                                 <div className="text-xs text-gray-400">₺{p.price_at_purchase} · {new Date(p.created_at).toLocaleDateString('tr-TR')}{p.expires_at?` → ${new Date(p.expires_at).toLocaleDateString('tr-TR')}`:''}</div>
+                                {p.status==='approved' && (p.credits_total||0) > 0 && (
+                                  <div className="text-xs mt-1 font-bold">
+                                    <span className="text-green-600">Kalan: {Math.max(0,(p.credits_total||0)-(p.credits_used||0))}</span>
+                                    <span className="text-gray-400"> / Toplam: {p.credits_total} · Kullanılan: {p.credits_used||0}</span>
+                                  </div>
+                                )}
                               </div>
                               <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${s.cls}`}>{s.l}</span>
                             </div>
@@ -2186,6 +2273,11 @@ export default function BusinessPage() {
                           <div className="mb-4">
                             <div className="text-3xl font-extrabold text-orange-500">₺{pkg.price}</div>
                             <div className="text-xs text-gray-400">{pkg.duration_days} gün boyunca aktif</div>
+                            {pkg.ad_credits > 0 && (
+                              <div className="mt-2 inline-flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 text-xs font-bold px-2.5 py-1 rounded-full">
+                                🎟️ {pkg.ad_credits} kontör
+                              </div>
+                            )}
                           </div>
                           <ul className="space-y-2 mb-5 flex-1">
                             {(pkg.features||[]).map((f,i)=>(
