@@ -2005,7 +2005,15 @@ export default function BusinessPage() {
                   </div>
                   {/* Yeni reklam formu */}
                   <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm mb-5">
-                    <div className="font-bold text-sm mb-4">➕ Yeni Reklam Oluştur</div>
+                    <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
+                      <div className="font-bold text-sm">➕ Yeni Reklam Oluştur</div>
+                      <div className={'text-xs font-bold px-3 py-1.5 rounded-full border flex items-center gap-1.5 '+(adCredits.remaining>0?'bg-green-50 text-green-700 border-green-200':'bg-red-50 text-red-700 border-red-200')}>
+                        🎟️ 1 kontör kullanılacak · {adCredits.remaining>0?`${adCredits.remaining-1} kontör kalacak`:'kontörünüz yok'}
+                      </div>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 mb-4 text-xs text-blue-800">
+                      <b>ℹ️ Bilgi:</b> Her yeni reklam kampanyası <b>1 kontör</b> tüketir. Reklam yayında olduğu sürece tek seferlik kontör düşülür — gün/tıklama başı ekstra kesinti yoktur.
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="sm:col-span-2">
                         <label className="text-xs font-bold block mb-1">Başlık *</label>
@@ -2147,7 +2155,7 @@ export default function BusinessPage() {
                         setAdForm({title:'',description:'',image_url:'',discount_pct:0,type:'general',target_city:'',target_district:'',target_radius_km:20,ends_at:''})
                         toast3('✅ Reklam oluşturuldu! 1 kontör kullanıldı. Admin onayından sonra yayına girer.')
                       }} disabled={savingAd} className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-bold rounded-xl">
-                        {savingAd?'Gönderiliyor...':'📢 Reklam Oluştur'}
+                        {savingAd?'Gönderiliyor...':'📢 Reklam Oluştur (1 kontör)'}
                       </button>
                     </div>
                   </div>
@@ -2209,11 +2217,11 @@ export default function BusinessPage() {
                   </div>
 
                   {/* Kontör Özeti */}
-                  <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-5">
+                  <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-2">
                     <div className="bg-white border-2 border-green-200 rounded-xl p-4 shadow-sm">
                       <div className="text-xs font-bold text-green-700 uppercase tracking-wider">Kalan Kontör</div>
                       <div className="text-3xl font-extrabold text-green-600 mt-1">{adCredits.remaining}</div>
-                      <div className="text-[11px] text-gray-400 mt-0.5">aktif paketlerden</div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">= {adCredits.remaining} reklam oluşturabilirsin</div>
                     </div>
                     <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                       <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Kullanılan</div>
@@ -2225,6 +2233,10 @@ export default function BusinessPage() {
                       <div className="text-3xl font-extrabold text-gray-700 mt-1">{adCredits.total}</div>
                       <div className="text-[11px] text-gray-400 mt-0.5">paketlerden gelen</div>
                     </div>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 mb-5 text-xs text-blue-800">
+                    <b>ℹ️ Nasıl çalışır:</b> 1 reklam kampanyası = 1 kontör. Mesela 10 kontör aldıysan 10 farklı reklam yayınlayabilirsin.
+                    Süresi 30 gün ve içerideki tıklama/gösterim sayısı kontörü etkilemez.
                   </div>
 
                   {/* Mevcut satın almalarım */}
@@ -2274,8 +2286,9 @@ export default function BusinessPage() {
                             <div className="text-3xl font-extrabold text-orange-500">₺{pkg.price}</div>
                             <div className="text-xs text-gray-400">{pkg.duration_days} gün boyunca aktif</div>
                             {pkg.ad_credits > 0 && (
-                              <div className="mt-2 inline-flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 text-xs font-bold px-2.5 py-1 rounded-full">
-                                🎟️ {pkg.ad_credits} kontör
+                              <div className="mt-2 inline-flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 text-xs font-bold px-2.5 py-1 rounded-full"
+                                title={`${pkg.ad_credits} reklam kampanyası oluşturabilirsiniz (her kampanya 1 kontör)`}>
+                                🎟️ {pkg.ad_credits} kontör · {pkg.ad_credits} reklam
                               </div>
                             )}
                           </div>
