@@ -175,11 +175,6 @@ export default function PulseTheme(props) {
           {/* REKLAMLAR */}
           {activeAds.length > 0 && <div className="mb-7"><AdBanner ads={activeAds} userLoc={userLoc} businesses={businesses} onBizDetail={openDetail} variant="default" uiLang={uiLang}/></div>}
 
-          {/* ŞİMDİ AÇIK ŞERIDI */}
-          {openNowShelf.length > 0 && !catFilter && !searchQ && (
-            <ShelfRow title="Şimdi açık" emoji="💚" accent={MINT} items={openNowShelf} onDetail={openDetail}/>
-          )}
-
           {/* KATEGORİ ŞERİTLERİ veya FİLTRELİ GRID */}
           {(catFilter || searchQ) ? (
             // Filtre/arama aktifse tek bir grid
