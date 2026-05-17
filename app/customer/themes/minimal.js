@@ -56,7 +56,7 @@ export default function MinimalTheme(props) {
               </button>
             ))}
             {user ? (
-              <button onClick={logout} className="ml-3 text-sm font-medium" style={{color:MUTED}}>{T('logout')}</button>
+              <button onClick={() => logout()} className="ml-3 text-sm font-medium" style={{color:MUTED}}>{T('logout')}</button>
             ) : (
               <a href="/login" className="ml-3 text-sm font-bold px-3 py-1.5 rounded-full" style={{background:TERRA,color:'#fff'}}>Giriş</a>
             )}

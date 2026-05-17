@@ -739,7 +739,7 @@ export default function CustomerPage() {
               <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-xs font-bold text-white border-2 border-white/20">
                 {user.name?.[0]||'?'}
               </div>
-              <button onClick={logout}
+              <button onClick={() => logout()}
                 className="text-white/40 hover:text-white/70 text-xs transition-colors">Çıkış</button>
             </>
           ) : (

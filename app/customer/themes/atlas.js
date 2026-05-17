@@ -93,7 +93,7 @@ export default function AtlasTheme(props) {
               </button>
             ))}
             {user ? (
-              <button onClick={logout}
+              <button onClick={() => logout()}
                 className="hidden sm:inline text-xs font-bold" style={{color:MUTED}}>{T('logout')||'Çıkış'}</button>
             ) : (
               <a href="/login" className="text-xs font-bold px-3 py-1.5 rounded" style={{background:accent,color:PAPER}}>Giriş</a>

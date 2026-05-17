@@ -89,7 +89,7 @@ export default function PulseTheme(props) {
               </button>
             ))}
             {user ? (
-              <button onClick={logout}
+              <button onClick={() => logout()}
                 className="ml-2 text-xs font-bold hidden sm:inline opacity-60 hover:opacity-100">{T('logout')||'Çıkış'}</button>
             ) : (
               <a href="/login" className="ml-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all" style={{background:MINT, color:'#000'}}>Giriş</a>

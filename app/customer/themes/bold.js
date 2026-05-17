@@ -59,7 +59,7 @@ export default function BoldTheme(props) {
               </button>
             ))}
             {user ? (
-              <button onClick={logout}
+              <button onClick={() => logout()}
                 className="ml-2 text-sm font-bold hidden sm:inline" style={{color:MUTED}}>{T('logout')}</button>
             ) : (
               <a href="/login" className="ml-2 px-3.5 py-2 text-sm font-bold" style={{background:COBALT,color:'#fff'}}>Giriş</a>
