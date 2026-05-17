@@ -8,7 +8,8 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       const u = await getActiveUser()
-      if (!u) { router.push('/login'); return }
+      // Misafir modu: oturum yoksa müşteri keşfet sayfasına gönder, /login'e değil
+      if (!u) { router.push('/customer'); return }
       if (u.role === 'admin') { router.push('/admin'); return }
       if (u.role === 'business_owner') { router.push('/business'); return }
       router.push('/customer')

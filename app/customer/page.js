@@ -1320,106 +1320,22 @@ export default function CustomerPage() {
         </div>
       )}
       {tab === 'appts' && user && (
-        <div className="max-w-3xl mx-auto w-full px-3 sm:px-6 py-5 sm:py-8">
-          <div className="flex items-center justify-between mb-5">
-            <div><h1 className="text-xl font-bold">Randevularım</h1><p className="text-gray-500 text-sm">{user.name}</p></div>
-            <button onClick={() => { setTab('home') }} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">+ Yeni Randevu</button>
-          </div>
-
-          {loading ? (
-            <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /> Yükleniyor...</div>
-          ) : (
-            <>
-              {/* Yaklaşan */}
-              {upcomingAppts.length > 0 && (
-                <div className="mb-6">
-                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Yaklaşan ({upcomingAppts.length})</div>
-                  <div className="space-y-3">
-                    {upcomingAppts.map(a => {
-                      const sc = {confirmed:'#ff6b35',pending:'#f59e0b'}[a.status]||'#ccc'
-                      return (
-                        <div key={a.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
-                          <div className="flex items-center gap-3">
-                            <div className="w-1 h-14 rounded-full flex-shrink-0" style={{background:sc}} />
-                            <div className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0" style={{background:sc+'22'}}>{a.businesses?.emoji||'🏢'}</div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-bold text-sm">{a.businesses?.name||'—'}</div>
-                              <div className="text-gray-500 text-xs">{a.services?.name||'—'} · {a.staff?.name||'Herhangi personel'}</div>
-                              <div className="text-xs font-semibold text-gray-700 mt-1">
-                                📅 {new Date(a.appointment_date).toLocaleDateString('tr-TR',{day:'numeric',month:'long',year:'numeric'})} · ⏰ {String(a.appointment_time).slice(0,5)}
-                              </div>
-                            </div>
-                            <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                              <Bdg s={a.status} />
-                              <div className="text-xs font-bold text-gray-700">₺{a.price||0}</div>
-                            </div>
-                          </div>
-                          <div className="flex gap-2 mt-3 pt-3 border-t border-gray-50">
-                            <button onClick={()=>{
-                              if(window.confirm('Randevuyu iptal etmek istediğinize emin misiniz?')) cancelAppt(a.id)
-                            }} className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 font-semibold">✗ İptal</button>
-                            {(() => {
-                              const b = a.businesses
-                              const q = b?.lat && b?.lng
-                                ? `${b.lat},${b.lng}`
-                                : encodeURIComponent([b?.name, b?.address, b?.city].filter(Boolean).join(' '))
-                              return (
-                                <a href={`https://www.google.com/maps/search/?api=1&query=${q}`} target="_blank" rel="noopener noreferrer"
-                                  className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 font-semibold text-center">🗺️ Yol</a>
-                              )
-                            })()}
-                            {a.qr_token && <button onClick={()=>setQrModal(a)} className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-purple-50 text-purple-600 border border-purple-200 hover:bg-purple-100 font-semibold">📲 QR</button>}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Geçmiş */}
-              {pastAppts.length > 0 && (
-                <div>
-                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Geçmiş ({pastAppts.length})</div>
-                  <div className="space-y-2">
-                    {pastAppts.map(a => (
-                      <div key={a.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0 bg-gray-50">{a.businesses?.emoji||'🏢'}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm">{a.businesses?.name||'—'}</div>
-                          <div className="text-gray-400 text-xs">{a.services?.name||'—'} · {new Date(a.appointment_date).toLocaleDateString('tr-TR')}</div>
-                        </div>
-                        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-                          <Bdg s={a.status} pastDue={apptDateTime(a).getTime() <= nowMs} />
-                          {a.status === 'completed' && (
-                            <div className="flex gap-1.5 flex-wrap">
-                              <button onClick={() => { setReviewModal(a); setReviewForm({ rating: 5, comment: '' }) }}
-                                className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 hover:bg-amber-100 font-semibold">
-                                ⭐ Değerlendir
-                              </button>
-                              <a href={'/fatura/'+a.id} target="_blank" rel="noopener noreferrer"
-                                className="text-xs px-2.5 py-1 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 font-semibold">
-                                🧾 Fatura
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {appointments.length === 0 && (
-                <div className="bg-white border border-gray-200 rounded-xl p-16 text-center">
-                  <div className="text-4xl mb-3">📅</div>
-                  <div className="text-gray-500 font-semibold mb-2">Henüz randevu yok</div>
-                  <button onClick={() => setTab('home')} className="bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold px-6 py-2.5 rounded-lg">İşletme Bul</button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        loading
+          ? <div className="flex items-center justify-center gap-3 text-gray-400 py-16"><Spin /> Yükleniyor...</div>
+          : <AppointmentsTab
+              upcomingAppts={upcomingAppts}
+              pastAppts={pastAppts}
+              cancelAppt={cancelAppt}
+              rescheduleAppt={openReschedule}
+              setReviewModal={setReviewModal}
+              setReviewForm={setReviewForm}
+              setQrModal={setQrModal}
+              setTab={setTab}
+              openDetail={openDetail}
+              businesses={businesses}
+              uiLang={uiLang}
+              variant="default"
+            />
       )}
 
       {/* PROFİL — paylaşımlı bileşen */}
