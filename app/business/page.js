@@ -165,6 +165,7 @@ export default function BusinessPage() {
   const [buyingPlan, setBuyingPlan] = useState('')
   const [apptSearch, setApptSearch] = useState('')
   const [custSearch, setCustSearch] = useState('')
+  const [staffStatusFilter, setStaffStatusFilter] = useState('') // '' | 'available' | 'busy'
   // Calendar
   const [calDate, setCalDate] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState(null)
@@ -766,6 +767,24 @@ export default function BusinessPage() {
   })
   const maxHour=Math.max(...hourlyData.map(h=>h.count),1)
 
+  // Personel canlı durumu — şu anda aktif randevusu olan personel "busy"
+  const staffBusyMap = (() => {
+    const now = new Date()
+    const todayStr = now.toISOString().split('T')[0]
+    const nowMin = now.getHours()*60 + now.getMinutes()
+    const map = {}
+    appts.forEach(a => {
+      if (!a.staff_id || a.appointment_date !== todayStr) return
+      if (!['pending','confirmed'].includes(a.status)) return
+      const [h,m] = String(a.appointment_time||'00:00').slice(0,5).split(':').map(Number)
+      const startMin = h*60+m
+      const dur = a.services?.duration_min || 60
+      if (nowMin >= startMin && nowMin < startMin+dur) map[a.staff_id] = true
+    })
+    return map
+  })()
+  const isStaffBusy = (id) => !!staffBusyMap[id]
+
   // Filtreli randevular
   const filteredAppts = appts.filter(a => {
     const matchS = !apptStatus || a.status===apptStatus
@@ -1301,8 +1320,8 @@ export default function BusinessPage() {
                               <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white" style={{background:COLORS[i%COLORS.length]}}>{s.name[0]}</div>
                               <span className="text-sm font-medium">{s.name.split(' ')[0]}</span>
                             </div>
-                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${s.status==='available'?'bg-green-50 text-green-700 border-green-200':'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                              {s.status==='available'?'Müsait':'Meşgul'}
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${!isStaffBusy(s.id)?'bg-green-50 text-green-700 border-green-200':'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                              {!isStaffBusy(s.id)?'Müsait':'Meşgul'}
                             </span>
                           </div>
                         ))}
@@ -1574,23 +1593,40 @@ export default function BusinessPage() {
                     })()}
                   </div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4 mb-4 sm:mb-5">
-                    <KPI label="Toplam" value={staff.length} color="blue" />
-                    <KPI label="Müsait" value={staff.filter(s=>s.status==='available').length} color="green" />
-                    <KPI label="Meşgul" value={staff.filter(s=>s.status==='busy').length} color="orange" />
+                    <button onClick={()=>setStaffStatusFilter('')} className={'text-left rounded-xl '+(staffStatusFilter===''?'ring-2 ring-orange-400':'')}>
+                      <KPI label="Toplam" value={staff.length} color="blue" />
+                    </button>
+                    <button onClick={()=>setStaffStatusFilter('available')} className={'text-left rounded-xl '+(staffStatusFilter==='available'?'ring-2 ring-green-400':'')}>
+                      <KPI label="Müsait" value={staff.filter(s=>!isStaffBusy(s.id)).length} color="green" />
+                    </button>
+                    <button onClick={()=>setStaffStatusFilter('busy')} className={'text-left rounded-xl '+(staffStatusFilter==='busy'?'ring-2 ring-amber-400':'')}>
+                      <KPI label="Meşgul" value={staff.filter(s=>isStaffBusy(s.id)).length} color="orange" />
+                    </button>
                     <KPI label="Ort. Puan" value={staff.length?(staff.reduce((s,x)=>s+(+x.rating||0),0)/staff.length).toFixed(1):'—'} color="purple" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
-                    {staff.map((s,i)=>(
+                    {staff
+                      .filter(s => !staffStatusFilter
+                        || (staffStatusFilter==='busy' && isStaffBusy(s.id))
+                        || (staffStatusFilter==='available' && !isStaffBusy(s.id)))
+                      .map((s,i)=>{
+                        const busy = isStaffBusy(s.id)
+                        return (
                       <div key={s.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow group">
                         <div className="relative flex-shrink-0 cursor-pointer" onClick={()=>openStaffEdit(s)}>
                           {s.avatar_url
                             ? <img src={s.avatar_url} alt={s.name} className="w-12 h-12 rounded-full object-cover border border-gray-200" />
                             : <div className="w-12 h-12 rounded-full flex items-center justify-center text-base font-extrabold text-white" style={{background:COLORS[i%COLORS.length]}}>{s.name[0]}</div>
                           }
-                          <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${s.status==='available'?'bg-green-500':s.status==='busy'?'bg-amber-500':'bg-gray-400'}`} />
+                          <div className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${busy?'bg-amber-500':'bg-green-500'}`} title={busy?'Meşgul':'Müsait'} />
                         </div>
-                        <div className="flex-1 cursor-pointer" onClick={()=>openStaffEdit(s)}>
-                          <div className="font-bold text-sm">{s.name}</div>
+                        <div className="flex-1 cursor-pointer min-w-0" onClick={()=>openStaffEdit(s)}>
+                          <div className="font-bold text-sm flex items-center gap-1.5">
+                            <span className="truncate">{s.name}</span>
+                            <span className={'text-[10px] font-bold px-1.5 py-0.5 rounded-full border whitespace-nowrap '+(busy?'bg-amber-50 text-amber-700 border-amber-200':'bg-green-50 text-green-700 border-green-200')}>
+                              {busy?'Meşgul':'Müsait'}
+                            </span>
+                          </div>
                           <div className="text-xs text-gray-500 mt-0.5">{s.speciality||'Genel'}</div>
                           {s.phone&&<div className="text-xs text-gray-400 mt-0.5">{s.phone}</div>}
                         </div>
@@ -1602,7 +1638,8 @@ export default function BusinessPage() {
                             className="mt-1.5 text-xs bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 px-2 py-0.5 rounded-md font-bold">📅 Takvim</button>
                         </div>
                       </div>
-                    ))}
+                        )
+                      })}
                     {staff.length===0&&<div className="col-span-2 text-center py-12 text-gray-400">Henüz personel eklenmemiş — <button onClick={openStaffAdd} className="text-orange-500 hover:underline">hemen ekle</button></div>}
                   </div>
 
