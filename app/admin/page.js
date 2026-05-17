@@ -58,7 +58,7 @@ export default function AdminPage() {
   const [planRequests, setPlanRequests] = useState([])
   const [notifOpen, setNotifOpen] = useState(false)
   const [pkgModal, setPkgModal] = useState(false) // false | 'add' | pkg
-  const [pkgForm, setPkgForm] = useState({name:'',description:'',price:0,duration_days:7,max_clicks:0,badge:'',features:'',is_popular:false,status:'active',sort_order:0})
+  const [pkgForm, setPkgForm] = useState({name:'',description:'',price:0,duration_days:7,max_clicks:0,ad_credits:1,badge:'',features:'',is_popular:false,status:'active',sort_order:0})
   const [pkgSaving, setPkgSaving] = useState(false)
   const [coupons, setCoupons] = useState([])
   const [couponModal, setCouponModal] = useState(false) // false | 'add' | coupon
@@ -135,13 +135,13 @@ export default function AdminPage() {
 
   // Ad packages CRUD
   function openPkgAdd() {
-    setPkgForm({name:'',description:'',price:0,duration_days:7,max_clicks:0,badge:'',features:'',is_popular:false,status:'active',sort_order:adPackages.length+1})
+    setPkgForm({name:'',description:'',price:0,duration_days:7,max_clicks:0,ad_credits:1,badge:'',features:'',is_popular:false,status:'active',sort_order:adPackages.length+1})
     setPkgModal('add')
   }
   function openPkgEdit(p) {
     setPkgForm({
       name:p.name, description:p.description||'', price:p.price, duration_days:p.duration_days,
-      max_clicks:p.max_clicks||0, badge:p.badge||'',
+      max_clicks:p.max_clicks||0, ad_credits:p.ad_credits||1, badge:p.badge||'',
       features:(p.features||[]).join('\n'), is_popular:p.is_popular||false,
       status:p.status||'active', sort_order:p.sort_order||0,
     })
@@ -157,6 +157,7 @@ export default function AdminPage() {
         price: +pkgForm.price,
         duration_days: +pkgForm.duration_days,
         max_clicks: +pkgForm.max_clicks || 0,
+        ad_credits: Math.max(1, +pkgForm.ad_credits || 1),
         badge: pkgForm.badge || null,
         features: pkgForm.features.split('\n').map(s=>s.trim()).filter(Boolean),
         is_popular: !!pkgForm.is_popular,
@@ -247,11 +248,18 @@ export default function AdminPage() {
     const pkg = adPackages.find(p => p.id === purch.package_id)
     const expiresAt = new Date()
     expiresAt.setDate(expiresAt.getDate() + (pkg?.duration_days || 7))
-    await supabase.from('ad_package_purchases').update({
+    const credits = pkg?.ad_credits || 1
+    const { error } = await supabase.from('ad_package_purchases').update({
       status:'approved', approved_at:new Date().toISOString(), expires_at:expiresAt.toISOString(),
     }).eq('id', id)
-    setAdPurchases(p => p.map(x => x.id===id ? {...x, status:'approved', expires_at:expiresAt.toISOString()} : x))
-    toast3('✅ Satın alma onaylandı')
+    if (error) { toast3('❌ '+error.message); return }
+    setAdPurchases(p => p.map(x => x.id===id ? {
+      ...x,
+      status:'approved',
+      expires_at:expiresAt.toISOString(),
+      credits_total: x.credits_total || credits,
+    } : x))
+    toast3('✅ Satın alma onaylandı — '+credits+' kontör tanımlandı')
   }
   async function rejectPurchase(id) {
     await supabase.from('ad_package_purchases').update({status:'rejected'}).eq('id', id)
@@ -351,11 +359,13 @@ export default function AdminPage() {
                 <input value={pkgForm.name} onChange={e=>setPkgForm(p=>({...p,name:e.target.value}))} placeholder="Örn: Pro Reklam" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
               <div><label className="text-xs font-bold block mb-1">Açıklama</label>
                 <input value={pkgForm.description} onChange={e=>setPkgForm(p=>({...p,description:e.target.value}))} placeholder="Kısa açıklama" className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div><label className="text-xs font-bold block mb-1">Fiyat (₺)</label>
                   <input type="number" min="0" value={pkgForm.price} onChange={e=>setPkgForm(p=>({...p,price:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
                 <div><label className="text-xs font-bold block mb-1">Süre (gün)</label>
-                  <input type="number" min="1" value={pkgForm.duration_days} onChange={e=>setPkgForm(p=>({...p,duration_days:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
+                  <input type="number" min="1" max="30" value={pkgForm.duration_days} onChange={e=>setPkgForm(p=>({...p,duration_days:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
+                <div><label className="text-xs font-bold block mb-1">🎟️ Kontör</label>
+                  <input type="number" min="1" value={pkgForm.ad_credits} onChange={e=>setPkgForm(p=>({...p,ad_credits:+e.target.value}))} className="w-full px-3 py-2.5 border border-orange-300 bg-orange-50 rounded-xl text-sm outline-none focus:border-orange-500 font-bold"/></div>
                 <div><label className="text-xs font-bold block mb-1">Max Tıklama</label>
                   <input type="number" min="0" value={pkgForm.max_clicks} onChange={e=>setPkgForm(p=>({...p,max_clicks:+e.target.value}))} className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-orange-400"/></div>
               </div>
@@ -1201,22 +1211,60 @@ export default function AdminPage() {
                     <button onClick={openPkgAdd} className="bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold px-4 py-2 rounded-lg">{T('addPackage')}</button>
                   </div>
 
+                  {/* Platform geneli kontör KPI'leri */}
+                  {(() => {
+                    const now = new Date()
+                    const active = adPurchases.filter(p => p.status==='approved' && (!p.expires_at || new Date(p.expires_at) > now))
+                    const totalSold = adPurchases.filter(p => p.status==='approved' || p.status==='expired').reduce((s,p)=>s+(p.credits_total||0),0)
+                    const totalUsed = adPurchases.filter(p => p.status==='approved' || p.status==='expired').reduce((s,p)=>s+(p.credits_used||0),0)
+                    const activeRemaining = active.reduce((s,p)=>s+Math.max(0,(p.credits_total||0)-(p.credits_used||0)),0)
+                    return (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-5">
+                        <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+                          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Aktif Kalan</div>
+                          <div className="text-2xl font-extrabold text-green-600 mt-0.5">{activeRemaining}</div>
+                          <div className="text-[11px] text-gray-400">kullanılabilir kontör</div>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+                          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Kullanılan</div>
+                          <div className="text-2xl font-extrabold text-orange-500 mt-0.5">{totalUsed}</div>
+                          <div className="text-[11px] text-gray-400">oluşturulan reklam</div>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+                          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Toplam Satılan</div>
+                          <div className="text-2xl font-extrabold text-gray-700 mt-0.5">{totalSold}</div>
+                          <div className="text-[11px] text-gray-400">tüm zamanlar</div>
+                        </div>
+                        <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
+                          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Aktif Paket</div>
+                          <div className="text-2xl font-extrabold text-blue-600 mt-0.5">{active.length}</div>
+                          <div className="text-[11px] text-gray-400">firmada</div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   {/* Pending satın almalar */}
                   {adPurchases.filter(p=>p.status==='pending').length>0 && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5">
                       <div className="font-bold text-amber-700 text-sm mb-3">⏳ Onay Bekleyen Satın Almalar ({adPurchases.filter(p=>p.status==='pending').length})</div>
                       <div className="space-y-2">
-                        {adPurchases.filter(p=>p.status==='pending').map(p=>(
+                        {adPurchases.filter(p=>p.status==='pending').map(p=>{
+                          const pkg = adPackages.find(x => x.id === p.package_id)
+                          const grantCredits = pkg?.ad_credits || 1
+                          return (
                           <div key={p.id} className="bg-white border border-amber-200 rounded-lg p-3 flex items-center gap-3">
                             <div className="text-2xl">{p.businesses?.emoji||'🏢'}</div>
                             <div className="flex-1 min-w-0">
                               <div className="font-bold text-sm truncate">{p.businesses?.name||'Firma'}</div>
                               <div className="text-xs text-gray-500">{p.package_name} — ₺{p.price_at_purchase}</div>
+                              <div className="text-[11px] text-green-700 font-bold mt-0.5">Onaylanırsa firmaya 🎟️ {grantCredits} kontör tanımlanacak</div>
                             </div>
                             <button onClick={()=>approvePurchase(p.id)} className="text-xs bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg font-bold">✓ Onayla</button>
                             <button onClick={()=>rejectPurchase(p.id)} className="text-xs bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg font-bold">✗</button>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   )}
@@ -1229,7 +1277,11 @@ export default function AdminPage() {
                         {pkg.badge && <div className="text-3xl mb-2">{pkg.badge}</div>}
                         <div className="font-extrabold text-lg mb-1">{pkg.name}</div>
                         {pkg.description && <div className="text-xs text-gray-500 mb-3">{pkg.description}</div>}
-                        <div className="text-2xl font-extrabold text-orange-500 mb-3">₺{pkg.price}<span className="text-sm text-gray-400 font-normal"> / {pkg.duration_days} gün</span></div>
+                        <div className="text-2xl font-extrabold text-orange-500 mb-2">₺{pkg.price}<span className="text-sm text-gray-400 font-normal"> / {pkg.duration_days} gün</span></div>
+                        <div className="mb-3 flex flex-wrap gap-1.5">
+                          <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 border border-green-200 text-[11px] font-bold px-2 py-0.5 rounded-full">🎟️ {pkg.ad_credits||1} kontör</span>
+                          {pkg.max_clicks>0 && <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold px-2 py-0.5 rounded-full">🖱 {pkg.max_clicks} tık</span>}
+                        </div>
                         <ul className="space-y-1 mb-4">
                           {(pkg.features||[]).map((f,i)=>(
                             <li key={i} className="flex items-center gap-2 text-xs text-gray-600"><span className="text-green-500">✓</span>{f}</li>
@@ -1250,17 +1302,27 @@ export default function AdminPage() {
                     <div className="bg-white border border-gray-200 rounded-xl p-4">
                       <div className="font-bold text-sm mb-3">📋 Satın Alma Geçmişi ({adPurchases.filter(p=>p.status!=='pending').length})</div>
                       <div className="space-y-2">
-                        {adPurchases.filter(p=>p.status!=='pending').slice(0,10).map(p=>(
-                          <div key={p.id} className="border border-gray-100 rounded-lg p-3 flex items-center gap-3 text-sm">
+                        {adPurchases.filter(p=>p.status!=='pending').slice(0,10).map(p=>{
+                          const total = p.credits_total||0
+                          const used = p.credits_used||0
+                          const remaining = Math.max(0, total - used)
+                          return (
+                          <div key={p.id} className="border border-gray-100 rounded-lg p-3 flex items-center gap-3 text-sm flex-wrap">
                             <div className="text-xl">{p.businesses?.emoji||'🏢'}</div>
-                            <div className="flex-1"><b>{p.businesses?.name}</b> — {p.package_name}</div>
+                            <div className="flex-1 min-w-0"><b>{p.businesses?.name}</b> — {p.package_name}</div>
+                            {(p.status==='approved' || p.status==='expired') && total > 0 && (
+                              <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border bg-green-50 text-green-700 border-green-200" title={`Toplam ${total} · Kullanılan ${used} · Kalan ${remaining}`}>
+                                🎟️ {remaining}/{total}
+                              </span>
+                            )}
                             <span className={'text-xs font-bold px-2 py-0.5 rounded-full border '+
                               (p.status==='approved'?'bg-green-50 text-green-700 border-green-200':p.status==='rejected'?'bg-red-50 text-red-600 border-red-200':'bg-gray-100 text-gray-600 border-gray-200')}>
                               {p.status==='approved'?'Onaylandı':p.status==='rejected'?'Reddedildi':p.status==='expired'?'Süresi Doldu':p.status}
                             </span>
                             <span className="text-xs text-gray-400">{new Date(p.created_at).toLocaleDateString('tr-TR')}</span>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   )}
