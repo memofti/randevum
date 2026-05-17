@@ -113,7 +113,7 @@ export default function BusinessDetailModal({ biz, bizIdx, services, staff, revi
           )}
 
           {/* Sosyal & iletişim — chip'ler */}
-          {(biz.phone || biz.address || biz.instagram || biz.facebook || biz.website) && (
+          {(biz.phone || biz.address || biz.instagram || biz.facebook || biz.website || biz.lat || biz.lng) && (
             <div className="flex gap-2 flex-wrap">
               {biz.phone && (
                 <a href={'tel:'+biz.phone}
@@ -134,6 +134,23 @@ export default function BusinessDetailModal({ biz, bizIdx, services, staff, revi
                   📍 {biz.address}
                 </span>
               )}
+              {(biz.lat || biz.address || biz.name) && (() => {
+                const q = biz.lat && biz.lng
+                  ? `${biz.lat},${biz.lng}`
+                  : encodeURIComponent([biz?.name, biz?.address, biz?.city].filter(Boolean).join(' '))
+                return (
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${q}`} target="_blank" rel="noopener noreferrer"
+                    className="text-xs font-bold px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors"
+                    style={{
+                      border:'1px solid '+(isDark?'rgba(59,130,246,0.4)':'#bfdbfe'),
+                      background:(isDark?'rgba(59,130,246,0.08)':'#eff6ff'),
+                      color:isDark?'#93c5fd':'#1d4ed8',
+                      borderRadius: variant==='bold'||variant==='minimal' ? '0' : '9999px',
+                    }}>
+                    🗺️ {T('directions')}
+                  </a>
+                )
+              })()}
               {biz.instagram && (
                 <a href={biz.instagram} target="_blank" rel="noopener noreferrer"
                   className="text-xs font-bold px-3 py-1.5 inline-flex items-center gap-1.5 transition-colors"

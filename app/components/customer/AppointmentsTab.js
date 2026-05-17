@@ -203,7 +203,7 @@ export default function AppointmentsTab({
                     </div>
                   </div>
                 </button>
-                {!isPast && biz && (biz.lat || biz.address || biz.name) && (
+                {biz && (biz.lat || biz.address || biz.name) && (
                   <a href={dirUrl} target="_blank" rel="noopener noreferrer" title={T('directions')}
                     className={'text-xs px-2 py-1 rounded-md font-bold flex-shrink-0 '+(isDark?'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30':'bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200')}>
                     {T('directions')}

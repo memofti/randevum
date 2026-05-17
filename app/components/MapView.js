@@ -299,6 +299,19 @@ export default function MapView({ businesses, onBook }) {
           {geocoding && <div className="mt-2 text-xs text-gray-400 text-center">🗺️ İşletmeler yükleniyor...</div>}
         </div>
 
+        {/* Arama */}
+        <div className="px-3 pt-2 pb-2 border-b border-gray-100 flex-shrink-0">
+          <div className="relative">
+            <input type="search" placeholder="Firma adı veya şehir ara..." value={searchQ}
+              onChange={e=>setSearchQ(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-lg pl-8 pr-8 py-2 outline-none focus:border-orange-400 transition-colors"/>
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">🔎</span>
+            {searchQ && (
+              <button onClick={()=>setSearchQ('')} className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 text-xs rounded-full">✕</button>
+            )}
+          </div>
+        </div>
+
         {/* Filtre */}
         <div className="px-3 pb-2 border-b border-gray-100 flex-shrink-0">
           <div className="flex gap-1.5 flex-wrap">
@@ -402,19 +415,28 @@ export default function MapView({ businesses, onBook }) {
             <button onClick={() => { getLocation(); setShowList(false) }} className="bg-white border-2 border-orange-500 text-orange-500 text-xs font-bold px-3 py-2 rounded-xl shadow-lg flex items-center gap-1.5">📍 Konumumu Bul</button>
           </div>
         )}
-        {/* Mobile harita üstü kategori filtre bar — en üstte */}
-        <div className="md:hidden absolute top-3 left-3 right-3 z-[1000] flex items-center gap-2 overflow-x-auto scrollbar-hide bg-white/95 backdrop-blur rounded-xl px-2 py-1.5 shadow-md">
-          <input type="search" placeholder="Mekân ara..." value={searchQ} onChange={e=>setSearchQ(e.target.value)}
-            className="flex-shrink-0 text-xs px-2 py-1 outline-none border-b border-gray-200 w-20 focus:w-32 transition-all"/>
-          <button onClick={()=>setFilterCat('')} className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap"
-            style={!filterCat?{background:'#f97316',color:'#fff'}:{background:'#f3f4f6',color:'#0a0a0a'}}>Tümü</button>
-          {[...new Set(businesses.map(b=>b.category).filter(Boolean))].map(c => (
-            <button key={c} onClick={()=>setFilterCat(c===filterCat?'':c)} className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap"
-              style={filterCat===c?{background:'#f97316',color:'#fff'}:{background:'#f3f4f6',color:'#0a0a0a'}}>{c}</button>
-          ))}
+        {/* Mobile harita üstü arama + kategori bar */}
+        <div className="md:hidden absolute top-3 left-3 right-3 z-[1000] flex flex-col gap-2">
+          <div className="relative bg-white/95 backdrop-blur rounded-xl shadow-md">
+            <input type="search" placeholder="Firma adı veya şehir ara..." value={searchQ}
+              onChange={e=>setSearchQ(e.target.value)}
+              className="w-full text-sm pl-9 pr-9 py-2.5 outline-none rounded-xl bg-transparent"/>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">🔎</span>
+            {searchQ && (
+              <button onClick={()=>setSearchQ('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-700 text-sm rounded-full">✕</button>
+            )}
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide bg-white/95 backdrop-blur rounded-xl px-2 py-1.5 shadow-md">
+            <button onClick={()=>setFilterCat('')} className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap"
+              style={!filterCat?{background:'#f97316',color:'#fff'}:{background:'#f3f4f6',color:'#0a0a0a'}}>Tümü</button>
+            {[...new Set(businesses.map(b=>b.category).filter(Boolean))].map(c => (
+              <button key={c} onClick={()=>setFilterCat(c===filterCat?'':c)} className="flex-shrink-0 text-xs font-bold px-2.5 py-1 rounded-full whitespace-nowrap"
+                style={filterCat===c?{background:'#f97316',color:'#fff'}:{background:'#f3f4f6',color:'#0a0a0a'}}>{c}</button>
+            ))}
+          </div>
         </div>
-        {/* Liste butonu — kategori barının altında */}
-        <div className="md:hidden absolute top-14 left-3 z-[1000]">
+        {/* Liste butonu — arama + kategori barının altında */}
+        <div className="md:hidden absolute top-[8.5rem] left-3 z-[1000]">
           <button onClick={() => setShowList(true)} className="bg-white border border-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl shadow-lg">📋 Liste</button>
         </div>
         <div className="absolute bottom-4 right-3 z-[1000] bg-white rounded-xl px-3 py-2 shadow-md flex items-center gap-2 text-xs text-gray-500">
