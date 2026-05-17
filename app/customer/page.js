@@ -495,6 +495,15 @@ export default function CustomerPage() {
   }
   async function confirmReschedule() {
     if (!rescheduleModal || !rescheduleForm.date || !rescheduleForm.time) return
+    const today = new Date(); today.setHours(0,0,0,0)
+    if (new Date(rescheduleForm.date+'T00:00:00') < today) { toast3('Geçmiş tarih seçilemez'); return }
+    // Bugünse, geçmiş saati engelle
+    const todayStr = new Date().toISOString().split('T')[0]
+    if (rescheduleForm.date === todayStr) {
+      const now = new Date()
+      const [h,m] = String(rescheduleForm.time).split(':').map(Number)
+      if (h*60+m <= now.getHours()*60+now.getMinutes()) { toast3('Geçmiş saat seçilemez'); return }
+    }
     setRescheduling(true)
     try {
       const { error } = await supabase.from('appointments')

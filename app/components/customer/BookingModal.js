@@ -46,8 +46,19 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
     let cur = sH*60+sM; const end = eH*60+eM
     const svc = services.find(s=>s.id===form.service)
     const dur = svc ? svc.duration_min : 60
+    // Bugün için geçmiş saatleri ele
+    const now = new Date()
+    const today = now.toISOString().split('T')[0]
+    const isToday = form.date === today
+    const minMinutes = isToday ? now.getHours()*60 + now.getMinutes() : -1
     const slots = []
-    while(cur+dur<=end) { const h=Math.floor(cur/60),m=cur%60; slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`); cur+=dur }
+    while(cur+dur<=end) {
+      if (cur > minMinutes) {
+        const h=Math.floor(cur/60),m=cur%60
+        slots.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`)
+      }
+      cur+=dur
+    }
     return slots
   }
   const availableSlots = generateSlots()
@@ -138,8 +149,16 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
     }
   }
 
+  const isPastDate = (d) => {
+    if (!d) return false
+    const today = new Date(); today.setHours(0,0,0,0)
+    const sel = new Date(d+'T00:00:00')
+    return sel < today
+  }
+
   const handleBook = async () => {
     if (!form.service||!form.date||!form.time) { toast3(T('selectRequired')); return }
+    if (isPastDate(form.date)) { toast3(uiLang==='en'?'Date cannot be in the past':'Geçmiş tarih seçilemez'); return }
     if (takenSlots.includes(form.time)) { toast3(T('slotTaken')); return }
     setBooking(true)
     await onBook({ ...form, total, campaignDiscount, couponDiscount, couponCode: couponApplied?.code, couponId: couponApplied?.id, pointsUsed, pointsDiscount }, payCard)
@@ -198,7 +217,11 @@ export default function BookingModal({ biz, services, staff, onClose, onBook, to
                   <label className="block mb-1" style={labelStyle}>{T('date')} *</label>
                   <input type="date" className={inputCls} style={inputStyle}
                     min={new Date().toISOString().split('T')[0]} value={form.date}
-                    onChange={e=>{setForm(p=>({...p,date:e.target.value,time:''})); loadTakenSlots(e.target.value); setAlarmSet(false)}}/>
+                    onChange={e=>{
+                      const v = e.target.value
+                      if (isPastDate(v)) { toast3?.(uiLang==='en'?'Date cannot be in the past':'Geçmiş tarih seçilemez'); return }
+                      setForm(p=>({...p,date:v,time:''})); loadTakenSlots(v); setAlarmSet(false)
+                    }}/>
                 </div>
                 <div>
                   <label className="block mb-1" style={labelStyle}>{T('time')}{slotsLoading&&<span className="font-normal opacity-60"> ...</span>}</label>
